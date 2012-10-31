@@ -4,7 +4,43 @@ import sys
 import argparse
 import shutil
 
+class SampleDepot:
 
+    def __init__(self, tarball, parent_dir, p4port=1492):
+        self.parent_dir = os.path.abspath(parent_dir)
+        self.p4root = os.path.join(self.parent_dir, "PerforceSample")
+        self.p4port = p4port
+        self.tarball = tarball
+        self.p4d = "/usr/local/bin/p4d -r %s" % self.p4root
+        self.p4  = "/usr/local/bin/p4 -p %d" % self.p4port
+        self.start_cmd = "%s -p %d -d" % (self.p4d, self.p4port)
+        self.stop_cmd = "%s admin stop" % self.p4
+
+
+    def server_start(self):
+        os.system(self.start_cmd)
+        print "Server started on port: %d" % self.p4port
+
+
+    def server_stop(self):
+        os.system(self.stop_cmd)
+
+
+#    def server_delete(self):
+
+    def unpack_depot(self):
+        os.chdir(self.parent_dir)
+        os.system("tar xzf %s" % self.tarball)
+
+
+    def server_restore(self):
+        os.system("%s -jr %s" % (self.p4d, os.path.join(self.p4root, "checkpoint")))
+        os.system("%s -xu" % self.p4d)
+
+    def info(self):
+        os.system("%s info" % self.p4)
+
+# TODO: cruft to remove
 def clean_p4root(p4root, ask):
     if os.path.exists(p4root):
         if os.path.isfile(p4root):
@@ -22,19 +58,6 @@ def clean_p4root(p4root, ask):
                 raise RuntimeError("P4Root '%s' exists, but is not a file or directory!" % p4root)
 
 
-def unpack_depot(tarfile, destination):
-    os.chdir(destination)
-    os.system("tar xzf %s" % tarfile)
-
-
-def start_server(p4root, p4port=1492):
-    checkpoint = os.path.join(p4root, "checkpoint")
-    p4d = "/usr/local/bin/p4d"
-
-    os.system("%s -r %s -jr %s" % (p4d, p4root, checkpoint))
-    os.system("%s -r %s -xu" % (p4d, p4root))
-    os.system("%s -d -r %s -p %d" % (p4d, p4root, p4port))
-    print "Server started on port: %d" % p4port
 
 
 def parse_options():
@@ -50,17 +73,11 @@ def main():
     args = parse_options()
 
     destination = os.path.abspath(args.dir)
-    p4root = os.path.join(destination, "PerforceSample")
 
-    # If server already in p4root, need to stop it and delete it.
-    clean_p4root(p4root, args.prompt)
-
-    # Unpack tarball in destination directory
-    unpack_depot(tarfile, destination)
-
-    # Start server
-    # TODO: add p4port argument
-    start_server(p4root)
+    p4 = SampleDepot(tarfile, destination)
+    p4.server_start()
+    p4.info()
+    p4.server_stop()
 
 
 if __name__ == "__main__":
