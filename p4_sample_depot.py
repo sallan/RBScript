@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 import os
-import sys
 import argparse
 import shutil
+import subprocess
 
 class SampleDepot:
 
@@ -23,41 +23,47 @@ class SampleDepot:
 
 
     def server_stop(self):
-        os.system(self.stop_cmd)
+        try:
+            self.info()
+            subprocess.call(["/usr/local/bin/p4", "-p", "1492", "admin", "stop"])
+            # TODO: should probably check error code here
+            print "Server stopped on port: %s " % self.p4port
+        except subprocess.CalledProcessError:
+            print "Already stopped?"
+
+    def server_delete(self):
+        p4root = self.p4root
+        if os.path.exists(p4root):
+            if os.path.isfile(p4root):
+                raise RuntimeError("%s is a file! Exiting." % p4root)
+            else:
+                if os.path.isdir(p4root):
+                    # assume it's a sample depot and try to stop the server first
+                    print "%s already exists. Attempting to stop server..." % p4root
+                    self.server_stop()
+                    print "Deleting %s" % p4root
+                    shutil.rmtree(p4root)
+                else:
+                    raise RuntimeError("p4root '%s' exists, but is not a file or directory! What the heck is it?" % p4root)
 
 
-#    def server_delete(self):
+    def server_install(self):
+        if os.path.isdir(self.parent_dir):
+            self.server_delete()
+        else:
+            os.makedirs(self.parent_dir)
 
-    def unpack_depot(self):
+        # Move to destination dir and unpack tarball
         os.chdir(self.parent_dir)
         os.system("tar xzf %s" % self.tarball)
 
-
-    def server_restore(self):
+        # Restore checkpoint and upgrade db files to our server
         os.system("%s -jr %s" % (self.p4d, os.path.join(self.p4root, "checkpoint")))
         os.system("%s -xu" % self.p4d)
 
+
     def info(self):
-        os.system("%s info" % self.p4)
-
-# TODO: cruft to remove
-def clean_p4root(p4root, ask):
-    if os.path.exists(p4root):
-        if os.path.isfile(p4root):
-            raise RuntimeError("P4Root '%s' exists as a file. Exiting." % p4root)
-        else:
-            if os.path.isdir(p4root):
-                if ask:
-                    # TODO: prompt would go here
-                    pass
-
-                # Delete directory and all contents
-                print "Deleting old P4Root '%s'" % p4root
-                shutil.rmtree(p4root)
-            else:
-                raise RuntimeError("P4Root '%s' exists, but is not a file or directory!" % p4root)
-
-
+        subprocess.check_output(["/usr/local/bin/p4", "-p", "1492", "info"])
 
 
 def parse_options():
@@ -75,9 +81,9 @@ def main():
     destination = os.path.abspath(args.dir)
 
     p4 = SampleDepot(tarfile, destination)
+    p4.server_install()
     p4.server_start()
     p4.info()
-    p4.server_stop()
 
 
 if __name__ == "__main__":
