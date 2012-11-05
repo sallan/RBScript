@@ -1188,7 +1188,9 @@ def parse_options(args):
                          "when updating an existing review-request\n")
         sys.exit(1)
 
-    return args
+    # TODO: I had to change this to return options in order to get my script to work.
+    # Is this the only way? I'd prefer to not have to modify this script.
+    return args, globals()['options']
 
 
 def main():
