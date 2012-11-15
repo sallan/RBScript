@@ -81,7 +81,11 @@ def list_reviews(user):
 
 
 def post_main():
-    """Copied the main() routine directly from postreview.py"""
+    """
+    Copied the main() routine directly from postreview.py and hacked it up.
+    Why? So that I can save all the checks for SCM type and go right to
+    perforce. Plus it saves me forking another python process.
+    """
     if 'APPDATA' in os.environ:
         homepath = os.environ['APPDATA']
     elif 'HOME' in os.environ:
@@ -108,9 +112,10 @@ def post_main():
 
     debug('Checking the repository type. Errors shown below are mostly harmless.')
 
-    # TODO: This is the line I need to replace with a direct call to PerforceClient
+    # NOTE: This is the line I replaced with a direct call to PerforceClient
     # repository_info, tool = scan_usable_client(options)
     tool = PerforceClient(options=options)
+    # TODO: These need to come from environment or config.
     tool.p4_client = "sallan-buffy-sample-depot"
     tool.p4_port = "localhost:1492"
     repository_info = tool.get_repository_info()
@@ -128,12 +133,15 @@ def post_main():
     if options.server:
         server_url = options.server
     else:
+        # TODO: Should we skip this? We don't need to be this nice
         server_url = tool.scan_for_server(repository_info)
 
     if not server_url:
         print "Unable to find a Review Board server for this source code tree."
         sys.exit(1)
 
+    # NOTE: This is the key line where we create our server. If you get this
+    # right you're golden!
     server = ReviewBoardServer(server_url, repository_info, cookie_file)
     server.check_api_version()
 
@@ -143,11 +151,19 @@ def post_main():
 
     print "Made it this far!"
 
-    sys.exit()
+    # TODO: Need to decide now - are we going to support CVS? Please no!
+    # If that's the case, we don't need the conditional. In fact, much of
+    # the logic in all this gets simplified if we only support perforce.
+    #
+    # Instead, we check for a changelist argument and if we don't have one we
+    # assume default changelist and create a numbered changelist. We should be
+    # able to do away with the need to use RB ID for interactions. Aw, probably
+    # should keep that part of the rb interface the same. If they want the other,
+    # use post-review directly. I'd prefer that anyway :)
     if repository_info.supports_changesets:
         changenum = tool.get_changenum(args)
     else:
-        changenum = None
+        changenum = p4_change()
 
     if options.revision_range:
         diff, parent_diff = tool.diff_between_revisions(options.revision_range, args,
@@ -171,6 +187,10 @@ def post_main():
 
     if len(diff) == 0:
         die("There don't seem to be any diffs!")
+    else:
+        print "Cool, made it this far now!"
+
+    sys.exit()
 
     if (isinstance(tool, PerforceClient) or
         isinstance(tool, PlasticClient)) and changenum is not None:
@@ -211,6 +231,10 @@ def post_main():
         except:
             print 'Error opening review URL: %s' % review_url
 
+def main():
+    print "Go back to just wrapping post-review for the first iteration."
+
+
 if __name__ == "__main__":
     # create_review("815")
     # list_reviews("sallan")
@@ -221,4 +245,6 @@ if __name__ == "__main__":
     # p4 = PerforceClient(user_config=user_config)
     # server = PR.ReviewBoardServer("https://crush.olympus.f5net.com", p4, "/Users/sallan/.post-review-cookies.txt")
     # print server.check_api_version()
-    post_main()
+    # post_main()
+    main()
+
