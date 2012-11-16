@@ -254,16 +254,25 @@ def migrate_rbrc_file(old_rc_file, new_rc_file):
         print e
 
     # TODO: Get full list by looking in our old rb script
-    valid_keys = [
-        "username"
-        "server"
-    ]
+    valid_keys = {"username" : "USERNAME",
+                  "server" : "REVIEWBOARD_URL",
+    }
 
-    for line in old_rc:
-        k, v = line.split("=")
-        if k in valid_keys:
-            print line
 
+    try:
+        f = open(new_rc_file, "w")
+        for line in old_rc:
+            k, v = [ s.strip() for s in line.split("=") ]
+            if k in valid_keys.keys():
+                new_k = valid_keys[k]
+                if new_k == "REVIEWBOARD_URL":
+                    v = "https://" + v
+                f.write('%s = "%s"\n'% (new_k, v))
+        f.close()
+    except IOError, e:
+        print "Failed to write %s" % new_rc_file
+        print e
+    print "Wrote config file: %s" % new_rc_file
 
 
 def check_config():
@@ -286,7 +295,7 @@ def check_config():
 
 
 def main():
-    # check_config()
+    check_config()
 
     if len(sys.argv) > 1:
         change = sys.argv[1]
