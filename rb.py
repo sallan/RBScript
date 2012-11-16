@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 import sys
 import os
-from postreview import *
-from rbtools.clients.perforce import PerforceClient
-
 import tempfile
+
+# from postreview import *
+# from rbtools.clients.perforce import PerforceClient
+
 
 def run_cmd(cmd):
     child = os.popen(cmd)
@@ -22,7 +23,8 @@ def p4_change():
     editor = "vi"
 
     # TODO: hard-coded hack needs fixing
-    p4 = "/usr/local/bin/p4 -p 1492"
+    #p4 = "/usr/local/bin/p4 -p 1492"
+    p4 = "/usr/local/bin/p4 "
 
     # See if user has a favorite
     if "P4EDITOR" in os.environ:
@@ -231,8 +233,70 @@ def post_main():
         except:
             print 'Error opening review URL: %s' % review_url
 
+def migrate_rbrc_file(old_rc_file, new_rc_file):
+    """
+    Copies known compatible settings from the legacy .rbrc file to a new
+    .reviewboardrc file. This function should only get called if there is
+    not already an existing .reviewboardrc file.
+    """
+    if os.path.isfile(new_rc_file):
+        # TODO: Is this really necessary?
+        print "I refused to overwrite existing file: %s" % new_rc_file
+        sys.exit(1)
+
+    try:
+        # Need to support older pythons so can't use the with statement
+        f = open(old_rc_file, "r")
+        old_rc = f.read().splitlines()
+        f.close()
+    except IOError, e:
+        print "Can't read %s" % old_rc_file
+        print e
+
+    # TODO: Get full list by looking in our old rb script
+    valid_keys = [
+        "username"
+        "server"
+    ]
+
+    for line in old_rc:
+        k, v = line.split("=")
+        if k in valid_keys:
+            print line
+
+
+
+def check_config():
+    """
+    Look for a legacy .rbrc file in the user home directory and then for a .reviewboardrc.
+    If you find both, warn the user and use .reviewboardrc. If only .rbrc, migrate those
+    settings to .reviewboardrc.
+    """
+    user_home = os.path.expanduser("~")
+    rbrc_file = os.path.join(user_home, ".rbrc")
+    reviewboardrc_file = os.path.join(user_home, ".reviewboardrc")
+    if os.path.isfile(rbrc_file):
+        if os.path.isfile(reviewboardrc_file):
+            print "Found .reviewboardrc and legacy .rbrc file. Using .reviewboardrc"
+        else:
+            print "Found legacy %s file." % rbrc_file
+            print "Migrating to %s" % reviewboardrc_file
+            migrate_rbrc_file(rbrc_file, reviewboardrc_file)
+
+
+
 def main():
-    print "Go back to just wrapping post-review for the first iteration."
+    # check_config()
+
+    if len(sys.argv) > 1:
+        change = sys.argv[1]
+        print change
+    else:
+        change = p4_change()
+
+    if change:
+        cmd = "post-review %s" % change
+        os.system(cmd)
 
 
 if __name__ == "__main__":
