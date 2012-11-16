@@ -2,6 +2,7 @@
 import sys
 import os
 import tempfile
+import postreview
 
 def run_cmd(cmd):
     child = os.popen(cmd)
@@ -29,7 +30,7 @@ def p4_change():
     # Fallback editor is vi
     editor = "vi"
 
-    # p4 = "/usr/local/bin/p4 "
+    # TODO: Can probably remove this
     p4 = "p4"
 
     # See if user has a favorite
@@ -123,6 +124,25 @@ def check_config():
             migrate_rbrc_file(rbrc_file, reviewboardrc_file)
 
 
+def get_review(change):
+    """
+    Given a perforce changelist number, get back a review object from server.
+    Good luck.
+    """
+    pass
+
+
+def get_server():
+#    tool = postreview.PerforceClient(options=options)
+    tool = postreview.PerforceClient(options=None)
+    repository_info = tool.get_repository_info()
+    server_url = "https://crush.olympus.f5net.com"
+    cookie_file = "/Users/sallan/.post-review-cookies.txt"
+    server = postreview.ReviewBoardServer(server_url, repository_info, cookie_file)
+    return server
+
+
+
 def main():
     check_config()
 
@@ -139,16 +159,10 @@ def main():
 
 
 if __name__ == "__main__":
-    # create_review("815")
-    # list_reviews("sallan")
-    # api = PR.api_get("https://crush.olympus.f5net.com/api/")
-    # user_config, globals()['configs'] = PR.load_config_files(homepath)
-    # config = {"username": "sallan", "REVIEWBOARD_URL" : "https://crush.olympus.f5net.com/" }
-    # PR.options.username = "sallan"
-    # p4 = PerforceClient(user_config=user_config)
-    # server = PR.ReviewBoardServer("https://crush.olympus.f5net.com", p4, "/Users/sallan/.post-review-cookies.txt")
-    # print server.check_api_version()
-    # post_main()
-    main()
+    homepath = "/Users/sallan"
+    user_config, globals()['configs'] = postreview.load_config_files(homepath)
+    args, globals()['options'] = postreview.parse_options(sys.argv[1:])
+    server = get_server()
+    print server.api_get(server.url + "/api/")
 
 # EOF
