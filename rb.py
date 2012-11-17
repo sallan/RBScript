@@ -129,17 +129,24 @@ def get_review(change):
     Given a perforce changelist number, get back a review object from server.
     Good luck.
     """
-    pass
+    server = get_server()
+    print server.api_get(server.url + "/api/")
 
 
 def get_server():
 #    tool = postreview.PerforceClient(options=options)
     tool = postreview.PerforceClient(options=None)
     repository_info = tool.get_repository_info()
-    server_url = "https://crush.olympus.f5net.com"
+#    server_url = "https://crush.olympus.f5net.com"
+    server_url = "http://giles"
     cookie_file = "/Users/sallan/.post-review-cookies.txt"
     server = postreview.ReviewBoardServer(server_url, repository_info, cookie_file)
     return server
+
+def get_repositories(server):
+    url = server.url + "api/get_repositories"
+    request = postreview.HTTPRequest(url, method="GET")
+    return request
 
 
 
@@ -159,10 +166,11 @@ def main():
 
 
 if __name__ == "__main__":
-    homepath = "/Users/sallan"
+    homepath = os.path.expanduser("~")
     user_config, globals()['configs'] = postreview.load_config_files(homepath)
     args, globals()['options'] = postreview.parse_options(sys.argv[1:])
     server = get_server()
-    print server.api_get(server.url + "/api/")
+    server.check_api_version()
+    print server.get_repositories()
 
 # EOF
