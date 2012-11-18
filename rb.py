@@ -133,21 +133,17 @@ def get_review(change):
     print server.api_get(server.url + "/api/")
 
 
-def get_server():
-#    tool = postreview.PerforceClient(options=options)
-    tool = postreview.PerforceClient(options=None)
+def get_server(user_config, options, cookie_file):
+    tool = postreview.PerforceClient(options=options)
+    server_url = user_config["REVIEWBOARD_URL"]
     repository_info = tool.get_repository_info()
-#    server_url = "https://crush.olympus.f5net.com"
-    server_url = "http://giles"
-    cookie_file = "/Users/sallan/.post-review-cookies.txt"
     server = postreview.ReviewBoardServer(server_url, repository_info, cookie_file)
+    server.check_api_version()
     return server
 
-def get_repositories(server):
-    url = server.url + "api/get_repositories"
-    request = postreview.HTTPRequest(url, method="GET")
-    return request
-
+def get_user(server, user):
+    url = server.url + "api/users/%s" % user
+    return server.api_get(url)
 
 
 def main():
@@ -166,11 +162,15 @@ def main():
 
 
 if __name__ == "__main__":
-    homepath = os.path.expanduser("~")
-    user_config, globals()['configs'] = postreview.load_config_files(homepath)
-    args, globals()['options'] = postreview.parse_options(sys.argv[1:])
-    server = get_server()
-    server.check_api_version()
+    global options
+    global configs
+    home = os.path.expanduser("~")
+    rb_cookies_file = os.path.join(home, ".post-review-cookies.txt")
+    user_config, configs = postreview.load_config_files(home)
+    args, options = postreview.parse_options(sys.argv[1:])
+    server = get_server(user_config, options, rb_cookies_file)
+
     print server.get_repositories()
+    print get_user(server, "sallan")
 
 # EOF
