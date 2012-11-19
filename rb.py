@@ -21,17 +21,9 @@ def p4_opened(change=None):
     return run_cmd(cmd)
 
 
-def p4_change():
-    # If there are no files in the default changelist, alert user and quit.
-    if len(p4_opened("default")) == 0:
-        print "WARN: No files opened in default changelist."
-        sys.exit()
-
+def get_editor():
     # Fallback editor is vi
     editor = "vi"
-
-    # TODO: Can probably remove this
-    p4 = "p4"
 
     # See if user has a favorite
     # TODO: What about p4.config settings?
@@ -40,6 +32,17 @@ def p4_change():
     else:
         if "EDITOR" in os.environ:
             editor = os.environ['EDITOR']
+    return editor
+
+
+def p4_change():
+    # If there are no files in the default changelist, alert user and quit.
+    if len(p4_opened("default")) == 0:
+        print "WARN: No files opened in default changelist."
+        sys.exit()
+
+    editor = get_editor()
+    p4 = "p4"
 
     # Capture a change template with files opened in the default change list
     change_template = run_cmd("%s change -o" % p4)
@@ -125,15 +128,6 @@ def check_config(user_home):
             migrate_rbrc_file(rbrc_file, reviewboardrc_file)
 
 
-def get_review(change):
-    """
-    Given a perforce changelist number, get back a review object from server.
-    Good luck.
-    """
-    server = get_server()
-    print server.api_get(server.url + "/api/")
-
-
 def get_server(user_config, options, cookie_file):
     tool = postreview.PerforceClient(options=options)
 
@@ -163,8 +157,20 @@ def new_review(server, change="default"):
         os.system(cmd)
 
 
-def submit():
-    raise "Not implemented"
+def submit(server, review_id, edit=False):
+    review = server.get_review_request(review_id)
+    change_list = review['changenum']
+
+    print "p4 change %s" % change_list
+    print "p4 submit -c %s" % change_list
+
+    '''
+    if edit:
+        os.command("p4 change %s" % change_list)
+
+    run_cmd("p4 submit -c %s" % change_list)
+
+    '''
 
 
 def set_status(server, review_id, status):
@@ -194,7 +200,8 @@ def main():
 #    print get_user(server, "sallan")
 #    set_status(server, "1", "submitted")
 
-    new_review(server, "816")
+#    new_review(server, "816")
+    submit(server, "2")
 
 
 if __name__ == "__main__":
