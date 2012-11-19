@@ -34,6 +34,7 @@ def p4_change():
     p4 = "p4"
 
     # See if user has a favorite
+    # TODO: What about p4.config settings?
     if "P4EDITOR" in os.environ:
         editor = os.environ["P4EDITOR"]
     else:
@@ -106,7 +107,7 @@ def migrate_rbrc_file(old_rc_file, new_rc_file):
     print "Wrote config file: %s" % new_rc_file
 
 
-def check_config():
+def check_config(user_home):
     """
     Look for a legacy .rbrc file in the user home directory and then for a .reviewboardrc.
     If you find both, warn the user and use .reviewboardrc. If only .rbrc, migrate those
@@ -135,42 +136,68 @@ def get_review(change):
 
 def get_server(user_config, options, cookie_file):
     tool = postreview.PerforceClient(options=options)
+
+    # TODO: What happens here if there is no user config file yet?
     server_url = user_config["REVIEWBOARD_URL"]
     repository_info = tool.get_repository_info()
     server = postreview.ReviewBoardServer(server_url, repository_info, cookie_file)
     server.check_api_version()
     return server
 
+
 def get_user(server, user):
     url = server.url + "api/users/%s" % user
     return server.api_get(url)
 
 
-def main():
-    check_config()
-
-    if len(sys.argv) > 1:
-        change = sys.argv[1]
-    else:
+def new_review(server, change="default"):
+    if change == "default":
+        # Create a numbered change list
         change = p4_change()
 
-    if change:
-        cmd = "post-review %s" % change
-        os.system(cmd)
+    if change is None:
+        print "Can't determine the perforce change list number."
+        sys.exit(1)
     else:
-        print "USAGE: blah, blah"
+        cmd = "post-review -d %s" % change
+        os.system(cmd)
 
 
-if __name__ == "__main__":
+def submit():
+    raise "Not implemented"
+
+
+def set_status(server, review_id, status):
+    review = server.get_review_request(review_id)
+    server.api_put(review['links']['self']['href'], {
+        'status': status,
+    })
+
+
+def update_review():
+    raise "Not implemented"
+
+
+def main():
+    # Every function needs this
     global options
     global configs
-    home = os.path.expanduser("~")
-    rb_cookies_file = os.path.join(home, ".post-review-cookies.txt")
-    user_config, configs = postreview.load_config_files(home)
+    user_home = os.path.expanduser("~")
+    check_config(user_home)
+    rb_cookies_file = os.path.join(user_home, ".post-review-cookies.txt")
+    user_config, configs = postreview.load_config_files(user_home)
     args, options = postreview.parse_options(sys.argv[1:])
     server = get_server(user_config, options, rb_cookies_file)
 
-    print server.get_repositories()
-    print get_user(server, "sallan")
+    # Here's where we need to pass things off to other functions.
+#    print server.get_repositories()
+#    print get_user(server, "sallan")
+#    set_status(server, "1", "submitted")
+
+    new_review(server, "816")
+
+
+if __name__ == "__main__":
+    main()
 
 # EOF
