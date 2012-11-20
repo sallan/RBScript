@@ -129,9 +129,15 @@ def check_config(user_home):
 
 def get_server(user_config, options, cookie_file):
     tool = postreview.PerforceClient(options=options)
+    if options.server:
+        server_url = options.server
+    else:
+        if user_config and user_config.hasKey("REVIEWBOARD_URL"):
+            server_url = user_config["REVIEWBOARD_URL"]
+        else:
+            print "No server found. Either set in your .reviewboardrc file or pass it with --server option."
+            sys.exit()
 
-    # TODO: What happens here if there is no user config file yet?
-    server_url = user_config["REVIEWBOARD_URL"]
     repository_info = tool.get_repository_info()
     server = postreview.ReviewBoardServer(server_url, repository_info, cookie_file)
     server.check_api_version()
@@ -218,7 +224,8 @@ def main():
             new_review()
 
     if action == "repos":
-        print server.get_repositories()
+        for repo in server.get_repositories():
+            print repo['path']
 
     if action == "show":
         thing, thing_id = args[1:]
