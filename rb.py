@@ -203,7 +203,13 @@ def main():
     # Create our server object
     global configs
     user_home = os.path.expanduser("~")
-    check_config(user_home)
+
+    try:
+        check_config(user_home)
+    except RBError, e:
+        print e.message
+        sys.exit(1)
+
     rb_cookies_file = os.path.join(user_home, ".post-review-cookies.txt")
     user_config, configs = postreview.load_config_files(user_home)
     args = postreview.parse_options(sys.argv[1:])
