@@ -161,16 +161,23 @@ def submit(server, review_id, edit=False):
     review = server.get_review_request(review_id)
     change_list = review['changenum']
 
-    print "p4 change %s" % change_list
-    print "p4 submit -c %s" % change_list
+    submit_output = None
+    try:
+        if edit:
+            os.command("p4 change %s" % change_list)
+        submit_output = run_cmd("p4 submit -c %s" % change_list)
+    except RuntimeError, e:
+        print "ERROR: Unable to submit change %s" % change_list
+        print e
 
-    '''
-    if edit:
-        os.command("p4 change %s" % change_list)
-
-    run_cmd("p4 submit -c %s" % change_list)
-
-    '''
+    # Successful output will look like this:
+    # ['Submitting change 816.', 'Locking 1 files ...', 'edit //depot/Jam/MAIN/src/README#27', 'Change 816 submitted.']
+    if submit_output[-1].endswith("submitted."):
+        submitted_changelist = submit_output[-1].split()[1]
+        set_status(server, review_id, "submitted")
+    else:
+        print "WARN: unrecognized p4 output: %s" "\n".join(submit_output)
+    return submitted_changelist
 
 
 def set_status(server, review_id, status):
@@ -196,13 +203,29 @@ def main():
     server = get_server(user_config, options, rb_cookies_file)
 
     # Here's where we need to pass things off to other functions.
-#    print server.get_repositories()
-#    print get_user(server, "sallan")
-#    set_status(server, "1", "submitted")
+    # TODO: Hack this in for now so I can test
+    action = args[0]
+    print args
 
-#    new_review(server, "816")
-    submit(server, "2")
+    if action == "create" or action == "new":
+        if args[1]:
+            new_review(server, args[1])
+        else:
+            new_review(server)
 
+    if action == "repos":
+        print server.get_repositories()
+
+    if action == "show":
+        thing, thing_id = args[1:]
+        if thing == "user":
+            print get_user(server, thing_id)
+        if thing == "review":
+            print server.get_review_request(thing_id)
+
+    if action == "submit":
+        review_id = args[1]
+        submit(server, review_id)
 
 if __name__ == "__main__":
     main()
