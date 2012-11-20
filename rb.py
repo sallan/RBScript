@@ -171,7 +171,6 @@ def submit(server, review_id, edit=False):
 
     # Successful output will look like this:
     # ['Submitting change 816.', 'Locking 1 files ...', 'edit //depot/Jam/MAIN/src/README#27', 'Change 816 submitted.']
-    submitted_changelist = None
     if submit_output[-1].endswith("submitted."):
         submitted_changelist = submit_output[-1].split()[1]
         set_change_list(server, review_id, submitted_changelist)
