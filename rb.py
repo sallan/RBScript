@@ -116,7 +116,6 @@ def check_config(user_home):
     If you find both, warn the user and use .reviewboardrc. If only .rbrc, migrate those
     settings to .reviewboardrc.
     """
-    user_home = os.path.expanduser("~")
     rbrc_file = os.path.join(user_home, ".rbrc")
     reviewboardrc_file = os.path.join(user_home, ".reviewboardrc")
     if os.path.isfile(rbrc_file):
@@ -144,7 +143,7 @@ def get_user(server, user):
     return server.api_get(url)
 
 
-def new_review(server, change="default"):
+def new_review(change="default"):
     if change == "default":
         # Create a numbered change list
         change = p4_change()
@@ -215,9 +214,9 @@ def main():
 
     if action == "create" or action == "new":
         if len(args) > 1:
-            new_review(server, args[1])
+            new_review(args[1])
         else:
-            new_review(server)
+            new_review()
 
     if action == "repos":
         print server.get_repositories()
