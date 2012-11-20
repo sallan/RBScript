@@ -4,6 +4,8 @@ import os
 import tempfile
 from rbtools import postreview
 
+class RBError(Exception): pass;
+
 def run_cmd(cmd):
     child = os.popen(cmd)
     data = child.read().splitlines()
@@ -38,8 +40,7 @@ def get_editor():
 def p4_change():
     # If there are no files in the default changelist, alert user and quit.
     if len(p4_opened("default")) == 0:
-        print "WARN: No files opened in default changelist."
-        sys.exit()
+        raise RBError("No files opened in default changelist.")
 
     editor = get_editor()
     p4 = "p4"
@@ -84,9 +85,7 @@ def migrate_rbrc_file(old_rc_file, new_rc_file):
         old_rc = f.read().splitlines()
         f.close()
     except IOError, e:
-        print "Can't read %s" % old_rc_file
-        print e
-        sys.exit(1)
+        raise RBError("Can't read %s\n%s" % (old_rc_file, e))
 
     # TODO: Get full list by looking in our old rb script
     valid_keys = {"username" : "USERNAME",
@@ -132,11 +131,10 @@ def get_server(user_config, options, cookie_file):
     if options.server:
         server_url = options.server
     else:
-        if user_config and user_config.hasKey("REVIEWBOARD_URL"):
+        if user_config and user_config.has_key("REVIEWBOARD_URL"):
             server_url = user_config["REVIEWBOARD_URL"]
         else:
-            print "No server found. Either set in your .reviewboardrc file or pass it with --server option."
-            sys.exit()
+            raise RBError("No server found. Either set in your .reviewboardrc file or pass it with --server option.")
 
     repository_info = tool.get_repository_info()
     server = postreview.ReviewBoardServer(server_url, repository_info, cookie_file)
@@ -155,8 +153,7 @@ def new_review(change="default"):
         change = p4_change()
 
     if change is None:
-        print "Can't determine the perforce change list number."
-        sys.exit(1)
+        raise RBError("Can't determine the perforce change list number.")
     else:
         cmd = "post-review -d %s" % change
         os.system(cmd)
@@ -210,7 +207,11 @@ def main():
     rb_cookies_file = os.path.join(user_home, ".post-review-cookies.txt")
     user_config, configs = postreview.load_config_files(user_home)
     args = postreview.parse_options(sys.argv[1:])
-    server = get_server(user_config, postreview.options, rb_cookies_file)
+    try:
+        server = get_server(user_config, postreview.options, rb_cookies_file)
+    except RBError, e:
+        print e.message
+        sys.exit(1)
 
     # Here's where we need to pass things off to other functions.
     # TODO: Hack this in for now so I can test
