@@ -2,7 +2,7 @@
 import sys
 import os
 import tempfile
-import postreview
+from rbtools import postreview
 
 def run_cmd(cmd):
     child = os.popen(cmd)
@@ -190,22 +190,23 @@ def set_status(server, review_id, status):
         'status': status,
     })
 
+
 def set_change_list(server, review_id, change_list):
     review = server.get_review_request(review_id)
     server.api_put(review['links']['self']['href'], {
         'changenum': change_list,
     })
 
+
 def main():
-    # Every function needs this
-    global options
+    # Create our server object
     global configs
     user_home = os.path.expanduser("~")
     check_config(user_home)
     rb_cookies_file = os.path.join(user_home, ".post-review-cookies.txt")
     user_config, configs = postreview.load_config_files(user_home)
-    args, options = postreview.parse_options(sys.argv[1:])
-    server = get_server(user_config, options, rb_cookies_file)
+    args = postreview.parse_options(sys.argv[1:])
+    server = get_server(user_config, postreview.options, rb_cookies_file)
 
     # Here's where we need to pass things off to other functions.
     # TODO: Hack this in for now so I can test
@@ -234,6 +235,7 @@ def main():
             sys.exit(1)
         review_id = args[1]
         submit(server, review_id)
+
 
 if __name__ == "__main__":
     main()
