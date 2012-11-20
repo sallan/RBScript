@@ -164,7 +164,7 @@ def submit(server, review_id, edit=False):
     submit_output = None
     try:
         if edit:
-            os.command("p4 change %s" % change_list)
+            os.system("p4 change %s" % change_list)
         submit_output = run_cmd("p4 submit -c %s" % change_list)
     except RuntimeError, e:
         print "ERROR: Unable to submit change %s" % change_list
@@ -172,6 +172,7 @@ def submit(server, review_id, edit=False):
 
     # Successful output will look like this:
     # ['Submitting change 816.', 'Locking 1 files ...', 'edit //depot/Jam/MAIN/src/README#27', 'Change 816 submitted.']
+    submitted_changelist = None
     if submit_output[-1].endswith("submitted."):
         submitted_changelist = submit_output[-1].split()[1]
         set_status(server, review_id, "submitted")
@@ -185,10 +186,6 @@ def set_status(server, review_id, status):
     server.api_put(review['links']['self']['href'], {
         'status': status,
     })
-
-
-def update_review():
-    raise "Not implemented"
 
 
 def main():
