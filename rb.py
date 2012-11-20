@@ -175,10 +175,13 @@ def submit(server, review_id, edit=False):
     submitted_changelist = None
     if submit_output[-1].endswith("submitted."):
         submitted_changelist = submit_output[-1].split()[1]
+        set_change_list(server, review_id, submitted_changelist)
         set_status(server, review_id, "submitted")
+        print "Change %s submitted." % submitted_changelist
+        print "Review %s closed." % review_id
     else:
         print "WARN: unrecognized p4 output: %s" "\n".join(submit_output)
-    return submitted_changelist
+        print "Review %s not closed." % review_id
 
 
 def set_status(server, review_id, status):
@@ -187,6 +190,11 @@ def set_status(server, review_id, status):
         'status': status,
     })
 
+def set_change_list(server, review_id, change_list):
+    review = server.get_review_request(review_id)
+    server.api_put(review['links']['self']['href'], {
+        'changenum': change_list,
+    })
 
 def main():
     # Every function needs this
@@ -205,7 +213,7 @@ def main():
     print args
 
     if action == "create" or action == "new":
-        if args[1]:
+        if len(args) > 1:
             new_review(server, args[1])
         else:
             new_review(server)
@@ -221,6 +229,9 @@ def main():
             print server.get_review_request(thing_id)
 
     if action == "submit":
+        if len(args) < 2:
+            print "Need a review board id number."
+            sys.exit(1)
         review_id = args[1]
         submit(server, review_id)
 
