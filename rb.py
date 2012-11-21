@@ -208,30 +208,30 @@ def update_review(change):
         os.system(cmd)
 
 
-def ok_to_submit(server, review_id, force=False):
+def validate_review(server, review_id):
     """
-    Return True if the review meets all the criteria for submission.
+    To be valid must meets all the criteria for submission.
 
     1. You must own the CL
-    2. unless force is true, must have a ship it
-    3. need to check for shelved files
+    2. Must have a ship it
+    3. Need to check for shelved files
     """
-    if force:
-        return True
 
     reviews = get_reviews(server, review_id)
+    if reviews['total_results'] <= 0:
+        raise RBError("Review %s has no 'Ship It' reviews. Use --force to submit anyway." % review_id)
 
-    # TODO: this is the simplest case. More to come.
-    return reviews['total_results'] > 0
 
-
-def submit(server, review_id, edit=False):
+def submit(server, review_id, force=False, edit=False):
     review = server.get_review_request(review_id)
     change_list = review['changenum']
 
     # TODO: What? This looks fine to me!
-    if not ok_to_submit(server, review_id):
-        raise RBError("Review %s cannot be submitted. Why? I don't know." % review_id)
+    if not force:
+        # Inspect the review to make sure it meets requirements for submission.
+        # If not, an RBError exception is raised with the reason for rejection.
+        validate_review(server, review_id)
+
 
     try:
         if edit:
