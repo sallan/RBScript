@@ -169,6 +169,7 @@ def get_user(server, user):
         raise RBError("Failed to find data for user: %s." % user)
     return user_data
 
+
 def get_review(server, review_id):
     try:
         review = server.get_review_request(review_id)
@@ -189,6 +190,14 @@ def new_review(change="default"):
         os.system(cmd)
 
 
+def update_review(change):
+    if change is None:
+        raise RBError("Need change list number to update.")
+    else:
+        cmd = "post-review -d %s" % change
+        os.system(cmd)
+
+
 def submit(server, review_id, edit=False):
     review = server.get_review_request(review_id)
     change_list = review['changenum']
@@ -201,8 +210,7 @@ def submit(server, review_id, edit=False):
         postreview.debug("submit returned:")
         postreview.debug("\n".join(submit_output))
     except RuntimeError, e:
-        print "ERROR: Unable to submit change %s" % change_list
-        print e
+        raise RBError("ERROR: Unable to submit change %s\n%s" % (change_list, e))
 
     # Successful output will look like this:
     # ['Submitting change 816.', 'Locking 1 files ...', 'edit //depot/Jam/MAIN/src/README#27', 'Change 816 submitted.']
@@ -223,13 +231,15 @@ def submit(server, review_id, edit=False):
                 raise RBError("Unrecognized output from p4 submit:\n%s" % "\n".join(submit_output))
 
         postreview.debug("Setting review change list to %s and closing." % submitted_changelist)
-        set_change_list(server, review_id, submitted_changelist)
-        set_status(server, review_id, "submitted")
-        print "Change %s submitted." % submitted_changelist
-        print "Review %s closed." % review_id
+        try:
+            set_change_list(server, review_id, submitted_changelist)
+            set_status(server, review_id, "submitted")
+            print "Change %s submitted." % submitted_changelist
+            print "Review %s closed." % review_id
+        except RBError, e:
+            raise RBError("Failed to submit review.\n" + e.message)
     else:
-        print "WARN: unrecognized p4 output: %s" "\n".join(submit_output)
-        print "Review %s not closed." % review_id
+        raise RBError("Unrecognized p4 output: %s\nReview %s not closed." % ("\n".join(submit_output), review_id))
 
 
 def set_status(server, review_id, status):
@@ -292,13 +302,23 @@ def main():
             print e.message
             sys.exit(1)
 
+    if action == "update":
+        if len(args) < 2:
+            print "Need a change list number."
+            sys.exit(1)
+        change_list = args[1]
+        update_review(change_list)
+
     if action == "submit":
         if len(args) < 2:
             print "Need a review board id number."
             sys.exit(1)
         review_id = args[1]
-        submit(server, review_id)
-
+        try:
+            submit(server, review_id)
+        except RBError, e:
+            print e.message
+            sys.exit(1)
 
 if __name__ == "__main__":
     main()
