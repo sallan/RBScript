@@ -187,6 +187,13 @@ def get_reviews(server, review_id):
     reviews = server.api_get(review['links']['reviews']['href'])
     return reviews
 
+def get_review_change_list(server, review_id):
+    try:
+        change = server.get_review_request(review_id)['changenum']
+    except rbtools.api.errors.APIError, e:
+        raise RBError("Can't determine changelist number for review %s" % review_id)
+    return  change
+
 
 def new_review(change="default"):
     if change == "default":
@@ -200,12 +207,15 @@ def new_review(change="default"):
         os.system(cmd)
 
 
-def update_review(change):
-    if change is None:
-        raise RBError("Need change list number to update.")
-    else:
-        cmd = "post-review -d %s" % change
-        os.system(cmd)
+def update_review(server, review_id):
+    # We're not going to error check review_id because get_review_change_list()
+    # will do a better job of that and raise an error.
+    #
+    # Get change list number for this review.
+    change = get_review_change_list(server, review_id)
+    cmd = "post-review -d %s" % change
+    postreview.debug(cmd)
+    os.system(cmd)
 
 
 def validate_review(server, review_id):
@@ -287,6 +297,9 @@ def set_change_list(server, review_id, change_list):
 
 
 def main():
+    # constant error strings
+    MISSING_RB_ID = "Need the ReviewBoard ID number."
+
     # Create our server object
     global configs
     user_home = os.path.expanduser("~")
@@ -336,14 +349,14 @@ def main():
 
     if action == "update":
         if len(args) < 2:
-            print "Need a change list number."
+            print MISSING_RB_ID
             sys.exit(1)
-        change_list = args[1]
-        update_review(change_list)
+        review_id = args[1]
+        update_review(server, review_id)
 
     if action == "submit":
         if len(args) < 2:
-            print "Need a review board id number."
+            print MISSING_RB_ID
             sys.exit(1)
         review_id = args[1]
         try:
