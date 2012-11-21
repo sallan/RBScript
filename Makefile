@@ -2,9 +2,11 @@ help:
 	@echo Targets: new, stomp, submit, run
 
 new:
+	@mv .git dotgit
 	@p4 edit readme.txt
 	@echo "Testing 1, 2, 3" >> readme.txt
 	@./rb.py new
+	@mv dotgit .git
 
 stomp:
 	@p4 edit relnotes.txt
