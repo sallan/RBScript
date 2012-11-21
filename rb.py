@@ -3,6 +3,7 @@ import sys
 import os
 import tempfile
 from rbtools import postreview
+import rbtools.api.errors
 
 class RBError(Exception): pass;
 
@@ -16,6 +17,9 @@ def run_cmd(cmd):
 
 
 def p4_opened(change=None):
+    """
+    Return list of files opened in this workspace.
+    """
     if change is None:
         cmd = "p4 opened"
     else:
@@ -24,11 +28,14 @@ def p4_opened(change=None):
 
 
 def get_editor():
+    """
+    Determine the editor to use from the environment.
+    """
     # Fallback editor is vi
     editor = "vi"
 
     # See if user has a favorite
-    # TODO: What about p4.config settings?
+    # TODO: What about p4.config settings? Note the old rb does not handle it either.
     if "P4EDITOR" in os.environ:
         editor = os.environ["P4EDITOR"]
     else:
@@ -38,6 +45,11 @@ def get_editor():
 
 
 def p4_change():
+    """
+    Create a numbered change list with all files in the default change list.
+    Returns the new change list number.
+    Raises RBError on failure.
+    """
     # If there are no files in the default changelist, alert user and quit.
     if len(p4_opened("default")) == 0:
         raise RBError("No files opened in default changelist.")
@@ -45,6 +57,7 @@ def p4_change():
     editor = get_editor()
     p4 = "p4"
 
+    # TODO: Need to do more error checking in this function
     # Capture a change template with files opened in the default change list
     change_template = run_cmd("%s change -o" % p4)
 
@@ -127,6 +140,9 @@ def check_config(user_home):
 
 
 def get_server(user_config, options, cookie_file):
+    """
+    Create an instance of a ReviewBoardServer with our configuration settings.
+    """
     tool = postreview.PerforceClient(options=options)
     if options.server:
         server_url = options.server
@@ -134,7 +150,7 @@ def get_server(user_config, options, cookie_file):
         if user_config and user_config.has_key("REVIEWBOARD_URL"):
             server_url = user_config["REVIEWBOARD_URL"]
         else:
-            raise RBError("No server found. Either set in your .reviewboardrc file or pass it with --server option.")
+            raise RBError("No server url found. Either set in your .reviewboardrc file or pass it with --server option.")
 
     repository_info = tool.get_repository_info()
     server = postreview.ReviewBoardServer(server_url, repository_info, cookie_file)
@@ -143,8 +159,22 @@ def get_server(user_config, options, cookie_file):
 
 
 def get_user(server, user):
+    """
+    Return data for the given user.
+    """
     url = server.url + "api/users/%s" % user
-    return server.api_get(url)
+    try:
+        user_data = server.api_get(url)
+    except rbtools.api.errors.APIError, e:
+        raise RBError("Failed to find data for user: %s." % user)
+    return user_data
+
+def get_review(server, review_id):
+    try:
+        review = server.get_review_request(review_id)
+    except rbtools.api.errors.APIError, e:
+        raise RBError("Failed to retrieve review: %s." % review_id)
+    return review
 
 
 def new_review(change="default"):
@@ -168,14 +198,31 @@ def submit(server, review_id, edit=False):
         if edit:
             os.system("p4 change %s" % change_list)
         submit_output = run_cmd("p4 submit -c %s" % change_list)
+        postreview.debug("submit returned:")
+        postreview.debug("\n".join(submit_output))
     except RuntimeError, e:
         print "ERROR: Unable to submit change %s" % change_list
         print e
 
     # Successful output will look like this:
     # ['Submitting change 816.', 'Locking 1 files ...', 'edit //depot/Jam/MAIN/src/README#27', 'Change 816 submitted.']
+    #
+    # or
+    #
+    # ['Submitting change 816.', 'Locking 1 files ...', 'edit //depot/Jam/MAIN/src/README#27', 'Change 828 renamed change 830 and submitted.']
+    #
     if submit_output[-1].endswith("submitted."):
-        submitted_changelist = submit_output[-1].split()[1]
+        # Figure out what change list number it went in with.
+        submit_status_message = submit_output[-1]
+        if submit_status_message == "Change %s submitted." % change_list:
+            submitted_changelist = change_list
+        else:
+            if submit_status_message.startswith("Change %s renamed change" % change_list):
+                submitted_changelist = submit_status_message.split()[4]
+            else:
+                raise RBError("Unrecognized output from p4 submit:\n%s" % "\n".join(submit_output))
+
+        postreview.debug("Setting review change list to %s and closing." % submitted_changelist)
         set_change_list(server, review_id, submitted_changelist)
         set_status(server, review_id, "submitted")
         print "Change %s submitted." % submitted_changelist
@@ -235,11 +282,15 @@ def main():
             print repo['path']
 
     if action == "show":
-        thing, thing_id = args[1:]
-        if thing == "user":
-            print get_user(server, thing_id)
-        if thing == "review":
-            print server.get_review_request(thing_id)
+        try:
+            thing, thing_id = args[1:]
+            if thing == "user":
+                print get_user(server, thing_id)
+            if thing == "review":
+                print get_review(server, thing_id)
+        except RBError, e:
+            print e.message
+            sys.exit(1)
 
     if action == "submit":
         if len(args) < 2:
