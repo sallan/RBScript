@@ -1,9 +1,13 @@
 #!/usr/bin/env python
+import logging
+import optparse
+#from optparse import OptionParser
 import sys
 import os
 import tempfile
 from rbtools import postreview
 import rbtools.api.errors
+from rbtools.postreview import options
 
 class RBError(Exception): pass;
 
@@ -232,19 +236,17 @@ def validate_review(server, review_id):
         raise RBError("Review %s has no 'Ship It' reviews. Use --force to submit anyway." % review_id)
 
 
-def submit(server, review_id, force=False, edit=False):
+def submit(server, review_id, options):
     review = server.get_review_request(review_id)
     change_list = review['changenum']
 
-    # TODO: What? This looks fine to me!
-    if not force:
+    if not options.force:
         # Inspect the review to make sure it meets requirements for submission.
         # If not, an RBError exception is raised with the reason for rejection.
         validate_review(server, review_id)
 
-
     try:
-        if edit:
+        if options.edit:
             os.system("p4 change %s" % change_list)
         submit_output = run_cmd("p4 submit -c %s" % change_list)
         postreview.debug("submit returned:")
@@ -296,11 +298,41 @@ def set_change_list(server, review_id, change_list):
     })
 
 
+def parse_options(args):
+    parser = RBOptionParser(usage="%prog [-pond] [-c changenum] [review_id]")
+
+    parser.add_option("-f", "--force",
+        dest="force", action="store_true",
+        default=False, help="Submit even if the review doesn't meet all requirements.")
+
+    parser.add_option("-e", "--edit",
+        dest="edit", action="store_true",
+        default=False, help="Edit the change list before submitting.")
+
+    return  parser.parse_args(args)
+
+
+class RBOptionParser(optparse.OptionParser):
+    """
+    Extended OptionParser so we can prevent an error on options we don't recognize.
+    This will allow us to parse our options and then pass the unrecognized ones off
+    to the postreview.parse_options() method.
+    """
+    def _process_args(self, largs, rargs, values):
+        while rargs:
+            try:
+                optparse.OptionParser._process_args(self, largs, rargs, values)
+            except (optparse.BadOptionError, optparse.AmbiguousOptionError), e:
+                largs.append(e.opt_str)
+
+
 def main():
     # constant error strings
     MISSING_RB_ID = "Need the ReviewBoard ID number."
 
+
     # Create our server object
+    global options
     global configs
     user_home = os.path.expanduser("~")
 
@@ -312,58 +344,64 @@ def main():
 
     rb_cookies_file = os.path.join(user_home, ".post-review-cookies.txt")
     user_config, configs = postreview.load_config_files(user_home)
-    args = postreview.parse_options(sys.argv[1:])
-    try:
-        server = get_server(user_config, postreview.options, rb_cookies_file)
-    except RBError, e:
-        print e.message
-        sys.exit(1)
+    options, args = parse_options(sys.argv[1:])
 
-    # Here's where we need to pass things off to other functions.
-    # TODO: Hack this in for now so I can test
-    action = args[0]
-    print args
+    # TODO: What do we do with the post_review_args?
+    post_review_args = postreview.parse_options(args)
 
-    if action == "create" or action == "new":
-        if len(args) > 1:
-            new_review(args[1])
+#    print "My Args: ", args
+#    print "My Opts: ", options
+#    print "PR Args: ", post_review_args
+#    sys.exit()
+
+    # parse the left over arguments
+    print post_review_args
+    action = post_review_args[0]
+
+    if action == "rr" or action == "reviewrequest":
+        rr_action = post_review_args[1]
+        if rr_action == "create" or rr_action == "new":
+            if len(args) > 1:
+                new_review(args[1])
+            else:
+                new_review()
         else:
-            new_review()
+            try:
+                # TODO: Don't like doing this before we've checked all the args
+                server = get_server(user_config, postreview.options, rb_cookies_file)
+            except RBError, e:
+                print e.message
+                sys.exit(1)
 
-    if action == "repos":
-        for repo in server.get_repositories():
-            print repo['path']
+            # TODO: We should probably convert this to the rb rr edit --update-* formats
+            if rr_action == "update":
+                if len(post_review_args) < 3:
+                    print MISSING_RB_ID
+                    sys.exit(1)
+                review_id = post_review_args[2]
+                update_review(server, review_id)
 
-    if action == "show":
-        try:
-            thing, thing_id = args[1:]
-            if thing == "user":
-                print get_user(server, thing_id)
-            if thing == "review":
-                print get_review(server, thing_id)
-            if thing == "reviews":
-                print get_reviews(server, thing_id)
-        except RBError, e:
-            print e.message
-            sys.exit(1)
+            if rr_action == "submit":
+                if len(post_review_args) < 3:
+                    print MISSING_RB_ID
+                    sys.exit(1)
+                review_id = post_review_args[2]
+                try:
+                    submit(server, review_id, options)
+                except RBError, e:
+                    print e.message
+                    sys.exit(1)
 
-    if action == "update":
-        if len(args) < 2:
-            print MISSING_RB_ID
-            sys.exit(1)
-        review_id = args[1]
-        update_review(server, review_id)
 
-    if action == "submit":
-        if len(args) < 2:
-            print MISSING_RB_ID
-            sys.exit(1)
-        review_id = args[1]
-        try:
-            submit(server, review_id)
-        except RBError, e:
-            print e.message
-            sys.exit(1)
+#    try:
+#        for repo in server.get_repositories():
+#            print repo['path']
+#
+#        print get_user(server, "sallan")
+#        print get_review(server, "20")
+#        print get_reviews(server, "19")
+#    except RBError, e:
+#        print e.message
 
 if __name__ == "__main__":
     main()
