@@ -1,5 +1,5 @@
 help:
-	@echo Targets: new, stomp, conflict, submit, run
+	@echo Targets: new, stomp, conflict, submit, run, p4d
 
 new:
 	-@mv .git dotgit
