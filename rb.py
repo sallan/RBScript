@@ -460,33 +460,32 @@ def main():
 
     # For edit or submit, we interject our own server
     try:
-        # TODO: Don't like doing this before we've checked all the args
         server = get_server(user_config, postreview.options, rb_cookies_file)
     except RBError, e:
         print e.message
         sys.exit(1)
 
-    # TODO: We should probably convert this to the rb rr edit --update-* formats
-    # TODO: this is working code, but the args need to be fixed.
-    if action == "update":
+    # TODO: We need to convert this to the rb rr edit --update-* formats
+    if action == "edit":
         if len(args) < 2:
             print MISSING_RB_ID
             sys.exit(1)
-        review_id = post_review_args[1]
+        review_id = args[1]
         update_review(server, review_id)
 
-#
-#    if action == "submit":
-#        if len(post_review_args) < 3:
-#            print MISSING_RB_ID
-#            sys.exit(1)
-#        review_id = post_review_args[2]
-#        try:
-#            submit(server, review_id, options)
-#        except RBError, e:
-#            print e.message
-#            sys.exit(1)
 
+    if action == "submit":
+        if len(args) < 2:
+            print MISSING_RB_ID
+            sys.exit(1)
+        review_id = args[1]
+        try:
+            submit(server, review_id, options)
+        except RBError, e:
+            print e.message
+            sys.exit(1)
+
+# I'm leaving this here for handy reference.
 #    try:
 #        for repo in server.get_repositories():
 #            print repo['path']
