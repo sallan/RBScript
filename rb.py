@@ -199,10 +199,11 @@ def get_review_change_list(server, review_id):
     return  change
 
 
-def new_review(change="default"):
-    if change == "default":
-        # Create a numbered change list
+def new_review(options):
+    if options.changenum is None:
         change = p4_change()
+    else:
+        change = options.changenum
 
     if change is None:
         raise RBError("Can't determine the perforce change list number.")
@@ -298,7 +299,7 @@ def set_change_list(server, review_id, change_list):
     })
 
 
-def parse_review_options(args):
+def parse_options():
     # TODO: Refine this usage
     parser = optparse.OptionParser(usage = "%prog [OPTIONS] create|edit|submit [RB_ID]")
     # TODO: The --server needs more explanation
@@ -311,7 +312,7 @@ def parse_review_options(args):
     # TODO: consider adding support for p4-port and p4-user
 
 
-    create_group = optparse.OptionGroup(parser, "New Review Options")
+    create_group = optparse.OptionGroup(parser, "Create Options")
     create_group.add_option("-c", "--changeset",
         dest="changenum", metavar="<changeno>",
         help="Create review using an existing change list.")
@@ -324,25 +325,27 @@ def parse_review_options(args):
     create_group.add_option("-u", "--target-users",
         dest="target_people", metavar="<user [users]>",
         help="List of users to assign.")
-    create_group.add_option("-s", "--summary",
-        dest="summary", metavar="string",
-        help="Summary for the review. Default is change list description.")
+
     create_group.add_option("-p", "--publish",
         dest="publish", action="store_true", default=False,
         help="Publish the review.")
-    create_group.add_option("-S", "--shelve",
-    dest="publish", action="store_true", default=False,
-    help="Perform a 'p4 shelve' on the files.")
+    create_group.add_option("-s", "--shelve",
+        dest="shelve", action="store_true", default=False,
+        help="Perform a 'p4 shelve' on the files.")
+
+    create_group.add_option("--summary",
+        dest="summary", metavar="<string>",
+        help="Summary for the review. Default is change list description.")
 
     create_group.add_option("--description",
-        dest="description", metavar="string",
+        dest="description", metavar="<string>",
         help="Description of the review. Default is change list description.")
     create_group.add_option("--submit-as",
         dest="submit_as", metavar="<user>",
         help="Create review with this username. Useful if different from p4 user name.")
 
 
-    submit_group = optparse.OptionGroup(parser, "Submit Options", "Submit review with RB_ID")
+    submit_group = optparse.OptionGroup(parser, "Submit Options")
     submit_group.add_option("-f", "--force",
         dest="force", action="store_true", default=False,
         help="Submit even if the review doesn't meet all requirements.")
@@ -354,24 +357,31 @@ def parse_review_options(args):
         help="No idea what this is for.")
 
 
-    # TODO: What to do with these?
-    """
-	--update-description
-	--update-bugs
-	--update-summary
-	--update-diff
-	--update-all
-	(This would update description, summary, bugs, and diff
-	 from perforce changeset)
-    """
+    edit_group = optparse.OptionGroup(parser, "Edit Options")
+    edit_group.add_option("--update-diff",
+        dest="update_diff", action="store_true", default=False,
+        help="Upate the diffs for all files.")
+
+    # TODO: Does rb allow for a string option here are does it always read the changelist?
+    # TODO: How important is it to support these?
+    edit_group.add_option("--update-bugs",
+        dest="update_bugs", action="store_true", default=False,
+        help="Upate the bug (p4 Jobs) field.")
+    edit_group.add_option("--update-summary",
+        dest="update_summary", action="store_true", default=False,
+        help="Upate the summary field.")
+    edit_group.add_option("--update-all",
+        dest="update_all", action="store_true", default=False,
+        help="Upate all fields from information in the change list.")
 
     parser.add_option_group(create_group)
+    parser.add_option_group(edit_group)
     parser.add_option_group(submit_group)
     return parser
 
 
 
-def parse_options(args):
+def Xparse_options(args):
     parser = RBOptionParser(usage="%prog [-pond] [-c changenum] [review_id]")
 
     parser.add_option("-f", "--force",
@@ -407,9 +417,6 @@ def main():
     # constant error strings
     MISSING_RB_ID = "Need the ReviewBoard ID number."
 
-    parser = parse_review_options(sys.argv)
-    run_help(parser)
-
     # Create our server object
     global options
     global configs
@@ -423,7 +430,13 @@ def main():
 
     rb_cookies_file = os.path.join(user_home, ".post-review-cookies.txt")
     user_config, configs = postreview.load_config_files(user_home)
-    options, args = parse_options(sys.argv[1:])
+    parser = parse_options()
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit()
+
+
+    options, args = parser.parse_args()
 
     # TODO: What do we do with the post_review_args?
     post_review_args = postreview.parse_options(args)
@@ -434,16 +447,17 @@ def main():
 #    sys.exit()
 
     # parse the left over arguments
-    print post_review_args
-    action = post_review_args[0]
+#    action = post_review_args[0]
 
-    if action == "help":
-        run_help(post_review_args)
+    action = args[0]
+    if action == "create":
+        new_review(options)
         sys.exit()
+
 
     if action == "rr" or action == "reviewrequest":
         rr_action = post_review_args[1]
-        if rr_action == "create" or rr_action == "new":
+        if rr_action == "create":
             if len(args) > 1:
                 new_review(args[1])
             else:
