@@ -438,7 +438,7 @@ def main():
 
     options, args = parser.parse_args()
 
-    # TODO: What do we do with the post_review_args?
+    # TODO: What do we do with the post_review_args? We need to call this to seed postreview.options, but...
     post_review_args = postreview.parse_options(args)
 
 #    print "My Args: ", args
@@ -449,46 +449,43 @@ def main():
     # parse the left over arguments
 #    action = post_review_args[0]
 
+    # Strip of legacy UI
+    if args[0] == "rr" or args[0] == "reviewrequest":
+        args = args[1:]
+
     action = args[0]
     if action == "create":
         new_review(options)
         sys.exit()
 
+    # For edit or submit, we interject our own server
+    try:
+        # TODO: Don't like doing this before we've checked all the args
+        server = get_server(user_config, postreview.options, rb_cookies_file)
+    except RBError, e:
+        print e.message
+        sys.exit(1)
 
-    if action == "rr" or action == "reviewrequest":
-        rr_action = post_review_args[1]
-        if rr_action == "create":
-            if len(args) > 1:
-                new_review(args[1])
-            else:
-                new_review()
-        else:
-            try:
-                # TODO: Don't like doing this before we've checked all the args
-                server = get_server(user_config, postreview.options, rb_cookies_file)
-            except RBError, e:
-                print e.message
-                sys.exit(1)
+    # TODO: We should probably convert this to the rb rr edit --update-* formats
+    # TODO: this is working code, but the args need to be fixed.
+    if action == "update":
+        if len(args) < 2:
+            print MISSING_RB_ID
+            sys.exit(1)
+        review_id = post_review_args[1]
+        update_review(server, review_id)
 
-            # TODO: We should probably convert this to the rb rr edit --update-* formats
-            if rr_action == "update":
-                if len(post_review_args) < 3:
-                    print MISSING_RB_ID
-                    sys.exit(1)
-                review_id = post_review_args[2]
-                update_review(server, review_id)
-
-            if rr_action == "submit":
-                if len(post_review_args) < 3:
-                    print MISSING_RB_ID
-                    sys.exit(1)
-                review_id = post_review_args[2]
-                try:
-                    submit(server, review_id, options)
-                except RBError, e:
-                    print e.message
-                    sys.exit(1)
-
+#
+#    if action == "submit":
+#        if len(post_review_args) < 3:
+#            print MISSING_RB_ID
+#            sys.exit(1)
+#        review_id = post_review_args[2]
+#        try:
+#            submit(server, review_id, options)
+#        except RBError, e:
+#            print e.message
+#            sys.exit(1)
 
 #    try:
 #        for repo in server.get_repositories():
