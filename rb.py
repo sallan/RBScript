@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import logging
 import optparse
-#from optparse import OptionParser
 import sys
 import os
 import tempfile
@@ -301,14 +300,13 @@ def set_change_list(server, review_id, change_list):
 
 def parse_options():
     # TODO: Refine this usage
-    parser = optparse.OptionParser(usage = "%prog [OPTIONS] create|edit|submit [RB_ID]")
-    # TODO: The --server needs more explanation
-    parser.add_option("--server",
-       dest="server", metavar="<server_name>",
-       help="Use server specified by url.")
+    parser = optparse.OptionParser(usage = "%prog [OPTIONS] create|update|edit|submit [RB_ID]")
     parser.add_option("-d", "--debug",
         dest="debug", action="store_true", default=False,
         help="Display debug output.")
+    parser.add_option("--server",
+       dest="server", metavar="<server_name>",
+       help="Use specified server. Default is entry in .reviewboardrc file.")
     # TODO: consider adding support for p4-port and p4-user
 
 
@@ -352,17 +350,19 @@ def parse_options():
     submit_group.add_option("-e", "--edit-changelist",
         dest="edit", action="store_true", default=False,
         help="Edit the change list before submitting.")
+
+    # TODO: Do we want to support this? I don't see why.
     submit_group.add_option("-a", "--as-is",
         dest="asis", action="store_true", default=False,
-        help="No idea what this is for.")
+        help="Don't add reviewer names to the change list.")
 
 
     edit_group = optparse.OptionGroup(parser, "Edit Options")
     edit_group.add_option("--update-diff",
         dest="update_diff", action="store_true", default=False,
-        help="Upate the diffs for all files.")
+        help="Upate the diffs for all files. The 'update' action is a shortcut for this.")
 
-    # TODO: Does rb allow for a string option here are does it always read the changelist?
+    # TODO: Does rb allow for a string option here or does it always read the changelist?
     # TODO: How important is it to support these?
     edit_group.add_option("--update-bugs",
         dest="update_bugs", action="store_true", default=False,
@@ -380,26 +380,13 @@ def parse_options():
     return parser
 
 
-
-def Xparse_options(args):
-    parser = RBOptionParser(usage="%prog [-pond] [-c changenum] [review_id]")
-
-    parser.add_option("-f", "--force",
-        dest="force", action="store_true",
-        default=False, help="Submit even if the review doesn't meet all requirements.")
-
-    parser.add_option("-e", "--edit",
-        dest="edit", action="store_true",
-        default=False, help="Edit the change list before submitting.")
-
-    return  parser.parse_args(args)
-
-
 class RBOptionParser(optparse.OptionParser):
     """
     Extended OptionParser so we can prevent an error on options we don't recognize.
     This will allow us to parse our options and then pass the unrecognized ones off
     to the postreview.parse_options() method.
+
+    I'm not currently using this, but leaving it in for reference. I may need it later.
     """
     def _process_args(self, largs, rargs, values):
         while rargs:
@@ -408,10 +395,6 @@ class RBOptionParser(optparse.OptionParser):
             except (optparse.BadOptionError, optparse.AmbiguousOptionError), e:
                 largs.append(e.opt_str)
 
-
-def run_help(parser):
-    parser.print_help()
-    sys.exit()
 
 def main():
     # constant error strings
@@ -438,18 +421,16 @@ def main():
 
     options, args = parser.parse_args()
 
-    # TODO: What do we do with the post_review_args? We need to call this to seed postreview.options, but...
-    post_review_args = postreview.parse_options(args)
+    # We need to call postreview's parse_options because it sets global variables
+    # that we need for our operations. We don't care about the return value.
+    postreview.parse_options(args)
 
 #    print "My Args: ", args
 #    print "My Opts: ", options
 #    print "PR Args: ", post_review_args
 #    sys.exit()
 
-    # parse the left over arguments
-#    action = post_review_args[0]
-
-    # Strip of legacy UI
+    # Strip off legacy UI elements if present
     if args[0] == "rr" or args[0] == "reviewrequest":
         args = args[1:]
 
@@ -465,14 +446,16 @@ def main():
         print e.message
         sys.exit(1)
 
-    # TODO: We need to convert this to the rb rr edit --update-* formats
-    if action == "edit":
+    if action == "update":
         if len(args) < 2:
             print MISSING_RB_ID
             sys.exit(1)
         review_id = args[1]
         update_review(server, review_id)
 
+    if action == "edit":
+        print "Not implemented yet."
+        sys.exit()
 
     if action == "submit":
         if len(args) < 2:
