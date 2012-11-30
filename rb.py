@@ -47,6 +47,18 @@ def get_editor():
     return editor
 
 
+def add_shelve_info():
+    """
+    Example of what we want in the review comment:
+
+    This change has been shelved in changeset 760282.
+    To unshelve this change into your workspace:
+
+            p4 unshelve -s 760282
+    """
+    raise RBError("Not implemented yet.")
+
+
 def p4_change():
     """
     Create a numbered change list with all files in the default change list.
@@ -190,6 +202,18 @@ def get_reviews(server, review_id):
     reviews = server.api_get(review['links']['reviews']['href'])
     return reviews
 
+
+def get_comments(server, review_id):
+    try:
+        review = server.get_review_request(review_id)
+    except rbtools.api.errors.APIError, e:
+        raise RBError("Failed to retrieve review: %s." % review_id)
+
+    reviews = server.api_get(review['links']['reviews']['href'])
+    comments = server.api_get(reviews['reviews'][0]['links']['diff_comments']['href'])
+    return comments['diff_comments']
+
+
 def get_review_change_list(server, review_id):
     try:
         change = server.get_review_request(review_id)['changenum']
@@ -207,6 +231,7 @@ def new_review(options):
     if change is None:
         raise RBError("Can't determine the perforce change list number.")
     else:
+        # TODO: Need to properly pass options to post-review
         cmd = "post-review -d %s" % change
         os.system(cmd)
 
@@ -217,6 +242,8 @@ def update_review(server, review_id):
     #
     # Get change list number for this review.
     change = get_review_change_list(server, review_id)
+
+    # TODO: Need to properly pass options to post-review
     cmd = "post-review -d %s" % change
     postreview.debug(cmd)
     os.system(cmd)
@@ -439,6 +466,15 @@ def main():
         new_review(options)
         sys.exit()
 
+    # I'm leaving this here for handy reference.
+    #        for repo in server.get_repositories():
+    #            print repo['path']
+    #        print get_reviews(server, "19")
+    #        print get_user(server, "sallan")
+    # comments = get_comments(server, "22")
+    # print len(comments)
+    # sys.exit()
+
     # For edit or submit, we interject our own server
     try:
         server = get_server(user_config, postreview.options, rb_cookies_file)
@@ -454,7 +490,15 @@ def main():
         update_review(server, review_id)
 
     if action == "edit":
-        print "Not implemented yet."
+        if len(args) < 2:
+            print MISSING_RB_ID
+            sys.exit(1)
+        review_id = args[1]
+        if options.update_diff:
+            # TODO: Looks like update_review will need more granularity
+            update_review(server, review_id)
+        else:
+            print "Only know how to update-diff right now."
         sys.exit()
 
     if action == "submit":
@@ -468,16 +512,6 @@ def main():
             print e.message
             sys.exit(1)
 
-# I'm leaving this here for handy reference.
-#    try:
-#        for repo in server.get_repositories():
-#            print repo['path']
-#
-#        print get_user(server, "sallan")
-#        print get_review(server, "20")
-#        print get_reviews(server, "19")
-#    except RBError, e:
-#        print e.message
 
 if __name__ == "__main__":
     main()
