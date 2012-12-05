@@ -423,6 +423,60 @@ class RBOptionParser(optparse.OptionParser):
                 largs.append(e.opt_str)
 
 
+def get_review_draft(server, review_id):
+    review_request = server.get_review_request(review_id)
+    draft_url = review_request['links']['draft']['href']
+    print draft_url
+    print server.api_get(draft_url)
+
+
+def get_review_summary(server, review_id):
+    review_request = server.get_review_request(review_id)
+    return review_request['summary']
+
+
+def get_review_changes(server, review_id):
+    review_request = server.get_review_request("22")
+
+    changes_url = review_request['links']['changes']['href']
+    for c in server.api_get(changes_url)['changes']:
+        change_url = c['links']['self']['href']
+        change = server.api_get(change_url)
+        # TODO: what do we do with this?
+        print change
+
+
+def show_review_links(server, review_id):
+    review_request = server.get_review_request(review_id)
+    for name in review_request['links']:
+        print "%20s:  %s" % (name, review_request['links'][name]['href'])
+
+
+def show_me(server):
+    """just for exploring"""
+    review_request = server.get_review_request("22")
+
+    url = review_request['links']['draft']['href']
+    print url
+    foo = server.api_get(url)
+
+#    for c in foo['changes']:
+#        change_url = c['links']['self']['href']
+#        change = server.api_get(change_url)
+#        print change['change']['links']
+
+
+def add_comment(server, review_id, comment):
+    review_request = server.get_review_request(review_id)
+    draft_url = review_request['links']['draft']['href']
+    print draft_url
+    server.api_put(draft_url,
+    {
+        "changedescription" : comment
+    })
+
+
+
 def main():
     # constant error strings
     MISSING_RB_ID = "Need the ReviewBoard ID number."
@@ -451,6 +505,20 @@ def main():
     # We need to call postreview's parse_options because it sets global variables
     # that we need for our operations. We don't care about the return value.
     postreview.parse_options(args)
+
+    server = get_server(user_config, postreview.options, rb_cookies_file)
+
+#    show_review_links(server, "22")
+    add_comment(server, "22")
+#    show_me(server)
+    sys.exit()
+
+    for i in [21, 22, 23]:
+        try:
+            get_review_draft(server, i)
+        except rbtools.api.errors.APIError, e:
+            print "Failed for %s\n%s" % (i, e.message)
+    sys.exit()
 
 #    print "My Args: ", args
 #    print "My Opts: ", options
@@ -515,5 +583,42 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+    """
+    Links available from a review_request object
+
+    diffs
+    repository
+    changes
+    self
+    update
+    last_update
+    reviews
+    draft
+    file_attachments
+    submitter
+    screenshots
+    delete
+
+
+    Fields I might be able to update using server.set_review_request_field
+
+    status
+    last_updated
+    description
+    links
+    target_groups
+    bugs_closed
+    changenum
+    target_people
+    testing_done
+    branch
+    id
+    time_added
+    summary
+    public
+
+    """
 
 # EOF
