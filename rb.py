@@ -531,10 +531,6 @@ def main():
         print e.message
         sys.exit(1)
 
-    if action == "foo":
-        print get_ship_its(server, "17")
-        sys.exit()
-
     if action == "update":
         if len(args) < 2:
             print MISSING_RB_ID
