@@ -115,7 +115,6 @@ def migrate_rbrc_file(old_rc_file, new_rc_file):
     except IOError, e:
         raise RBError("Can't read %s\n%s" % (old_rc_file, e))
 
-    # TODO: Get full list by looking in our old rb script
     valid_keys = {"username" : "USERNAME",
                   "server" : "REVIEWBOARD_URL",
     }
@@ -194,6 +193,7 @@ def get_review(server, review_id):
 
 
 def get_reviews(server, review_id):
+    # TODO: Refactor all these identical calls to get_review_request
     try:
         review = server.get_review_request(review_id)
     except rbtools.api.errors.APIError, e:
@@ -263,6 +263,18 @@ def validate_review(server, review_id):
         raise RBError("Review %s has no 'Ship It' reviews. Use --force to submit anyway." % review_id)
 
 
+def get_reviewer_name(server, review):
+    user_id = review['links']['user']['title']
+    user = get_user(server, user_id)
+    return "%s %s" % (user['user']['first_name'], user['user']['last_name'])
+
+
+def get_ship_its(server, review_id):
+    reviews = get_reviews(server, review_id)['reviews']
+    ship_its = [ get_reviewer_name(server, r) for r in reviews if r['ship_it'] ]
+    return ship_its
+
+
 def submit(server, review_id, options):
     review = server.get_review_request(review_id)
     change_list = review['changenum']
@@ -275,6 +287,43 @@ def submit(server, review_id, options):
     try:
         if options.edit:
             os.system("p4 change %s" % change_list)
+
+        # We need to modify the change form to include additional information.
+        # Example:
+        #
+        #         Reviewed by: Bill Walker, Michael Slass, Zach Carter
+        #
+        #         Reviewboard: 53662
+        #
+        # We have a perforce trigger add the ReviewBoard URL so that it gets
+        # included even if the change is submitted without using this script.
+        #
+
+        # Get the change form
+        change_form = run_cmd("p4 change -o %s" % change_list)
+        insert_here = change_form.index("Files:")
+
+        # Add list of ship-its to the change list
+        ship_its = get_ship_its(server, review_id)
+        if ship_its:
+            # Need to add this to change list:
+            #
+            #
+            ship_it_line = "\tReviewed by: %s\n" % ", ".join(ship_its)
+            change_form.insert(insert_here, ship_it_line)
+            insert_here += 1
+
+        review_id_line = "\tReviewboard: %s\n" % review_id
+        change_form.insert(insert_here, review_id_line)
+
+        # Write new form to temp file
+        change_form_file = tempfile.NamedTemporaryFile(mode="w", delete=False)
+        for line in change_form:
+            change_form_file.write(line + "\n")
+        change_form_file.close()
+        change_output = run_cmd("p4 change -i < %s" % change_form_file.name)
+
+        # Submit change list to perforce
         submit_output = run_cmd("p4 submit -c %s" % change_list)
         postreview.debug("submit returned:")
         postreview.debug("\n".join(submit_output))
@@ -326,7 +375,7 @@ def set_change_list(server, review_id, change_list):
 
 
 def parse_options():
-    # TODO: Refine this usage
+    # TODO: Refine this usage statement
     parser = optparse.OptionParser(usage = "%prog [OPTIONS] create|update|edit|submit [RB_ID]")
     parser.add_option("-d", "--debug",
         dest="debug", action="store_true", default=False,
@@ -481,6 +530,10 @@ def main():
     except RBError, e:
         print e.message
         sys.exit(1)
+
+    if action == "foo":
+        print get_ship_its(server, "17")
+        sys.exit()
 
     if action == "update":
         if len(args) < 2:
