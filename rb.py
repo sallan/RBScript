@@ -344,11 +344,13 @@ def submit(server, review_id, options):
         raise RBError("ERROR: Unable to submit change %s\n%s" % (change_list, e))
 
     # Successful output will look like this:
-    # ['Submitting change 816.', 'Locking 1 files ...', 'edit //depot/Jam/MAIN/src/README#27', 'Change 816 submitted.']
+    # ['Submitting change 816.', 'Locking 1 files ...', 'edit //depot/Jam/MAIN/src/README#27',
+    # 'Change 816 submitted.']
     #
     # or
     #
-    # ['Submitting change 816.', 'Locking 1 files ...', 'edit //depot/Jam/MAIN/src/README#27', 'Change 828 renamed change 830 and submitted.']
+    # ['Submitting change 816.', 'Locking 1 files ...', 'edit //depot/Jam/MAIN/src/README#27',
+    # 'Change 828 renamed change 830 and submitted.']
     #
     if submit_output[-1].endswith("submitted."):
         # Figure out what change list number it went in with.
@@ -460,53 +462,48 @@ def main():
     # constant error strings
     MISSING_RB_ID = "Need the ReviewBoard ID number."
 
-    # Create our server object
+    # Configuration and options
     global options
     global configs
     user_home = os.path.expanduser("~")
 
+    # Check for a legacy .rbrc file and migrate it to .reviewboardrc if necessary
     try:
         check_config(user_home)
     except RBError, e:
         print e.message
         sys.exit(1)
 
-    rb_cookies_file = os.path.join(user_home, ".post-review-cookies.txt")
     user_config, configs = postreview.load_config_files(user_home)
     parser = parse_options()
     if len(sys.argv) == 1:
         parser.print_help()
         sys.exit()
 
-
+    # We need to call our option parser and then also call postreview's parse_options
+    # because it sets global variables that we need for our operations.
+    # We don't care about the return value of postreview's parse_options.
     options, args = parser.parse_args()
-
-    # We need to call postreview's parse_options because it sets global variables
-    # that we need for our operations. We don't care about the return value.
     postreview.parse_options(args)
 
     # Strip off legacy UI elements if present
     if args[0] == "rr" or args[0] == "reviewrequest":
         args = args[1:]
-
     action = args[0]
+
+    # For creating a new review request, just hand everything off to post-review.
     if action == "create":
         create(options)
         sys.exit()
 
-    # For edit or submit, we interject our own server
+    # For everything else, we need to talk directly to the server, so we'll instantiate
+    # a server object.
+    rb_cookies_file = os.path.join(user_home, ".post-review-cookies.txt")
     try:
         server = get_server(user_config, postreview.options, rb_cookies_file)
     except RBError, e:
         print e.message
         sys.exit(1)
-
-    if action == "update":
-        if len(args) < 2:
-            print MISSING_RB_ID
-            sys.exit(1)
-        review_id = args[1]
-        update(server, review_id)
 
     if action == "edit":
         if len(args) < 2:
