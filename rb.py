@@ -1,12 +1,10 @@
 #!/usr/bin/env python
-import logging
 import optparse
 import sys
 import os
 import tempfile
 from rbtools import postreview
 import rbtools.api.errors
-from rbtools.postreview import options
 
 class RBError(Exception): pass;
 
@@ -18,7 +16,9 @@ def run_cmd(cmd):
         raise RuntimeError, "%r failed with return code: %d" % (cmd, err)
     return data
 
-
+###
+### Perforce related functions
+###
 def p4_opened(change=None):
     """
     Return list of files opened in this workspace.
@@ -28,35 +28,6 @@ def p4_opened(change=None):
     else:
         cmd = "p4 opened -c %s" % change
     return run_cmd(cmd)
-
-
-def get_editor():
-    """
-    Determine the editor to use from the environment.
-    """
-    # Fallback editor is vi
-    editor = "vi"
-
-    # See if user has a favorite
-    # TODO: What about p4.config settings? Note the old rb does not handle it either.
-    if "P4EDITOR" in os.environ:
-        editor = os.environ["P4EDITOR"]
-    else:
-        if "EDITOR" in os.environ:
-            editor = os.environ['EDITOR']
-    return editor
-
-
-def add_shelve_info():
-    """
-    Example of what we want in the review comment:
-
-    This change has been shelved in changeset 760282.
-    To unshelve this change into your workspace:
-
-            p4 unshelve -s 760282
-    """
-    raise RBError("Not implemented yet.")
 
 
 def p4_change():
@@ -100,6 +71,25 @@ def p4_change():
     os.unlink(change_form.name)
     return change
 
+###
+### Utility functions
+###
+def get_editor():
+    """
+    Determine the editor to use from the environment.
+    """
+    # Fallback editor is vi
+    editor = "vi"
+
+    # See if user has a favorite
+    # TODO: What about p4.config settings? Note the old rb does not handle it either.
+    if "P4EDITOR" in os.environ:
+        editor = os.environ["P4EDITOR"]
+    else:
+        if "EDITOR" in os.environ:
+            editor = os.environ['EDITOR']
+    return editor
+
 
 def migrate_rbrc_file(old_rc_file, new_rc_file):
     """
@@ -141,18 +131,21 @@ def check_config(user_home):
     Look for a legacy .rbrc file in the user home directory and then for a .reviewboardrc.
     If you find both, warn the user and use .reviewboardrc. If only .rbrc, migrate those
     settings to .reviewboardrc.
-    """
+    """ 
     rbrc_file = os.path.join(user_home, ".rbrc")
     reviewboardrc_file = os.path.join(user_home, ".reviewboardrc")
     if os.path.isfile(rbrc_file):
         if os.path.isfile(reviewboardrc_file):
-            print "Found .reviewboardrc and legacy .rbrc file. Using .reviewboardrc"
+            postreview.debug("Found .reviewboardrc and legacy .rbrc file. Using .reviewboardrc")
         else:
             print "Found legacy %s file." % rbrc_file
             print "Migrating to %s" % reviewboardrc_file
             migrate_rbrc_file(rbrc_file, reviewboardrc_file)
 
 
+###
+### Server interaction functions
+###
 def get_server(user_config, options, cookie_file):
     """
     Create an instance of a ReviewBoardServer with our configuration settings.
@@ -222,33 +215,6 @@ def get_review_change_list(server, review_id):
     return  change
 
 
-def new_review(options):
-    if options.changenum is None:
-        change = p4_change()
-    else:
-        change = options.changenum
-
-    if change is None:
-        raise RBError("Can't determine the perforce change list number.")
-    else:
-        # TODO: Need to properly pass options to post-review
-        cmd = "post-review -d %s" % change
-        os.system(cmd)
-
-
-def update_review(server, review_id):
-    # We're not going to error check review_id because get_review_change_list()
-    # will do a better job of that and raise an error.
-    #
-    # Get change list number for this review.
-    change = get_review_change_list(server, review_id)
-
-    # TODO: Need to properly pass options to post-review
-    cmd = "post-review -d %s" % change
-    postreview.debug(cmd)
-    os.system(cmd)
-
-
 def validate_review(server, review_id):
     """
     To be valid must meets all the criteria for submission.
@@ -273,6 +239,53 @@ def get_ship_its(server, review_id):
     reviews = get_reviews(server, review_id)['reviews']
     ship_its = [ get_reviewer_name(server, r) for r in reviews if r['ship_it'] ]
     return ship_its
+
+
+
+
+def set_status(server, review_id, status):
+    review = server.get_review_request(review_id)
+    server.api_put(review['links']['self']['href'], {
+        'status': status,
+    })
+
+
+def set_change_list(server, review_id, change_list):
+    review = server.get_review_request(review_id)
+    server.api_put(review['links']['self']['href'], {
+        'changenum': change_list,
+    })
+
+
+
+###
+### Functions to support main actions
+###
+def create(options):
+    if options.changenum is None:
+        change = p4_change()
+    else:
+        change = options.changenum
+
+    if change is None:
+        raise RBError("Can't determine the perforce change list number.")
+    else:
+        # TODO: Need to properly pass options to post-review
+        cmd = "post-review -d %s" % change
+        os.system(cmd)
+
+
+def update(server, review_id):
+    # We're not going to error check review_id because get_review_change_list()
+    # will do a better job of that and raise an error.
+    #
+    # Get change list number for this review.
+    change = get_review_change_list(server, review_id)
+
+    # TODO: Need to properly pass options to post-review
+    cmd = "post-review -d %s" % change
+    postreview.debug(cmd)
+    os.system(cmd)
 
 
 def submit(server, review_id, options):
@@ -360,29 +373,18 @@ def submit(server, review_id, options):
         raise RBError("Unrecognized p4 output: %s\nReview %s not closed." % ("\n".join(submit_output), review_id))
 
 
-def set_status(server, review_id, status):
-    review = server.get_review_request(review_id)
-    server.api_put(review['links']['self']['href'], {
-        'status': status,
-    })
-
-
-def set_change_list(server, review_id, change_list):
-    review = server.get_review_request(review_id)
-    server.api_put(review['links']['self']['href'], {
-        'changenum': change_list,
-    })
-
-
+###
+### Options Parsing
+###
 def parse_options():
     # TODO: Refine this usage statement
-    parser = optparse.OptionParser(usage = "%prog [OPTIONS] create|update|edit|submit [RB_ID]")
+    parser = optparse.OptionParser(usage="%prog [OPTIONS] create|update|edit|submit [RB_ID]")
     parser.add_option("-d", "--debug",
         dest="debug", action="store_true", default=False,
         help="Display debug output.")
     parser.add_option("--server",
-       dest="server", metavar="<server_name>",
-       help="Use specified server. Default is entry in .reviewboardrc file.")
+        dest="server", metavar="<server_name>",
+        help="Use specified server. Default is entry in .reviewboardrc file.")
     # TODO: consider adding support for p4-port and p4-user
 
 
@@ -418,7 +420,6 @@ def parse_options():
         dest="submit_as", metavar="<user>",
         help="Create review with this username. Useful if different from p4 user name.")
 
-
     submit_group = optparse.OptionGroup(parser, "Submit Options")
     submit_group.add_option("-f", "--force",
         dest="force", action="store_true", default=False,
@@ -431,7 +432,6 @@ def parse_options():
     submit_group.add_option("-a", "--as-is",
         dest="asis", action="store_true", default=False,
         help="Don't add reviewer names to the change list.")
-
 
     edit_group = optparse.OptionGroup(parser, "Edit Options")
     edit_group.add_option("--update-diff",
@@ -454,22 +454,6 @@ def parse_options():
     parser.add_option_group(edit_group)
     parser.add_option_group(submit_group)
     return parser
-
-
-class RBOptionParser(optparse.OptionParser):
-    """
-    Extended OptionParser so we can prevent an error on options we don't recognize.
-    This will allow us to parse our options and then pass the unrecognized ones off
-    to the postreview.parse_options() method.
-
-    I'm not currently using this, but leaving it in for reference. I may need it later.
-    """
-    def _process_args(self, largs, rargs, values):
-        while rargs:
-            try:
-                optparse.OptionParser._process_args(self, largs, rargs, values)
-            except (optparse.BadOptionError, optparse.AmbiguousOptionError), e:
-                largs.append(e.opt_str)
 
 
 def main():
@@ -501,28 +485,14 @@ def main():
     # that we need for our operations. We don't care about the return value.
     postreview.parse_options(args)
 
-#    print "My Args: ", args
-#    print "My Opts: ", options
-#    print "PR Args: ", post_review_args
-#    sys.exit()
-
     # Strip off legacy UI elements if present
     if args[0] == "rr" or args[0] == "reviewrequest":
         args = args[1:]
 
     action = args[0]
     if action == "create":
-        new_review(options)
+        create(options)
         sys.exit()
-
-    # I'm leaving this here for handy reference.
-    #        for repo in server.get_repositories():
-    #            print repo['path']
-    #        print get_reviews(server, "19")
-    #        print get_user(server, "sallan")
-    # comments = get_comments(server, "22")
-    # print len(comments)
-    # sys.exit()
 
     # For edit or submit, we interject our own server
     try:
@@ -536,7 +506,7 @@ def main():
             print MISSING_RB_ID
             sys.exit(1)
         review_id = args[1]
-        update_review(server, review_id)
+        update(server, review_id)
 
     if action == "edit":
         if len(args) < 2:
@@ -545,7 +515,7 @@ def main():
         review_id = args[1]
         if options.update_diff:
             # TODO: Looks like update_review will need more granularity
-            update_review(server, review_id)
+            update(server, review_id)
         else:
             print "Only know how to update-diff right now."
         sys.exit()
