@@ -316,7 +316,7 @@ def migrate_rbrc_file(old_rc_file, new_rc_file):
 
 def check_config(user_home):
     """
-    ???
+    Reconcile old and new configuration files.
 
     Look for a legacy .rbrc file in the user home directory and then for a .reviewboardrc.
     If you find both, warn the user and use .reviewboardrc. If only .rbrc, migrate those
