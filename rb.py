@@ -356,7 +356,6 @@ def get_server(user_config, options, cookie_file):
     return server
 
 
-
 def create(options):
     """
     A thin wrapper to the rbtools post-review script.
@@ -379,6 +378,29 @@ def create(options):
         # TODO: Need to properly pass options to post-review
         cmd = "post-review -d %s" % change
         os.system(cmd)
+
+
+def convert_options(options):
+    """Convert our options to post-review options string."""
+    post_rev_opts = ""
+
+    if options.debug:
+        post_rev_opts += " --debug"
+
+    if options.server:
+        post_rev_opts += " --server %s" % options.server
+
+    if options.changenum:
+        post_rev_opts += options.changenum
+
+    if options.bug_number:
+        post_rev_opts += " --bugs-closed %s" % options.bug_number
+
+    if options.target_groups:
+        post_rev_opts += " --target-groups %s" % options.target_groups
+
+    return post_rev_opts.strip()
+
 
 def parse_options():
     """
