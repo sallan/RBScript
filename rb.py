@@ -382,10 +382,18 @@ def create(options):
 
 def convert_options(options):
     """Convert our options to post-review options string."""
+
+    # TODO: If many off these are straight pass throughs, can we simplify this?
     post_rev_opts = ""
 
     if options.debug:
         post_rev_opts += " --debug"
+
+    if options.open:
+        post_rev_opts += " --open"
+
+    if options.publish:
+        post_rev_opts += " --publish"
 
     if options.server:
         post_rev_opts += " --server %s" % options.server
@@ -396,8 +404,17 @@ def convert_options(options):
     if options.bug_number:
         post_rev_opts += " --bugs-closed %s" % options.bug_number
 
+    if options.target_people:
+        post_rev_opts += " --target-people %s" % options.target_people
+
     if options.target_groups:
         post_rev_opts += " --target-groups %s" % options.target_groups
+
+    if options.summary:
+        post_rev_opts += " --summary %s" % options.summary
+
+    if options.description:
+        post_rev_opts += " --description %s" % options.description
 
     return post_rev_opts.strip()
 
@@ -421,17 +438,20 @@ def parse_options():
     create_group.add_option("-c", "--changeset",
         dest="changenum", metavar="<changeno>",
         help="Create review using an existing change list.")
+    create_group.add_option("-o", "--open",
+        dest="open", action="store_true", default=False,
+        help="Open new review in default web browser.")
     create_group.add_option("-b", "--bug",
         dest="bug_number", metavar="<bug_id>",
         help="Link to this bugzilla id.")
     create_group.add_option("-g", "--target-groups",
         dest="target_groups", metavar="<group [groups]>",
         help="List of ReviewBoard groups to assign.")
-    create_group.add_option("-u", "--target-users",
+    create_group.add_option("-p", "--target-people",
         dest="target_people", metavar="<user [users]>",
         help="List of users to assign.")
 
-    create_group.add_option("-p", "--publish",
+    create_group.add_option("--publish",
         dest="publish", action="store_true", default=False,
         help="Publish the review.")
     create_group.add_option("-s", "--shelve",
