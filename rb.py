@@ -142,7 +142,7 @@ class F5Review:
 
 
     def set_change_list(self, new_change):
-        """Assign new change list number to review."""
+        """Assign new change list number to review request."""
         self.change_list = new_change
         self.server.api_put(self.review_request['links']['self']['href'], {
             'changenum': self.change_list,
@@ -150,12 +150,12 @@ class F5Review:
 
 
     def get_ship_its(self):
+        """Get unique list of reviewers who gave a ship it."""
         reviews = self.get_reviews()['reviews']
         ship_its = [self.get_reviewer_name(r) for r in reviews if r['ship_it']]
 
-        # TODO: Remove duplicates
-
-        return ship_its
+        # Return just the unique elements
+        return list(set(ship_its))
 
 
     def get_reviewer_name(self, review):
@@ -167,12 +167,14 @@ class F5Review:
 
 
     def set_status(self, status):
+        """Set the status for this review request."""
         self.server.api_put(self.review_request['links']['self']['href'], {
             'status': status,
         })
 
 
     def get_reviews(self):
+        """Return list of all reviews for this review request."""
         reviews_url = self.review_request['links']['reviews']['href']
         reviews = self.server.api_get(reviews_url)
         return reviews
