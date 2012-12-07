@@ -10,11 +10,22 @@ class RBError(Exception): pass;
 
 
 class F5Review:
+
     """
-    Encapsulates a review request.
+    Encapsulate a review request.
     """
 
     def __init__(self, server, review_id, options):
+        """
+        Create an instance of F5Review.
+
+        Fields:
+        server -- an instance of postreview.ReviewBoardServer
+        review_id -- the review board id number
+        options -- an options object as returned by optparse
+
+        """
+
         self.server = server
         self.review_id = review_id
         self.options = options
@@ -24,7 +35,6 @@ class F5Review:
             self.change_list =  self.review_request['changenum']
         except rbtools.api.errors.APIError:
             raise RBError("Failed to retrieve review: %s." % review_id)
-
 
     def submit(self):
         """Submit the change list to perforce and mark review as submitted."""
@@ -115,7 +125,7 @@ class F5Review:
             raise RBError("Unrecognized p4 output: %s\nReview %s not closed." % ("\n".join(submit_output), review_id))
 
     def edit(self):
-        """Edits the review."""
+        """Edit the review."""
         # TODO: What other editing functions do we want to support?
         # TODO: What about all the other options?
         cmd = "post-review %s" % self.change_list
@@ -123,13 +133,15 @@ class F5Review:
             cmd += " --debug"
         os.system(cmd)
 
-
     def validate_review(self):
         """
-        To be valid must meets all the criteria for submission.
+        Validate the review before submitting.
+
+        To be valid the review must meet these requirements:
         * Must be pending
         * You must own the CL
         * Must have a ship it
+
         """
         review_status = self.review_request['status']
         if review_status != "pending":
@@ -139,15 +151,12 @@ class F5Review:
         if reviews['total_results'] <= 0:
             raise RBError("Review %s has no 'Ship It' reviews. Use --force to submit anyway." % self.review_id)
 
-
-
     def set_change_list(self, new_change):
         """Assign new change list number to review request."""
         self.change_list = new_change
         self.server.api_put(self.review_request['links']['self']['href'], {
             'changenum': self.change_list,
         })
-
 
     def get_ship_its(self):
         """Get unique list of reviewers who gave a ship it."""
@@ -157,7 +166,6 @@ class F5Review:
         # Return just the unique elements
         return list(set(ship_its))
 
-
     def get_reviewer_name(self, review):
         """Returns First Last names for user who did given review."""
         user_id = review['links']['user']['title']
@@ -165,13 +173,11 @@ class F5Review:
         user = self.server.api_get(user_url)
         return "%s %s" % (user['user']['first_name'], user['user']['last_name'])
 
-
     def set_status(self, status):
         """Set the status for this review request."""
         self.server.api_put(self.review_request['links']['self']['href'], {
             'status': status,
         })
-
 
     def get_reviews(self):
         """Return list of all reviews for this review request."""
@@ -184,9 +190,7 @@ class F5Review:
 # Utility functions
 #==============================================================================
 def run_cmd(cmd):
-    """
-    Run cmd and return output as a list of output lines.
-    """
+    """Run cmd and return output as a list of output lines."""
     child = os.popen(cmd)
     data = child.read().splitlines()
     err = child.close()
@@ -196,9 +200,7 @@ def run_cmd(cmd):
 
 
 def p4_opened(change=None):
-    """
-    Return list of files opened in this workspace.
-    """
+    """Return list of files opened in this workspace."""
     if change is None:
         cmd = "p4 opened"
     else:
@@ -209,8 +211,12 @@ def p4_opened(change=None):
 def p4_change():
     """
     Create a numbered change list with all files in the default change list.
-    Returns the new change list number.
+
+    Run p4 change on the default change list to create a new, numbered change
+    and return the new change list number.
+
     Raises RBError on failure.
+
     """
     # If there are no files in the default changelist, alert user and quit.
     if len(p4_opened("default")) == 0:
@@ -250,13 +256,18 @@ def p4_change():
 
 def get_editor():
     """
-    Determine the editor to use from the environment.
+    Return the editor to use based on environment variables.
+
+    Look at various environment variables to see if the user has
+    specified a favorite and return that value.
+
+    Default: vi
+
     """
-    # Fallback editor is vi
+
     editor = "vi"
 
     # See if user has a favorite
-    # TODO: What about p4.config settings? Note the old rb does not handle it either.
     if "P4EDITOR" in os.environ:
         editor = os.environ["P4EDITOR"]
     else:
@@ -267,9 +278,12 @@ def get_editor():
 
 def migrate_rbrc_file(old_rc_file, new_rc_file):
     """
-    Copies known compatible settings from the legacy .rbrc file to a new
+    Migrate any legacy .rbrc settings.
+
+    Copy known compatible settings from the legacy .rbrc file to a new
     .reviewboardrc file. This function should only get called if there is
     not already an existing .reviewboardrc file.
+
     """
     try:
         # Need to support older pythons so can't use the 'with' statement
@@ -302,9 +316,12 @@ def migrate_rbrc_file(old_rc_file, new_rc_file):
 
 def check_config(user_home):
     """
+    ???
+
     Look for a legacy .rbrc file in the user home directory and then for a .reviewboardrc.
     If you find both, warn the user and use .reviewboardrc. If only .rbrc, migrate those
     settings to .reviewboardrc.
+
     """ 
     rbrc_file = os.path.join(user_home, ".rbrc")
     reviewboardrc_file = os.path.join(user_home, ".reviewboardrc")
@@ -320,7 +337,9 @@ def check_config(user_home):
 def get_server(user_config, options, cookie_file):
     """
     Create an instance of a ReviewBoardServer with our configuration settings.
+
     This is used by the F5Review class and is the workhorse for our customizations.
+
     """
     tool = postreview.PerforceClient(options=options)
     if options.server:
