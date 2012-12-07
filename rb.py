@@ -127,14 +127,18 @@ class F5Review:
     def validate_review(self):
         """
         To be valid must meets all the criteria for submission.
-
-        1. You must own the CL
-        2. Must have a ship it
-        3. Need to check for shelved files
+        * Must be pending
+        * You must own the CL
+        * Must have a ship it
         """
+        review_status = self.review_request['status']
+        if review_status != "pending":
+            raise RBError("Can't submit a review with a '%s' status." % review_status)
+
         reviews = self.get_reviews()
         if reviews['total_results'] <= 0:
             raise RBError("Review %s has no 'Ship It' reviews. Use --force to submit anyway." % self.review_id)
+
 
 
     def set_change_list(self, new_change):
@@ -175,7 +179,12 @@ class F5Review:
 
 
 #==============================================================================
+# Utility functions
+#==============================================================================
 def run_cmd(cmd):
+    """
+    Run cmd and return output as a list of output lines.
+    """
     child = os.popen(cmd)
     data = child.read().splitlines()
     err = child.close()
@@ -183,9 +192,7 @@ def run_cmd(cmd):
         raise RuntimeError, "%r failed with return code: %d" % (cmd, err)
     return data
 
-###
-### Perforce related functions
-###
+
 def p4_opened(change=None):
     """
     Return list of files opened in this workspace.
@@ -238,9 +245,7 @@ def p4_change():
     os.unlink(change_form.name)
     return change
 
-###
-### Utility functions
-###
+
 def get_editor():
     """
     Determine the editor to use from the environment.
@@ -310,12 +315,10 @@ def check_config(user_home):
             migrate_rbrc_file(rbrc_file, reviewboardrc_file)
 
 
-###
-### Server interaction functions
-###
 def get_server(user_config, options, cookie_file):
     """
     Create an instance of a ReviewBoardServer with our configuration settings.
+    This is used by the F5Review class and is the workhorse for our customizations.
     """
     tool = postreview.PerforceClient(options=options)
     if options.server:
@@ -333,11 +336,17 @@ def get_server(user_config, options, cookie_file):
 
 
 
-###
-### Functions to support main actions
-###
 def create(options):
-    # This stays here be cause we don't create an F5Review object when creating a new review request.
+    """
+    A thin wrapper to the rbtools post-review script.
+
+    This stays here rather than F5Review be cause we don't create an F5Review
+    object when creating a new review request. We just shell out to post-review.
+    That may change in a future version of this script because I'd actually like
+    to bypass all the other repository checks that post-review does. But that's a
+    much larger scope than I want to take on for this version.
+    """
+
     if options.changenum is None:
         change = p4_change()
     else:
@@ -350,10 +359,10 @@ def create(options):
         cmd = "post-review -d %s" % change
         os.system(cmd)
 
-###
-### Options Parsing
-###
 def parse_options():
+    """
+    Our options parser
+    """
     # TODO: Refine this usage statement
     parser = optparse.OptionParser(usage="%prog [OPTIONS] create|update|edit|submit [RB_ID]")
     parser.add_option("-d", "--debug",
@@ -434,7 +443,6 @@ def parse_options():
 
 
 def main():
-    # constant error strings
     MISSING_RB_ID = "Need the ReviewBoard ID number."
 
     # Configuration and options
