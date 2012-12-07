@@ -18,22 +18,24 @@ class F5Review:
         self.server = server
         self.review_id = review_id
         self.options = options
-        review_request = server.get_review_request(review_id)
-        change_list =  review_request['changenum']
 
+        try:
+            self.review_request = server.get_review_request(review_id)
+            self.change_list =  self.review_request['changenum']
+        except rbtools.api.errors.APIError:
+            raise RBError("Failed to retrieve review: %s." % review_id)
 
 
     def submit(self):
         """Submit the change list to perforce and mark review as submitted."""
         review_id = self.review_id
-        review = self.review_request
         change_list = self.change_list
         options = self.options
 
         if not options.force:
             # Inspect the review to make sure it meets requirements for submission.
             # If not, an RBError exception is raised with the reason for rejection.
-            self.validate()
+            self.validate_review()
 
         try:
             if options.edit:
@@ -114,10 +116,15 @@ class F5Review:
 
     def edit(self):
         """Edits the review."""
-        raise RBError("edit not implemented yet.")
+        # TODO: What other editing functions do we want to support?
+        # TODO: What about all the other options?
+        cmd = "post-review %s" % self.change_list
+        if self.options.debug:
+            cmd += " --debug"
+        os.system(cmd)
 
 
-    def validate_review(server, review_id):
+    def validate_review(self):
         """
         To be valid must meets all the criteria for submission.
 
@@ -125,22 +132,25 @@ class F5Review:
         2. Must have a ship it
         3. Need to check for shelved files
         """
-
-        reviews = get_reviews(server, review_id)
+        reviews = self.get_reviews()
         if reviews['total_results'] <= 0:
-            raise RBError("Review %s has no 'Ship It' reviews. Use --force to submit anyway." % review_id)
+            raise RBError("Review %s has no 'Ship It' reviews. Use --force to submit anyway." % self.review_id)
+
 
     def set_change_list(self, new_change):
         """Assign new change list number to review."""
         self.change_list = new_change
-        self.server.api_put(self.review['links']['self']['href'], {
+        self.server.api_put(self.review_request['links']['self']['href'], {
             'changenum': self.change_list,
         })
 
 
     def get_ship_its(self):
-        reviews = self.review['reviews']
+        reviews = self.get_reviews()['reviews']
         ship_its = [self.get_reviewer_name(r) for r in reviews if r['ship_it']]
+
+        # TODO: Remove duplicates
+
         return ship_its
 
 
@@ -153,11 +163,15 @@ class F5Review:
 
 
     def set_status(self, status):
-        self.server.api_put(self.review['links']['self']['href'], {
+        self.server.api_put(self.review_request['links']['self']['href'], {
             'status': status,
         })
 
 
+    def get_reviews(self):
+        reviews_url = self.review_request['links']['reviews']['href']
+        reviews = self.server.api_get(reviews_url)
+        return reviews
 
 
 #==============================================================================
@@ -318,103 +332,12 @@ def get_server(user_config, options, cookie_file):
     return server
 
 
-def get_user(server, user):
-    """
-    Return data for the given user.
-    """
-    url = server.url + "api/users/%s" % user
-    try:
-        user_data = server.api_get(url)
-    except rbtools.api.errors.APIError, e:
-        raise RBError("Failed to find data for user: %s." % user)
-    return user_data
-
-
-def get_review(server, review_id):
-    try:
-        review = server.get_review_request(review_id)
-    except rbtools.api.errors.APIError, e:
-        raise RBError("Failed to retrieve review: %s." % review_id)
-    return review
-
-
-def get_reviews(server, review_id):
-    # TODO: Refactor all these identical calls to get_review_request
-    try:
-        review = server.get_review_request(review_id)
-    except rbtools.api.errors.APIError, e:
-        raise RBError("Failed to retrieve review: %s." % review_id)
-
-    reviews = server.api_get(review['links']['reviews']['href'])
-    return reviews
-
-
-def get_comments(server, review_id):
-    try:
-        review = server.get_review_request(review_id)
-    except rbtools.api.errors.APIError, e:
-        raise RBError("Failed to retrieve review: %s." % review_id)
-
-    reviews = server.api_get(review['links']['reviews']['href'])
-    comments = server.api_get(reviews['reviews'][0]['links']['diff_comments']['href'])
-    return comments['diff_comments']
-
-
-def get_review_change_list(server, review_id):
-    try:
-        change = server.get_review_request(review_id)['changenum']
-    except rbtools.api.errors.APIError, e:
-        raise RBError("Can't determine changelist number for review %s" % review_id)
-    return  change
-
-
-def validate_review(server, review_id):
-    """
-    To be valid must meets all the criteria for submission.
-
-    1. You must own the CL
-    2. Must have a ship it
-    3. Need to check for shelved files
-    """
-
-    reviews = get_reviews(server, review_id)
-    if reviews['total_results'] <= 0:
-        raise RBError("Review %s has no 'Ship It' reviews. Use --force to submit anyway." % review_id)
-
-
-def get_reviewer_name(server, review):
-    user_id = review['links']['user']['title']
-    user = get_user(server, user_id)
-    return "%s %s" % (user['user']['first_name'], user['user']['last_name'])
-
-
-def get_ship_its(server, review_id):
-    reviews = get_reviews(server, review_id)['reviews']
-    ship_its = [ get_reviewer_name(server, r) for r in reviews if r['ship_it'] ]
-    return ship_its
-
-
-
-
-def set_status(server, review_id, status):
-    review = server.get_review_request(review_id)
-    server.api_put(review['links']['self']['href'], {
-        'status': status,
-    })
-
-
-def set_change_list(server, review_id, change_list):
-    review = server.get_review_request(review_id)
-    server.api_put(review['links']['self']['href'], {
-        'changenum': change_list,
-    })
-
-
 
 ###
 ### Functions to support main actions
 ###
 def create(options):
+    # This stays here be cause we don't create an F5Review object when creating a new review request.
     if options.changenum is None:
         change = p4_change()
     else:
@@ -426,107 +349,6 @@ def create(options):
         # TODO: Need to properly pass options to post-review
         cmd = "post-review -d %s" % change
         os.system(cmd)
-
-
-def update(server, review_id):
-    # We're not going to error check review_id because get_review_change_list()
-    # will do a better job of that and raise an error.
-    #
-    # Get change list number for this review.
-    change = get_review_change_list(server, review_id)
-
-    # TODO: Need to properly pass options to post-review
-    cmd = "post-review -d %s" % change
-    postreview.debug(cmd)
-    os.system(cmd)
-
-
-def submit(server, review_id, options):
-    review = server.get_review_request(review_id)
-    change_list = review['changenum']
-
-    if not options.force:
-        # Inspect the review to make sure it meets requirements for submission.
-        # If not, an RBError exception is raised with the reason for rejection.
-        validate_review(server, review_id)
-
-    try:
-        if options.edit:
-            os.system("p4 change %s" % change_list)
-
-        # We need to modify the change form to include additional information.
-        # Example:
-        #
-        #         Reviewed by: Bill Walker, Michael Slass, Zach Carter
-        #
-        #         Reviewboard: 53662
-        #
-        # We have a perforce trigger add the ReviewBoard URL so that it gets
-        # included even if the change is submitted without using this script.
-        #
-
-        # Get the change form
-        change_form = run_cmd("p4 change -o %s" % change_list)
-        insert_here = change_form.index("Files:")
-
-        # Add list of ship-its to the change list
-        ship_its = get_ship_its(server, review_id)
-        if ship_its:
-            # Need to add this to change list:
-            #
-            #
-            ship_it_line = "\tReviewed by: %s\n" % ", ".join(ship_its)
-            change_form.insert(insert_here, ship_it_line)
-            insert_here += 1
-
-        review_id_line = "\tReviewboard: %s\n" % review_id
-        change_form.insert(insert_here, review_id_line)
-
-        # Write new form to temp file
-        change_form_file = tempfile.NamedTemporaryFile(mode="w", delete=False)
-        for line in change_form:
-            change_form_file.write(line + "\n")
-        change_form_file.close()
-        change_output = run_cmd("p4 change -i < %s" % change_form_file.name)
-
-        # Submit change list to perforce
-        submit_output = run_cmd("p4 submit -c %s" % change_list)
-        postreview.debug("submit returned:")
-        postreview.debug("\n".join(submit_output))
-    except RuntimeError, e:
-        raise RBError("ERROR: Unable to submit change %s\n%s" % (change_list, e))
-
-    # Successful output will look like this:
-    # ['Submitting change 816.', 'Locking 1 files ...', 'edit //depot/Jam/MAIN/src/README#27',
-    # 'Change 816 submitted.']
-    #
-    # or
-    #
-    # ['Submitting change 816.', 'Locking 1 files ...', 'edit //depot/Jam/MAIN/src/README#27',
-    # 'Change 828 renamed change 830 and submitted.']
-    #
-    if submit_output[-1].endswith("submitted."):
-        # Figure out what change list number it went in with.
-        submit_status_message = submit_output[-1]
-        if submit_status_message == "Change %s submitted." % change_list:
-            submitted_changelist = change_list
-        else:
-            if submit_status_message.startswith("Change %s renamed change" % change_list):
-                submitted_changelist = submit_status_message.split()[4]
-            else:
-                raise RBError("Unrecognized output from p4 submit:\n%s" % "\n".join(submit_output))
-
-        postreview.debug("Setting review change list to %s and closing." % submitted_changelist)
-        try:
-            set_change_list(server, review_id, submitted_changelist)
-            set_status(server, review_id, "submitted")
-            print "Change %s submitted." % submitted_changelist
-            print "Review %s closed." % review_id
-        except RBError, e:
-            raise RBError("Failed to submit review.\n" + e.message)
-    else:
-        raise RBError("Unrecognized p4 output: %s\nReview %s not closed." % ("\n".join(submit_output), review_id))
-
 
 ###
 ### Options Parsing
@@ -663,9 +485,14 @@ def main():
 
         if action == "edit":
             review.edit()
+            sys.exit()
 
         if action == "submit":
             review.submit()
+            sys.exit()
+
+        print "Unknown action: %s" % action
+        sys.exit(1)
 
     except RBError, e:
         print e.message
