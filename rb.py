@@ -392,6 +392,9 @@ def convert_options(options):
     if options.open:
         post_rev_opts += " --open"
 
+    if options.output_diff:
+        post_rev_opts += " --output-diff"
+
     if options.publish:
         post_rev_opts += " --publish"
 
@@ -416,6 +419,9 @@ def convert_options(options):
     if options.description:
         post_rev_opts += " --description %s" % options.description
 
+    if options.submit_as:
+        post_rev_opts += " --submit-as %s" % options.submit_as
+
     return post_rev_opts.strip()
 
 
@@ -424,23 +430,33 @@ def parse_options():
     Our options parser
     """
     # TODO: Refine this usage statement
-    parser = optparse.OptionParser(usage="%prog [OPTIONS] create|update|edit|submit [RB_ID]")
+    parser = optparse.OptionParser(usage="%prog [OPTIONS] create|edit|submit [RB_ID]")
     parser.add_option("-d", "--debug",
         dest="debug", action="store_true", default=False,
         help="Display debug output.")
+    parser.add_option("-c", "--change",
+        dest="changenum", metavar="<changenum>",
+        help="Alternative to using RB_ID.")
     parser.add_option("--server",
         dest="server", metavar="<server_name>",
         help="Use specified server. Default is entry in .reviewboardrc file.")
-    # TODO: consider adding support for p4-port and p4-user
+    parser.add_option("--p4-port",
+        dest="p4_port", metavar="<p4_port>",
+        help="Override P4PORT.")
+    parser.add_option("--p4-client",
+        dest="p4_client", metavar="<p4_client>",
+        help="Override P4CLIENT.")
+
+# TODO: consider adding support for p4-port and p4-user
 
 
     create_group = optparse.OptionGroup(parser, "Create Options")
-    create_group.add_option("-c", "--changeset",
-        dest="changenum", metavar="<changeno>",
-        help="Create review using an existing change list.")
     create_group.add_option("-o", "--open",
         dest="open", action="store_true", default=False,
         help="Open new review in default web browser.")
+    create_group.add_option("-n", "--output-diff",
+        dest="output_diff", action="store_true", default=False,
+        help="Output diff to console and exit. Do not post.")
     create_group.add_option("-b", "--bug",
         dest="bug_number", metavar="<bug_id>",
         help="Link to this bugzilla id.")
@@ -454,9 +470,14 @@ def parse_options():
     create_group.add_option("--publish",
         dest="publish", action="store_true", default=False,
         help="Publish the review.")
-    create_group.add_option("-s", "--shelve",
+
+    '''
+    Dropping support for shelving for now.
+
+    create_group.add_option("--shelve",
         dest="shelve", action="store_true", default=False,
         help="Perform a 'p4 shelve' on the files.")
+    '''
 
     create_group.add_option("--summary",
         dest="summary", metavar="<string>",

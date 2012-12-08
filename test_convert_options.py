@@ -1,3 +1,4 @@
+#!/usr/bin/python
 from unittest import TestCase
 from rb import convert_options
 from rb import parse_options
@@ -17,6 +18,12 @@ class TestConvert_options(TestCase):
         opts, args = self.options_parser.parse_args(["--debug"])
         self.assertEqual("--debug", convert_options(opts))
 
+    def test_diff_only(self):
+        opts, args = self.options_parser.parse_args(["-n"])
+        self.assertEqual("--output-diff", convert_options(opts))
+        opts, args = self.options_parser.parse_args(["--output-diff"])
+        self.assertEqual("--output-diff", convert_options(opts))
+
     def test_open(self):
         opts, args = self.options_parser.parse_args(["-o"])
         self.assertEqual("--open", convert_options(opts))
@@ -34,7 +41,7 @@ class TestConvert_options(TestCase):
     def test_changeset(self):
         opts, args = self.options_parser.parse_args(["-c", "12345"])
         self.assertEqual("12345", convert_options(opts))
-        opts, args = self.options_parser.parse_args(["--changeset", "12345"])
+        opts, args = self.options_parser.parse_args(["--change", "12345"])
         self.assertEqual("12345", convert_options(opts))
 
     def test_bug(self):
@@ -62,3 +69,7 @@ class TestConvert_options(TestCase):
     def test_description(self):
         opts, args = self.options_parser.parse_args(["--description", "'The greatest change ever made.'"])
         self.assertEqual("--description 'The greatest change ever made.'", convert_options(opts))
+
+    def test_submit_as(self):
+        opts, args = self.options_parser.parse_args(["--submit-as", "hacker_supreme"])
+        self.assertEqual("--submit-as hacker_supreme", convert_options(opts))
