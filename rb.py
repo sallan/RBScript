@@ -140,9 +140,12 @@ class F5Review:
         To be valid the review must meet these requirements:
         * Must be pending
         * You must own the CL
-        * Must have a ship it
+        * Must have a ship it unless -f
+        * Can't have shelved files unless -f
 
         """
+        # TODO: Check for shelved files
+        # TODO: Check for change list ownership
         review_status = self.review_request['status']
         if review_status != "pending":
             raise RBError("Can't submit a review with a '%s' status." % review_status)
@@ -404,20 +407,11 @@ def convert_options(options):
     if options.changenum:
         post_rev_opts += options.changenum
 
-    if options.bug_number:
-        post_rev_opts += " --bugs-closed %s" % options.bug_number
-
     if options.target_people:
         post_rev_opts += " --target-people %s" % options.target_people
 
     if options.target_groups:
         post_rev_opts += " --target-groups %s" % options.target_groups
-
-    if options.summary:
-        post_rev_opts += " --summary %s" % options.summary
-
-    if options.description:
-        post_rev_opts += " --description %s" % options.description
 
     if options.submit_as:
         post_rev_opts += " --submit-as %s" % options.submit_as
@@ -430,7 +424,20 @@ def parse_options():
     Our options parser
     """
     # TODO: Refine this usage statement
-    parser = optparse.OptionParser(usage="%prog [OPTIONS] create|edit|submit [RB_ID]")
+    description = """
+Create, update and submit review requests.
+
+This script is a wrapper to the post-review script that comes with Review Board.
+It can only be used with perforce and provides some additional functionality related
+to perforce.  The work flow is create/update/submit. The options for each are described
+below.
+
+"""
+
+    parser = optparse.OptionParser(
+        usage="%prog [OPTIONS] create|update|submit [RB_ID]",
+        description=description
+    )
     parser.add_option("-d", "--debug",
         dest="debug", action="store_true", default=False,
         help="Display debug output.")
@@ -439,56 +446,24 @@ def parse_options():
         help="Alternative to using RB_ID.")
     parser.add_option("--server",
         dest="server", metavar="<server_name>",
-        help="Use specified server. Default is entry in .reviewboardrc file.")
+        help="Use specified server. Default is the REVIEWBOARD_URL entry in .reviewboardrc file.")
     parser.add_option("--p4-port",
         dest="p4_port", metavar="<p4_port>",
-        help="Override P4PORT.")
+        help="Specify P4PORT. Default is to use environment settings.")
     parser.add_option("--p4-client",
         dest="p4_client", metavar="<p4_client>",
-        help="Override P4CLIENT.")
-
-# TODO: consider adding support for p4-port and p4-user
-
+        help="Specify P4PORT. Default is to use environment settings.")
 
     create_group = optparse.OptionGroup(parser, "Create Options")
-    create_group.add_option("-o", "--open",
-        dest="open", action="store_true", default=False,
-        help="Open new review in default web browser.")
-    create_group.add_option("-n", "--output-diff",
-        dest="output_diff", action="store_true", default=False,
-        help="Output diff to console and exit. Do not post.")
-    create_group.add_option("-b", "--bug",
-        dest="bug_number", metavar="<bug_id>",
-        help="Link to this bugzilla id.")
     create_group.add_option("-g", "--target-groups",
-        dest="target_groups", metavar="<group [groups]>",
+        dest="target_groups", metavar="<group [,groups]>",
         help="List of ReviewBoard groups to assign.")
     create_group.add_option("-p", "--target-people",
-        dest="target_people", metavar="<user [users]>",
+        dest="target_people", metavar="<user [,users]>",
         help="List of users to assign.")
-
-    create_group.add_option("--publish",
-        dest="publish", action="store_true", default=False,
-        help="Publish the review.")
-
-    '''
-    Dropping support for shelving for now.
-
-    create_group.add_option("--shelve",
-        dest="shelve", action="store_true", default=False,
-        help="Perform a 'p4 shelve' on the files.")
-    '''
-
-    create_group.add_option("--summary",
-        dest="summary", metavar="<string>",
-        help="Summary for the review. Default is change list description.")
-
-    create_group.add_option("--description",
-        dest="description", metavar="<string>",
-        help="Description of the review. Default is change list description.")
     create_group.add_option("--submit-as",
         dest="submit_as", metavar="<user>",
-        help="Create review with this username. Useful if different from p4 user name.")
+        help="Create review with this username. Useful if review board name is different from p4 user name.")
 
     submit_group = optparse.OptionGroup(parser, "Submit Options")
     submit_group.add_option("-f", "--force",
@@ -498,30 +473,19 @@ def parse_options():
         dest="edit", action="store_true", default=False,
         help="Edit the change list before submitting.")
 
-    # TODO: Do we want to support this? I don't see why.
-    submit_group.add_option("-a", "--as-is",
-        dest="asis", action="store_true", default=False,
-        help="Don't add reviewer names to the change list.")
+    edit_group = optparse.OptionGroup(parser, "Create and Update Options")
+    edit_group.add_option("-o", "--open",
+        dest="open", action="store_true", default=False,
+        help="Open review in default web browser after creating/updating.")
+    edit_group.add_option("-n", "--output-diff",
+        dest="output_diff", action="store_true", default=False,
+        help="Output diff to console and exit. Do not post.")
+    edit_group.add_option("--publish",
+        dest="publish", action="store_true", default=False,
+        help="Publish the review.")
 
-    edit_group = optparse.OptionGroup(parser, "Edit Options")
-    edit_group.add_option("--update-diff",
-        dest="update_diff", action="store_true", default=False,
-        help="Upate the diffs for all files. The 'update' action is a shortcut for this.")
-
-    # TODO: Does rb allow for a string option here or does it always read the changelist?
-    # TODO: How important is it to support these?
-    edit_group.add_option("--update-bugs",
-        dest="update_bugs", action="store_true", default=False,
-        help="Upate the bug (p4 Jobs) field.")
-    edit_group.add_option("--update-summary",
-        dest="update_summary", action="store_true", default=False,
-        help="Upate the summary field.")
-    edit_group.add_option("--update-all",
-        dest="update_all", action="store_true", default=False,
-        help="Upate all fields from information in the change list.")
-
-    parser.add_option_group(create_group)
     parser.add_option_group(edit_group)
+    parser.add_option_group(create_group)
     parser.add_option_group(submit_group)
     return parser
 
