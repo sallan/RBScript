@@ -251,7 +251,7 @@ def p4_change():
         change = None
     else:
         # Feed form to p4 change and capture the output
-        change_output = run_cmd("%s change -i < %s" % (p4, change_form.name))
+        change_output = run_cmd("p4 change -i < %s" % change_form.name)
         change = change_output[0].split()[1]
     os.unlink(change_form.name)
     return change
