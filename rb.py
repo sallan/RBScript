@@ -189,6 +189,35 @@ class F5Review:
         reviews = self.server.api_get(reviews_url)
         return reviews
 
+# End of F5Review class
+
+#==============================================================================
+# Create a new review - no server object needed for this.
+#==============================================================================
+def create(options):
+    """
+    A thin wrapper to the rbtools post-review script.
+
+    This stays here rather than F5Review because we don't create an F5Review
+    object when creating a new review request. We just shell out to post-review.
+    That may change in a future version of this script because I'd actually like
+    to bypass all the other repository checks that post-review does. But that's a
+    much larger scope than I want to take on for this version.
+    """
+
+    if options.changenum is None:
+        change = p4_change()
+    else:
+        change = options.changenum
+
+    if change is None:
+        raise RBError("Can't determine the perforce change list number.")
+    else:
+        # TODO: Need to properly pass options to post-review
+        options_string = convert_options(options)
+        cmd = "post-review %s %s" % (options_string, change)
+        os.system(cmd)
+
 
 #==============================================================================
 # Utility functions
@@ -357,31 +386,6 @@ def get_server(user_config, options, cookie_file):
     server = postreview.ReviewBoardServer(server_url, repository_info, cookie_file)
     server.check_api_version()
     return server
-
-
-def create(options):
-    """
-    A thin wrapper to the rbtools post-review script.
-
-    This stays here rather than F5Review because we don't create an F5Review
-    object when creating a new review request. We just shell out to post-review.
-    That may change in a future version of this script because I'd actually like
-    to bypass all the other repository checks that post-review does. But that's a
-    much larger scope than I want to take on for this version.
-    """
-
-    if options.changenum is None:
-        change = p4_change()
-    else:
-        change = options.changenum
-
-    if change is None:
-        raise RBError("Can't determine the perforce change list number.")
-    else:
-        # TODO: Need to properly pass options to post-review
-        options_string = convert_options(options)
-        cmd = "post-review %s %s" % (options_string, change)
-        os.system(cmd)
 
 
 def convert_options(options):
