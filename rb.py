@@ -128,7 +128,8 @@ class F5Review:
         """Edit the review."""
         # TODO: What other editing functions do we want to support?
         # TODO: What about all the other options?
-        cmd = "post-review %s" % self.change_list
+        options_string = convert_options(options)
+        cmd = "post-review %s %s" % (options_string, self.change_list)
         if self.options.debug:
             cmd += " --debug"
         os.system(cmd)
@@ -221,16 +222,14 @@ def p4_change():
     Raises RBError on failure.
 
     """
-    # If there are no files in the default changelist, alert user and quit.
+
+    # Raise exception if there are no files in the default changelist.
     if len(p4_opened("default")) == 0:
         raise RBError("No files opened in default changelist.")
 
-    editor = get_editor()
-    p4 = "p4"
-
     # TODO: Need to do more error checking in this function
     # Capture a change template with files opened in the default change list
-    change_template = run_cmd("%s change -o" % p4)
+    change_template = run_cmd("p4 change -o")
 
     # Create a temp file and dump the p4 change to it.
     change_form = tempfile.NamedTemporaryFile(mode="w", delete=False)
@@ -239,6 +238,7 @@ def p4_change():
     change_form.close()
 
     # Open the file in the users editor
+    editor = get_editor()
     os.system("%s %s" % (editor, change_form.name))
 
     # The user may have changed their mind, so see if the file changed at all.
@@ -363,7 +363,7 @@ def create(options):
     """
     A thin wrapper to the rbtools post-review script.
 
-    This stays here rather than F5Review be cause we don't create an F5Review
+    This stays here rather than F5Review because we don't create an F5Review
     object when creating a new review request. We just shell out to post-review.
     That may change in a future version of this script because I'd actually like
     to bypass all the other repository checks that post-review does. But that's a
@@ -379,14 +379,14 @@ def create(options):
         raise RBError("Can't determine the perforce change list number.")
     else:
         # TODO: Need to properly pass options to post-review
-        cmd = "post-review -d %s" % change
+        options_string = convert_options(options)
+        cmd = "post-review %s %s" % (options_string, change)
         os.system(cmd)
 
 
 def convert_options(options):
     """Convert our options to post-review options string."""
 
-    # TODO: If many off these are straight pass throughs, can we simplify this?
     post_rev_opts = ""
 
     if options.debug:
@@ -423,7 +423,7 @@ def parse_options():
     """
     Our options parser
     """
-    # TODO: Refine this usage statement
+
     description = """
 Create, update and submit review requests.
 
@@ -447,14 +447,19 @@ below.
     parser.add_option("--server",
         dest="server", metavar="<server_name>",
         help="Use specified server. Default is the REVIEWBOARD_URL entry in .reviewboardrc file.")
-    parser.add_option("--p4-port",
-        dest="p4_port", metavar="<p4_port>",
-        help="Specify P4PORT. Default is to use environment settings.")
-    parser.add_option("--p4-client",
-        dest="p4_client", metavar="<p4_client>",
-        help="Specify P4PORT. Default is to use environment settings.")
+
+    # TODO: I don't think I want these
+#    parser.add_option("--p4-port",
+#        dest="p4_port", metavar="<p4_port>",
+#        help="Specify P4PORT. Default is to use environment settings.")
+#    parser.add_option("--p4-client",
+#        dest="p4_client", metavar="<p4_client>",
+#        help="Specify P4PORT. Default is to use environment settings.")
 
     create_group = optparse.OptionGroup(parser, "Create Options")
+    create_group.add_option("--shelve",
+        dest="shelve", action="store_true", default=False,
+        help="Run 'p4 shelve' on the files and then create review.")
     create_group.add_option("-g", "--target-groups",
         dest="target_groups", metavar="<group [,groups]>",
         help="List of ReviewBoard groups to assign.")
@@ -539,7 +544,7 @@ def main():
         server = get_server(user_config, postreview.options, rb_cookies_file)
         review = F5Review(server, review_id, options)
 
-        if action == "edit":
+        if action == "update":
             review.edit()
             sys.exit()
 
