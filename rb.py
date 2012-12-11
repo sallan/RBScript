@@ -395,9 +395,12 @@ def get_review_from_changenum(server, changenum):
     url = "%sapi/review-requests?changenum=%s" % (server.url, changenum)
     try:
         review = server.api_get(url)
-        review_id = review['review_requests'][0]['id']
+        if review['review_requests']:
+            review_id = review['review_requests'][0]['id']
+        else:
+            raise RBError("Can't find review for change list: %s" % changenum)
     except rbtools.api.errors:
-        raise "Can't find review for change list: %s" % changenum
+        raise RBError("Can't find review for change list: %s" % changenum)
     return review_id
 
 
