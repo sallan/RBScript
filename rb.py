@@ -398,9 +398,9 @@ def get_review_from_changenum(server, changenum):
         if review['review_requests']:
             review_id = review['review_requests'][0]['id']
         else:
-            raise RBError("Can't find review for change list: %s" % changenum)
+            raise RBError("Can't find an open review for change list: %s" % changenum)
     except rbtools.api.errors:
-        raise RBError("Can't find review for change list: %s" % changenum)
+        raise RBError("Can't find an open review for change list: %s" % changenum)
     return review_id
 
 
