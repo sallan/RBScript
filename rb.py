@@ -126,12 +126,16 @@ class F5Review:
 
     def edit(self):
         """Edit the review."""
+
         # TODO: What other editing functions do we want to support?
-        # TODO: What about all the other options?
+
+        # if changenum option passed, take it out because we already
+        # have it in our review object
+        options.changenum = None
+
+        # Now convert the options to an options string for post-review
         options_string = convert_options(options)
         cmd = "post-review %s %s" % (options_string, self.change_list)
-        if self.options.debug:
-            cmd += " --debug"
         os.system(cmd)
 
     def validate_review(self):
@@ -205,17 +209,16 @@ def create(options):
     much larger scope than I want to take on for this version.
     """
 
+    # Make sure a change number is in the options object
     if options.changenum is None:
-        change = p4_change()
-    else:
-        change = options.changenum
+        options.changenum = p4_change()
 
-    if change is None:
+    if options.changenum is None:
         raise RBError("Can't determine the perforce change list number.")
     else:
         # TODO: Need to properly pass options to post-review
         options_string = convert_options(options)
-        cmd = "post-review %s %s" % (options_string, change)
+        cmd = "post-review %s" % options_string
         os.system(cmd)
 
 
@@ -388,6 +391,16 @@ def get_server(user_config, options, cookie_file):
     return server
 
 
+def get_review_from_changenum(server, changenum):
+    url = "%sapi/review-requests?changenum=%s" % (server.url, changenum)
+    try:
+        review = server.api_get(url)
+        review_id = review['review_requests'][0]['id']
+    except rbtools.api.errors:
+        raise "Can't find review for change list: %s" % changenum
+    return review_id
+
+
 def convert_options(options):
     """Convert our options to post-review options string."""
 
@@ -409,7 +422,7 @@ def convert_options(options):
         post_rev_opts += " --server %s" % options.server
 
     if options.changenum:
-        post_rev_opts += options.changenum
+        post_rev_opts += " %s" % options.changenum
 
     if options.target_people:
         post_rev_opts += " --target-people %s" % options.target_people
@@ -461,9 +474,11 @@ below.
 #        help="Specify P4PORT. Default is to use environment settings.")
 
     create_group = optparse.OptionGroup(parser, "Create Options")
-    create_group.add_option("--shelve",
-        dest="shelve", action="store_true", default=False,
-        help="Run 'p4 shelve' on the files and then create review.")
+
+    # Leave out for now
+#    create_group.add_option("--shelve",
+#        dest="shelve", action="store_true", default=False,
+#        help="Run 'p4 shelve' on the files and then create review.")
     create_group.add_option("-g", "--target-groups",
         dest="target_groups", metavar="<group [,groups]>",
         help="List of ReviewBoard groups to assign.")
@@ -538,14 +553,16 @@ def main():
 
     # For everything else, we need to talk directly to the server, so we'll instantiate
     # an F5Review object with a server instance.
-    if len(args) < 2:
-        print MISSING_RB_ID
-        sys.exit(1)
-
-    review_id = args[1]
     rb_cookies_file = os.path.join(user_home, ".post-review-cookies.txt")
     try:
         server = get_server(user_config, postreview.options, rb_cookies_file)
+        if options.changenum:
+            review_id = get_review_from_changenum(server, options.changenum)
+        else:
+            if len(args) < 2:
+                print MISSING_RB_ID
+                sys.exit(1)
+            review_id = args[1]
         review = F5Review(server, review_id, options)
 
         if action == "update":
