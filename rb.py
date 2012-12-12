@@ -120,7 +120,7 @@ class F5Review:
                 print "Change %s submitted." % submitted_changelist
                 print "Review %s closed." % review_id
             except RBError, e:
-                raise RBError("Failed to submit review.\n" + e.message)
+                raise RBError("Failed to submit review.\n%s" % e)
         else:
             raise RBError("Unrecognized p4 output: %s\nReview %s not closed." % ("\n".join(submit_output), review_id))
 
@@ -326,10 +326,10 @@ def migrate_rbrc_file(old_rc_file, new_rc_file):
     except IOError, e:
         raise RBError("Can't read %s\n%s" % (old_rc_file, e))
 
-    valid_keys = {"username" : "USERNAME",
-                  "server" : "REVIEWBOARD_URL",
-    }
-
+    # We don't migrate the user name because doing so causes post-review
+    # to prompt for a password each time. By leaving it out, you get prompted
+    # once and then future requests use the cookies file.
+    valid_keys = {"server" : "REVIEWBOARD_URL"}
 
     try:
         f = open(new_rc_file, "w")
@@ -499,15 +499,15 @@ below.
         help="Edit the change list before submitting.")
 
     edit_group = optparse.OptionGroup(parser, "Create and Update Options")
-    edit_group.add_option("-o", "--open",
-        dest="open", action="store_true", default=False,
-        help="Open review in default web browser after creating/updating.")
+    edit_group.add_option("-p", "--publish",
+        dest="publish", action="store_true", default=False,
+        help="Publish the review.")
     edit_group.add_option("-n", "--output-diff",
         dest="output_diff", action="store_true", default=False,
         help="Output diff to console and exit. Do not post.")
-    edit_group.add_option("--publish",
-        dest="publish", action="store_true", default=False,
-        help="Publish the review.")
+    edit_group.add_option("-o", "--open",
+        dest="open", action="store_true", default=False,
+        help="Open review in default web browser after creating/updating.")
 
     parser.add_option_group(edit_group)
     parser.add_option_group(create_group)
@@ -527,7 +527,7 @@ def main():
     try:
         check_config(user_home)
     except RBError, e:
-        print e.message
+        print e
         sys.exit(1)
 
     user_config, configs = postreview.load_config_files(user_home)
@@ -578,7 +578,7 @@ def main():
         sys.exit(1)
 
     except RBError, e:
-        print e.message
+        print e
         sys.exit(1)
 
 
