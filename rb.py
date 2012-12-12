@@ -216,7 +216,6 @@ def create(options):
     if options.changenum is None:
         raise RBError("Can't determine the perforce change list number.")
     else:
-        # TODO: Need to properly pass options to post-review
         options_string = convert_options(options)
         cmd = "post-review %s" % options_string
         os.system(cmd)
@@ -259,7 +258,6 @@ def p4_change():
     if len(p4_opened("default")) == 0:
         raise RBError("No files opened in default changelist.")
 
-    # TODO: Need to do more error checking in this function
     # Capture a change template with files opened in the default change list
     change_template = run_cmd("p4 change -o")
 
@@ -485,7 +483,7 @@ below.
     create_group.add_option("-g", "--target-groups",
         dest="target_groups", metavar="<group [,groups]>",
         help="List of ReviewBoard groups to assign.")
-    create_group.add_option("-p", "--target-people",
+    create_group.add_option("-u", "--target-people",
         dest="target_people", metavar="<user [,users]>",
         help="List of users to assign.")
     create_group.add_option("--submit-as",

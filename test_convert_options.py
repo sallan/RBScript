@@ -45,7 +45,7 @@ class TestConvert_options(TestCase):
         self.assertEqual("12345", convert_options(opts))
 
     def test_people(self):
-        opts, args = self.options_parser.parse_args(["-p", "'user1, user2'"])
+        opts, args = self.options_parser.parse_args(["-u", "'user1, user2'"])
         self.assertEqual("--target-people 'user1, user2'", convert_options(opts))
         opts, args = self.options_parser.parse_args(["--target-people", "'user1, user2'"])
         self.assertEqual("--target-people 'user1, user2'", convert_options(opts))
