@@ -117,7 +117,6 @@ class F5Review:
             try:
                 self.set_change_list(submitted_changelist)
                 self.set_status("submitted")
-                self.save_draft()
                 print "Change %s submitted." % submitted_changelist
                 print "Review %s closed." % review_id
             except RBError, e:
@@ -160,7 +159,6 @@ class F5Review:
         if reviews['total_results'] <= 0:
             raise RBError("Review %s has no 'Ship It' reviews. Use --force to submit anyway." % self.review_id)
 
-
     def get_ship_its(self):
         """Get unique list of reviewers who gave a ship it."""
         reviews = self.get_reviews()['reviews']
@@ -168,6 +166,10 @@ class F5Review:
 
         # Return just the unique elements
         return list(set(ship_its))
+
+
+    def get_review_summary(self):
+        return self.review_request['summary']
 
     def get_reviewer_name(self, review):
         """Returns First Last names for user who did given review."""
@@ -210,6 +212,7 @@ class F5Review:
 
     def add_change_description(self, description):
         self.server.set_review_request_field(self.review_request, 'changedescription', description)
+        self.save_draft()
 
     def set_review_description(self, description, append=False):
         if append:
@@ -539,52 +542,12 @@ below.
 
 
 
-def get_review_summary(server, review_id):
-    review_request = server.get_review_request(review_id)
-    return review_request['summary']
-
-
-def get_review_changes(server, review_id):
-    review_request = server.get_review_request("22")
-
-    changes_url = review_request['links']['changes']['href']
-    for c in server.api_get(changes_url)['changes']:
-        change_url = c['links']['self']['href']
-        change = server.api_get(change_url)
-        # TODO: what do we do with this?
-        print change
-
 
 def show_review_links(server, review_id):
     review_request = server.get_review_request(review_id)
     for name in review_request['links']:
         print "%20s:  %s" % (name, review_request['links'][name]['href'])
 
-
-def show_me(server):
-    """just for exploring"""
-    review_request = server.get_review_request("34")
-
-    url = review_request['links']['draft']['href']
-    print url
-    foo = server.api_get(url)
-
-    print foo['draft']
-
-    for c in foo['changes']:
-        change_url = c['links']['self']['href']
-        change = server.api_get(change_url)
-        print change['change']['links']
-
-
-def add_comment(server, review_id, comment):
-    review_request = server.get_review_request(review_id)
-    draft_url = review_request['links']['draft']['href']
-    print draft_url
-    server.api_put(draft_url,
-    {
-        "changedescription" : comment
-    })
 
 
 def main():
@@ -640,10 +603,7 @@ def main():
         review = F5Review(server, review_id, options)
 
         if action == "show":
-            review.add_change_description("Here is my awesome change description. Enjoy!")
-            review.save_draft()
-
-#            review.set_review_description("That's actually pretty good. But do we need to save it?", append=True, save=True)
+            review.add_change_description("This review has been shelved. What number you ask? Good question!")
             sys.exit()
 
         if action == "update":
