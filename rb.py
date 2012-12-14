@@ -84,7 +84,7 @@ class F5Review:
             for line in change_form:
                 change_form_file.write(line + "\n")
             change_form_file.close()
-            change_output = run_cmd("p4 change -i < %s" % change_form_file.name)
+            run_cmd("p4 change -i < %s" % change_form_file.name)
 
             # Submit change list to perforce
             submit_output = run_cmd("p4 submit -c %s" % change_list)
@@ -149,7 +149,6 @@ class F5Review:
         * Can't have shelved files unless -f
 
         """
-        # TODO: Check for shelved files
         # TODO: Check for change list ownership
         review_status = self.review_request['status']
         if review_status != "pending":
@@ -237,14 +236,38 @@ def create(options):
 
     # Make sure a change number is in the options object
     if options.changenum is None:
-        options.changenum = p4_change()
+        options.changenum = p4_change(options.shelve)
 
     if options.changenum is None:
         raise RBError("Can't determine the perforce change list number.")
     else:
         options_string = convert_options(options)
         cmd = "post-review %s" % options_string
-        os.system(cmd)
+        pr_output = run_cmd(cmd)
+
+        # Successful output will look like this:
+        #
+        # ['Review request #38 posted.', '', 'http://reviewboard/r/38/']
+        #
+        if len(pr_output) < 3:
+            raise RBError("Unrecognized output from post-review: %s" % "\n".join(pr_output))
+        posted_message = pr_output[0]
+        posted_url = pr_output[2]
+        if posted_message.endswith("posted."):
+            review_id = posted_message.split()[2].strip()[1:]
+        else:
+            raise RBError("Unrecognized output from post-review: %s" % posted_message)
+
+        if options.shelve:
+            shelve_message = "This change has been shelved in changeset %s." % options.changenum
+            shelve_message += "To unshelve this change into your workspace:\n\n\tp4 unshelve -s %s" % options.changenum
+            print shelve_message
+            # Add a comment to the review with shelving information
+            # Hmm, to do this we'll need the rb id number. Maybe we need to
+            # capture the output.
+            # Crap! I need a server instance to do this!!
+        else:
+            raise RBError("The 'post-review' script returned a non-zero value. Review not created.")
 
 
 #==============================================================================
@@ -268,8 +291,31 @@ def p4_opened(change=None):
         cmd = "p4 opened -c %s" % change
     return run_cmd(cmd)
 
+def p4_user():
+    p4_info = run_cmd("p4 info")
+    user_name = None
+    if len(p4_info) > 0:
+        user_line = p4_info[0]
+        user_info = user_line.split(':')
+        if user_info[0].strip() == "User name":
+            user_name = user_info[1].strip()
+    return user_name
 
-def p4_change():
+def p4_list_shelves():
+    user_name = p4_user()
+    shelved_changes = []
+    if user_name:
+        shelves = run_cmd("p4 changes -u %s -s shelved" % user_name)
+        for shelf in shelves:
+            change = shelf.split()[1]
+            if change:
+                shelved_changes.append(change)
+    else:
+        print "ERROR: Can't determine p4 user name"
+        sys.exit(1)
+    return shelved_changes
+
+def p4_change(shelve):
     """
     Create a numbered change list with all files in the default change list.
 
@@ -306,8 +352,11 @@ def p4_change():
         print "No changes made."
         change = None
     else:
-        # Feed form to p4 change and capture the output
-        change_output = run_cmd("p4 change -i < %s" % change_form.name)
+        # Feed form to p4 change or shelve and capture the output
+        if shelve:
+            change_output = run_cmd("p4 shelve -i < %s" % change_form.name)
+        else:
+            change_output = run_cmd("p4 change -i < %s" % change_form.name)
         change = change_output[0].split()[1]
     os.unlink(change_form.name)
     return change
@@ -502,16 +551,15 @@ below.
 
     create_group = optparse.OptionGroup(parser, "Create Options")
 
-    # Leave out for now
-#    create_group.add_option("--shelve",
-#        dest="shelve", action="store_true", default=False,
-#        help="Run 'p4 shelve' on the files and then create review.")
     create_group.add_option("-g", "--target-groups",
         dest="target_groups", metavar="<group [,groups]>",
         help="List of ReviewBoard groups to assign.")
     create_group.add_option("-u", "--target-people",
         dest="target_people", metavar="<user [,users]>",
         help="List of users to assign.")
+    create_group.add_option("--shelve",
+        dest="shelve", action="store_true", default=False,
+        help="Run 'p4 shelve' on the files and then create review.")
     create_group.add_option("--submit-as",
         dest="submit_as", metavar="<user>",
         help="Create review with this username. Useful if review board name is different from p4 user name.")
@@ -552,6 +600,10 @@ def show_review_links(server, review_id):
 
 def main():
     MISSING_RB_ID = "Need the ReviewBoard ID number."
+
+    shelves = p4_list_shelves()
+    print shelves
+    sys.exit()
 
     # Configuration and options
     global options
