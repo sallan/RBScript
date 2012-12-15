@@ -42,6 +42,12 @@ class F5Review:
         change_list = self.change_list
         options = self.options
 
+        # Make sure we own this changelist
+        user = p4_user()
+        change_owner = get_changelist_owner(change_list)
+        if user != change_owner:
+            raise RBError("Perforce change %s is owned by %s - you are running as %s." % (change_list, change_owner, user))
+
         if not options.force:
             # Inspect the review to make sure it meets requirements for submission.
             # If not, an RBError exception is raised with the reason for rejection.
@@ -50,6 +56,9 @@ class F5Review:
         try:
             if options.edit:
                 os.system("p4 change %s" % change_list)
+
+            if is_shelved(change_list):
+                p4_unshelve(change_list)
 
             # We need to modify the change form to include additional information.
             # Example:
@@ -143,18 +152,11 @@ class F5Review:
         Validate the review before submitting.
 
         To be valid the review must meet these requirements:
-        * You must own the CL
         * Must be pending
         * Must have a ship it unless -f
         * Can't have shelved files unless -f
 
         """
-
-        # Make sure we own this changelist
-        user = p4_user()
-        change_owner = get_changelist_owner(self.change_list)
-        if user != change_owner:
-            raise RBError("Perforce change %s is owned by %s - you are running as %s." % (self.change_list, change_owner, user))
 
         # Review must be pending
         review_status = self.review_request['status']
@@ -166,11 +168,10 @@ class F5Review:
             raise RBError("Review %s has no 'Ship It' reviews. Use --force to submit anyway." % self.review_id)
 
         # Check for shelves
-        if self.change_list in p4_shelves():
-            if self.change_list in p4_shelves():
-                msg = "\tError: Cannot submit a shelved change (%s).\n" % self.change_list
-                msg += "\tYou may use --force to delete the shelved change automatically prior to submit."
-                raise RBError(msg)
+        if is_shelved(self.change_list):
+            msg = "\tError: Cannot submit a shelved change (%s).\n" % self.change_list
+            msg += "\tYou may use --force to delete the shelved change automatically prior to submit."
+            raise RBError(msg)
 
     def get_ship_its(self):
         """Get unique list of reviewers who gave a ship it."""
@@ -252,6 +253,12 @@ def create(options):
     if options.changenum is None:
         options.changenum = p4_change(options.shelve)
 
+    # Make sure we own the change list
+    user = p4_user()
+    change_owner = get_changelist_owner(options.changenum)
+    if user != change_owner:
+        raise RBError("Perforce change %s is owned by %s - you are running as %s." % (options.changenum, change_owner, user))
+
     if options.changenum is None:
         raise RBError("Can't determine the perforce change list number.")
     else:
@@ -311,6 +318,9 @@ def get_changelist_owner(change_number):
         raise RBError("Failed to determine owner for change list %s" % change_number)
     return user
 
+def is_shelved(change_number):
+    return change_number in p4_shelves()
+
 def p4_opened(change=None):
     """Return list of files opened in this workspace."""
     if change is None:
@@ -328,6 +338,9 @@ def p4_user():
         if user_info[0].strip() == "User name":
             user_name = user_info[1].strip()
     return user_name
+
+def p4_unshelve(change_number):
+    os.system("p4 shelve -d -c %s" % change_number)
 
 def p4_shelves():
     user_name = p4_user()
