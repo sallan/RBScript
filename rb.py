@@ -144,6 +144,12 @@ class F5Review:
 
         # Now convert the options to an options string for post-review
         options_string = convert_options(options)
+
+        # Update shelved files if shelve option passed
+        if options.shelve:
+            p4_update_shelve(self.change_list)
+
+        # Let post-review handle the rest
         cmd = "post-review %s %s" % (options_string, self.change_list)
         os.system(cmd)
 
@@ -253,6 +259,9 @@ def create(options):
     if options.changenum is None:
         options.changenum = p4_change(options.shelve)
 
+    if options.shelve:
+        p4_shelve(options.changenum)
+
     # Make sure we own the change list
     user = p4_user()
     change_owner = get_changelist_owner(options.changenum)
@@ -286,7 +295,7 @@ def create(options):
             # Add a comment to the review with shelving information
             # Hmm, to do this we'll need the rb id number. Maybe we need to
             # capture the output.
-            # Crap! I need a server instance to do this!!
+            # TODO: Crap! I need a server instance to do this!!
         else:
             raise RBError("The 'post-review' script returned a non-zero value. Review not created.")
 
@@ -339,8 +348,14 @@ def p4_user():
             user_name = user_info[1].strip()
     return user_name
 
+def p4_shelve(change_number):
+    os.system("p4 shelve -c %s" % change_number)
+
 def p4_unshelve(change_number):
     os.system("p4 shelve -d -c %s" % change_number)
+
+def p4_update_shelve(change_number):
+    os.system("p4 shelve -r -c %s" % change_number)
 
 def p4_shelves():
     user_name = p4_user()
