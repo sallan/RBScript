@@ -150,13 +150,18 @@ class F5Review:
 
         """
         # TODO: Check for change list ownership
-        review_status = self.review_request['status']
-        if review_status != "pending":
+
+        if self.review_request['status'] != "pending":
             raise RBError("Can't submit a review with a '%s' status." % review_status)
 
-        reviews = self.get_reviews()
-        if reviews['total_results'] <= 0:
+        if not self.get_ship_its():
             raise RBError("Review %s has no 'Ship It' reviews. Use --force to submit anyway." % self.review_id)
+
+        if self.change_list in p4_shelves():
+            if self.change_list in p4_shelves():
+                msg = "\tError: Cannot submit a shelved change (%s).\n" % self.change_list
+                msg += "\tYou may use --force to delete the shelved change automatically prior to submit."
+                raise RBError(msg)
 
     def get_ship_its(self):
         """Get unique list of reviewers who gave a ship it."""
@@ -301,7 +306,7 @@ def p4_user():
             user_name = user_info[1].strip()
     return user_name
 
-def p4_list_shelves():
+def p4_shelves():
     user_name = p4_user()
     shelved_changes = []
     if user_name:
@@ -309,7 +314,7 @@ def p4_list_shelves():
         for shelf in shelves:
             change = shelf.split()[1]
             if change:
-                shelved_changes.append(change)
+                shelved_changes.append(int(change))
     else:
         print "ERROR: Can't determine p4 user name"
         sys.exit(1)
@@ -361,6 +366,9 @@ def p4_change(shelve):
     os.unlink(change_form.name)
     return change
 
+def p4_submit(change):
+    # TODO: submit change and return submitted change number
+    return None
 
 def get_editor():
     """
@@ -600,10 +608,6 @@ def show_review_links(server, review_id):
 
 def main():
     MISSING_RB_ID = "Need the ReviewBoard ID number."
-
-    shelves = p4_list_shelves()
-    print shelves
-    sys.exit()
 
     # Configuration and options
     global options
