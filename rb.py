@@ -143,20 +143,29 @@ class F5Review:
         Validate the review before submitting.
 
         To be valid the review must meet these requirements:
-        * Must be pending
         * You must own the CL
+        * Must be pending
         * Must have a ship it unless -f
         * Can't have shelved files unless -f
 
         """
-        # TODO: Check for change list ownership
 
-        if self.review_request['status'] != "pending":
+        # Make sure we own this changelist
+        user = p4_user()
+        change_owner = get_changelist_owner(self.change_list)
+        if user != change_owner:
+            raise RBError("Perforce change %s is owned by %s - you are running as %s." % (self.change_list, change_owner, user))
+
+        # Review must be pending
+        review_status = self.review_request['status']
+        if  review_status != "pending":
             raise RBError("Can't submit a review with a '%s' status." % review_status)
 
+        # Check for ship_its
         if not self.get_ship_its():
             raise RBError("Review %s has no 'Ship It' reviews. Use --force to submit anyway." % self.review_id)
 
+        # Check for shelves
         if self.change_list in p4_shelves():
             if self.change_list in p4_shelves():
                 msg = "\tError: Cannot submit a shelved change (%s).\n" % self.change_list
@@ -287,6 +296,20 @@ def run_cmd(cmd):
         raise RuntimeError, "%r failed with return code: %d" % (cmd, err)
     return data
 
+def get_changelist_owner(change_number):
+    if not change_number:
+        raise RuntimeError("Program Error: get_changelist called without a changelist number.")
+
+    user = None
+    change_form = run_cmd("p4 change -o %s" % change_number)
+    for line in change_form:
+        if line.startswith("User:"):
+            user = line.split(":")[1].strip()
+            break
+
+    if not user:
+        raise RBError("Failed to determine owner for change list %s" % change_number)
+    return user
 
 def p4_opened(change=None):
     """Return list of files opened in this workspace."""
