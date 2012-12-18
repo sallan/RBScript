@@ -63,7 +63,7 @@ class P4:
 
     def changelist_owner(self, change_number):
         """Return the user name of the change list owner"""
-        change_list = self.change(change_number, stdout=True)[0]
+        change_list = self.get_change(change_number)
         return change_list['User']
 
     def new_change(self):
@@ -149,7 +149,7 @@ class F5Review:
     Encapsulate a review request.
     """
 
-    def __init__(self, server, review_id, options):
+    def __init__(self, server, review_id, p4, options):
         """
         Create an instance of F5Review.
 
@@ -162,6 +162,7 @@ class F5Review:
 
         self.server = server
         self.review_id = review_id
+        self.p4 = p4
         self.options = options
 
         try:
@@ -170,11 +171,12 @@ class F5Review:
         except rbtools.api.errors.APIError:
             raise RBError("Failed to retrieve review: %s." % review_id)
 
-    def submit(self, p4):
+    def submit(self):
         """Submit the change list to perforce and mark review as submitted."""
         review_id = self.review_id
         change_list = self.change_list
         options = self.options
+        p4 = self.p4
 
         # Make sure we own this changelist
         change_owner = p4.changelist_owner(change_list)
@@ -266,7 +268,7 @@ class F5Review:
         else:
             raise RBError("Unrecognized p4 output: %s\nReview %s not closed." % ("\n".join(submit_output), review_id))
 
-    def edit(self, p4):
+    def edit(self):
         """Edit the review."""
 
         # TODO: What other editing functions do we want to support?
@@ -280,13 +282,13 @@ class F5Review:
 
         # Update shelved files if shelve option passed
         if options.shelve:
-            p4.update_shelf(self.change_list)
+            self.p4.update_shelf(self.change_list)
 
         # Let post-review handle the rest
         cmd = "post-review %s %s" % (options_string, self.change_list)
         os.system(cmd)
 
-    def validate_review(self, p4):
+    def validate_review(self):
         """
         Validate the review before submitting.
 
@@ -307,7 +309,7 @@ class F5Review:
             raise RBError("Review %s has no 'Ship It' reviews. Use --force to submit anyway." % self.review_id)
 
         # Check for shelves
-        if p4.shelved(self.change_list):
+        if self.p4.shelved(self.change_list):
             msg = "\tError: Cannot submit a shelved change (%s).\n" % self.change_list
             msg += "\tYou may use --force to delete the shelved change automatically prior to submit."
             raise RBError(msg)
@@ -390,11 +392,12 @@ def create(options, p4):
 
     # Make sure a change number is in the options object
     if options.changenum is None:
-        options.changenum = p4.change(options.shelve)
+        options.changenum = p4.new_change()
 
     if options.shelve:
         p4.shelve(options.changenum)
 
+    # TODO: This test and the changenum test below seem clunky. Give it another look.
     # Make sure we own the change list
     user = p4.user
     change_owner = p4.changelist_owner(options.changenum)
@@ -404,6 +407,7 @@ def create(options, p4):
     if options.changenum is None:
         raise RBError("Can't determine the perforce change list number.")
     else:
+        # TODO: why is this an else? Why not have the if rasise RBError?
         options_string = convert_options(options)
         cmd = "post-review %s" % options_string
         pr_output = run_cmd(cmd)
@@ -429,9 +433,6 @@ def create(options, p4):
             # Hmm, to do this we'll need the rb id number. Maybe we need to
             # capture the output.
             # TODO: Crap! I need a server instance to do this!!
-        else:
-            raise RBError("The 'post-review' script returned a non-zero value. Review not created.")
-
 
 #==============================================================================
 # Utility functions
@@ -685,13 +686,6 @@ def show_review_links(server, review_id):
 def main():
     MISSING_RB_ID = "Need the ReviewBoard ID number."
 
-    p4 = P4()
-#    print p4.opened('default')
-#    print p4.edit_change("887")
-#    print p4.new_change()
-    print p4.get_change("889")
-    sys.exit()
-
     # Configuration and options
     global options
     global configs
@@ -726,7 +720,7 @@ def main():
 
     # For creating a new review request, just hand everything off to post-review.
     if action == "create":
-        create(options)
+        create(options, p4)
         sys.exit()
 
     # For everything else, we need to talk directly to the server, so we'll instantiate
@@ -742,7 +736,7 @@ def main():
                 print MISSING_RB_ID
                 sys.exit(1)
             review_id = args[1]
-        review = F5Review(server, review_id, options)
+        review = F5Review(server, review_id, p4, options)
 
         if action == "show":
             review.add_change_description("This review has been shelved. What number you ask? Good question!")
