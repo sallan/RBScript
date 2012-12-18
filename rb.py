@@ -131,17 +131,16 @@ class F5Review:
         except rbtools.api.errors.APIError:
             raise RBError("Failed to retrieve review: %s." % review_id)
 
-    def submit(self):
+    def submit(self, p4):
         """Submit the change list to perforce and mark review as submitted."""
         review_id = self.review_id
         change_list = self.change_list
         options = self.options
 
         # Make sure we own this changelist
-        user = p4_user()
-        change_owner = get_changelist_owner(change_list)
-        if user != change_owner:
-            raise RBError("Perforce change %s is owned by %s - you are running as %s." % (change_list, change_owner, user))
+        change_owner = p4.changelist_owner(change_list)
+        if p4.user != change_owner:
+            raise RBError("Perforce change %s is owned by %s - you are running as %s." % (change_list, change_owner, p4.user))
 
         if not options.force:
             # Inspect the review to make sure it meets requirements for submission.
@@ -152,8 +151,8 @@ class F5Review:
             if options.edit:
                 os.system("p4 change %s" % change_list)
 
-            if is_shelved(change_list):
-                p4_unshelve(change_list)
+            if p4.shelved(change_list):
+                p4.unshelve(change_list)
 
             # We need to modify the change form to include additional information.
             # Example:
@@ -228,7 +227,7 @@ class F5Review:
         else:
             raise RBError("Unrecognized p4 output: %s\nReview %s not closed." % ("\n".join(submit_output), review_id))
 
-    def edit(self):
+    def edit(self, p4):
         """Edit the review."""
 
         # TODO: What other editing functions do we want to support?
@@ -242,13 +241,13 @@ class F5Review:
 
         # Update shelved files if shelve option passed
         if options.shelve:
-            p4_update_shelve(self.change_list)
+            p4.update_shelf(self.change_list)
 
         # Let post-review handle the rest
         cmd = "post-review %s %s" % (options_string, self.change_list)
         os.system(cmd)
 
-    def validate_review(self):
+    def validate_review(self, p4):
         """
         Validate the review before submitting.
 
@@ -269,7 +268,7 @@ class F5Review:
             raise RBError("Review %s has no 'Ship It' reviews. Use --force to submit anyway." % self.review_id)
 
         # Check for shelves
-        if is_shelved(self.change_list):
+        if p4.shelved(self.change_list):
             msg = "\tError: Cannot submit a shelved change (%s).\n" % self.change_list
             msg += "\tYou may use --force to delete the shelved change automatically prior to submit."
             raise RBError(msg)
@@ -339,7 +338,7 @@ class F5Review:
 #==============================================================================
 # Create a new review - no server object needed for this.
 #==============================================================================
-def create(options):
+def create(options, p4):
     """
     A thin wrapper to the rbtools post-review script.
 
@@ -352,14 +351,14 @@ def create(options):
 
     # Make sure a change number is in the options object
     if options.changenum is None:
-        options.changenum = p4_change(options.shelve)
+        options.changenum = p4.change(options.shelve)
 
     if options.shelve:
-        p4_shelve(options.changenum)
+        p4.shelve(options.changenum)
 
     # Make sure we own the change list
-    user = p4_user()
-    change_owner = get_changelist_owner(options.changenum)
+    user = p4.user
+    change_owner = p4.changelist_owner(options.changenum)
     if user != change_owner:
         raise RBError("Perforce change %s is owned by %s - you are running as %s." % (options.changenum, change_owner, user))
 
@@ -407,7 +406,8 @@ def run_cmd(cmd):
         raise RuntimeError, "%r failed with return code: %d" % (cmd, err)
     return data
 
-def p4_change(shelve):
+'''
+def p4_change(shelve, p4):
     """
     Create a numbered change list with all files in the default change list.
 
@@ -419,7 +419,7 @@ def p4_change(shelve):
     """
 
     # Raise exception if there are no files in the default changelist.
-    if len(p4_opened("default")) == 0:
+    if len(p4.opened()) == 0:
         raise RBError("No files opened in default changelist.")
 
     # Capture a change template with files opened in the default change list
@@ -452,6 +452,8 @@ def p4_change(shelve):
         change = change_output[0].split()[1]
     os.unlink(change_form.name)
     return change
+
+'''
 
 def get_editor():
     """
@@ -692,15 +694,6 @@ def show_review_links(server, review_id):
 def main():
     MISSING_RB_ID = "Need the ReviewBoard ID number."
 
-    p4 = P4()
-#    print p4.opened("888")
-#    my_changes = p4.changes()
-#    print "Number of changes: %d" % len(my_changes)
-    print p4.changelist_owner('1')
-    print p4.changelist_owner('887')
-    print p4.changelist_owner('888')
-    sys.exit()
-
     # Configuration and options
     global options
     global configs
@@ -724,6 +717,9 @@ def main():
     # We don't care about the return value of postreview's parse_options.
     options, args = parser.parse_args()
     postreview.parse_options(args)
+
+    # Create a P4 object to interact with perforce
+    p4 = P4()
 
     # Strip off legacy UI elements if present
     if args[0] == "rr" or args[0] == "reviewrequest":
