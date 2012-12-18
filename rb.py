@@ -3,11 +3,105 @@ import optparse
 import sys
 import os
 import tempfile
+import marshal
 from rbtools import postreview
 import rbtools.api.errors
 
 class RBError(Exception): pass;
 
+class P4:
+    '''
+    need to implement these methods
+
+    info()
+    opened(change_number=None)
+    shelve(change_number=None)
+    unshelve(change_numer)
+    update_shelve(change_number)
+    list_shelves()
+    change()
+    submit()
+
+    '''
+
+    def __init__(self):
+        info = self._p4_run("info")[0]
+        self.user = info['userName']
+        self.port = info['serverAddress']
+        self.client = info['clientName']
+
+    def _p4_run(self, cmd):
+        """Run supplied perforce command and return output as a list of dictionaries."""
+        results = []
+        if sys.version_info[1] < 6:
+            pipe = os.popen('p4 -G ' + cmd, 'r') # 'rb' on Windows for binary read
+        else: # os.popen is deprecated in Python 2.6+
+            from subprocess import Popen, PIPE
+            pipe = Popen(["p4", "-G"] + cmd.split(), stdout=PIPE).stdout
+        try:
+            while 1:
+                record = marshal.load(pipe)
+                results.append(record)
+        except EOFError:
+            pass
+        pipe.close()
+        return results
+
+    def __str__(self):
+        return "user: %s port: %s client: %s" % (self.user, self.port, self.client)
+
+    def opened(self, change_number=None):
+        """Return a dict with opened files for user."""
+        if change_number:
+            cmd = "opened -c %s" % change_number
+        else:
+            cmd = "opened"
+        return self._p4_run(cmd)
+
+    def changes(self, status=None):
+        """Return a dict with changes for user."""
+        cmd = "changes -u %s" % self.user
+        if status:
+            cmd += " -s %s" % status
+        return self._p4_run(cmd)
+
+    def my_changelist(self, change_number):
+        return False
+
+    def change(self, change_number=None, output=False):
+        cmd = "change"
+        if output:
+            cmd += " -o"
+        if change_number:
+            cmd += " %s" % change_number
+        print "CMD: ", cmd
+        return self._p4_run(cmd)
+
+    def shelve(self, change_number=None, update=False):
+        """Create a shelf either from default changelist or option change_number"""
+        cmd = "shelve"
+        if change_number:
+            cmd += " -c %s" % change_number
+        return self._p4_run(cmd)
+
+    def update_shelf(self, change_number):
+        cmd = "shelve -r -c %s" % change_number
+        return self._p4_run(cmd)
+
+    def shelved(self, change_number):
+        return change_number in self.shelves()
+
+    def shelves(self):
+        """Return list of change list numbers that are currently shelved."""
+        shelved_changes = self.changes("shelved")
+        return [sc['change'] for sc in shelved_changes]
+
+    def unshelve(self, change_number):
+        cmd = "p4 shelve -d -c %s" % change_number
+        self._p4_run(cmd)
+
+    def submit(self, change_number):
+        pass
 
 class F5Review:
 
@@ -327,50 +421,6 @@ def get_changelist_owner(change_number):
         raise RBError("Failed to determine owner for change list %s" % change_number)
     return user
 
-def is_shelved(change_number):
-    return change_number in p4_shelves()
-
-def p4_opened(change=None):
-    """Return list of files opened in this workspace."""
-    if change is None:
-        cmd = "p4 opened"
-    else:
-        cmd = "p4 opened -c %s" % change
-    return run_cmd(cmd)
-
-def p4_user():
-    p4_info = run_cmd("p4 info")
-    user_name = None
-    if len(p4_info) > 0:
-        user_line = p4_info[0]
-        user_info = user_line.split(':')
-        if user_info[0].strip() == "User name":
-            user_name = user_info[1].strip()
-    return user_name
-
-def p4_shelve(change_number):
-    os.system("p4 shelve -c %s" % change_number)
-
-def p4_unshelve(change_number):
-    os.system("p4 shelve -d -c %s" % change_number)
-
-def p4_update_shelve(change_number):
-    os.system("p4 shelve -r -c %s" % change_number)
-
-def p4_shelves():
-    user_name = p4_user()
-    shelved_changes = []
-    if user_name:
-        shelves = run_cmd("p4 changes -u %s -s shelved" % user_name)
-        for shelf in shelves:
-            change = shelf.split()[1]
-            if change:
-                shelved_changes.append(int(change))
-    else:
-        print "ERROR: Can't determine p4 user name"
-        sys.exit(1)
-    return shelved_changes
-
 def p4_change(shelve):
     """
     Create a numbered change list with all files in the default change list.
@@ -659,6 +709,13 @@ def show_review_links(server, review_id):
 
 def main():
     MISSING_RB_ID = "Need the ReviewBoard ID number."
+
+    p4 = P4()
+#    print p4.opened("888")
+#    my_changes = p4.changes()
+#    print "Number of changes: %d" % len(my_changes)
+    print p4.change('887', True)
+    sys.exit()
 
     # Configuration and options
     global options
