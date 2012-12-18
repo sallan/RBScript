@@ -8,10 +8,12 @@ from rbtools import postreview
 import rbtools.api.errors
 
 class RBError(Exception): pass;
+
+
 class P4Error(Exception): pass;
 
-class P4:
 
+class P4:
     """
     Provide necessary perforce data.
 
@@ -40,6 +42,7 @@ class P4:
             pipe = os.popen('p4 -G ' + cmd, 'r')
         else: # os.popen is deprecated in Python 2.6+
             from subprocess import Popen, PIPE
+
             pipe = Popen(["p4", "-G"] + cmd.split(), stdout=PIPE).stdout
         try:
             while 1:
@@ -165,8 +168,8 @@ class P4:
         output = self._p4_run(cmd)
         return int(output[-1]['submittedChange'])
 
-class F5Review:
 
+class F5Review:
     """
     Encapsulate a review request.
     """
@@ -189,7 +192,7 @@ class F5Review:
 
         try:
             self.review_request = server.get_review_request(review_id)
-            self.change_list =  self.review_request['changenum']
+            self.change_list = self.review_request['changenum']
         except rbtools.api.errors.APIError:
             raise RBError("Failed to retrieve review: %s." % review_id)
 
@@ -393,7 +396,8 @@ def create(options, p4):
         # We we're given a change list number - make sure we're the owner.
         change_owner = p4.changelist_owner(options.changenum)
         if p4.user != change_owner:
-            raise RBError("Perforce change %s is owned by %s - you are running as %s." % (options.changenum, change_owner, p4.user))
+            raise RBError("Perforce change %s is owned by %s - you are running as %s." % (
+            options.changenum, change_owner, p4.user))
 
     if options.shelve:
         p4.shelve(options.changenum)
@@ -481,17 +485,17 @@ def migrate_rbrc_file(old_rc_file, new_rc_file):
     # We don't migrate the user name because doing so causes post-review
     # to prompt for a password each time. By leaving it out, you get prompted
     # once and then future requests use the cookies file.
-    valid_keys = {"server" : "REVIEWBOARD_URL"}
+    valid_keys = {"server": "REVIEWBOARD_URL"}
 
     try:
         f = open(new_rc_file, "w")
         for line in old_rc:
-            k, v = [ s.strip() for s in line.split("=") ]
+            k, v = [s.strip() for s in line.split("=")]
             if k in valid_keys.keys():
                 new_k = valid_keys[k]
                 if new_k == "REVIEWBOARD_URL":
                     v = "https://" + v
-                f.write('%s = "%s"\n'% (new_k, v))
+                f.write('%s = "%s"\n' % (new_k, v))
         f.close()
     except IOError, e:
         print "Failed to write %s" % new_rc_file
@@ -507,7 +511,7 @@ def check_config(user_home):
     If you find both, warn the user and use .reviewboardrc. If only .rbrc, migrate those
     settings to .reviewboardrc.
 
-    """ 
+    """
     rbrc_file = os.path.join(user_home, ".rbrc")
     reviewboardrc_file = os.path.join(user_home, ".reviewboardrc")
     if os.path.isfile(rbrc_file):
@@ -533,7 +537,8 @@ def get_server(user_config, options, cookie_file):
         if user_config and user_config.has_key("REVIEWBOARD_URL"):
             server_url = user_config["REVIEWBOARD_URL"]
         else:
-            raise RBError("No server url found. Either set in your .reviewboardrc file or pass it with --server option.")
+            raise RBError(
+                "No server url found. Either set in your .reviewboardrc file or pass it with --server option.")
 
     repository_info = tool.get_repository_info()
     server = postreview.ReviewBoardServer(server_url, repository_info, cookie_file)
@@ -619,12 +624,12 @@ below.
         help="Use specified server. Default is the REVIEWBOARD_URL entry in .reviewboardrc file.")
 
     # TODO: I don't think I want these
-#    parser.add_option("--p4-port",
-#        dest="p4_port", metavar="<p4_port>",
-#        help="Specify P4PORT. Default is to use environment settings.")
-#    parser.add_option("--p4-client",
-#        dest="p4_client", metavar="<p4_client>",
-#        help="Specify P4PORT. Default is to use environment settings.")
+    #    parser.add_option("--p4-port",
+    #        dest="p4_port", metavar="<p4_port>",
+    #        help="Specify P4PORT. Default is to use environment settings.")
+    #    parser.add_option("--p4-client",
+    #        dest="p4_client", metavar="<p4_client>",
+    #        help="Specify P4PORT. Default is to use environment settings.")
 
     create_group = optparse.OptionGroup(parser, "Create Options")
 
@@ -671,7 +676,6 @@ def show_review_links(server, review_id):
     review_request = server.get_review_request(review_id)
     for name in review_request['links']:
         print "%20s:  %s" % (name, review_request['links'][name]['href'])
-
 
 
 def main():
