@@ -5,7 +5,7 @@ new:
 	-@mv .git dotgit
 	@p4 edit readme.txt
 	@echo "Testing 1, 2, 3" >> readme.txt
-	@./rb.py create
+	@./rb.py create --publish -u sallan
 	@mv dotgit .git
 
 debug:

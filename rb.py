@@ -146,8 +146,11 @@ class P4:
         return output
 
     def submit(self, change_number):
-        # TODO: submit change and return submitted change number
-        return None
+        """Submit change and return submitted change number"""
+        cmd = "submit -c %s" % change_number
+        output = self._p4_run(cmd)
+        # TODO: Put some error checking in here. Try submitting an out of date file.
+        return int(output[-1]['submittedChange'])
 
 class F5Review:
 
@@ -187,95 +190,66 @@ class F5Review:
         # Make sure we own this changelist
         change_owner = p4.changelist_owner(change_list)
         if p4.user != change_owner:
-            raise RBError("Perforce change %s is owned by %s - you are running as %s." % (change_list, change_owner, p4.user))
+            raise RBError(
+                "Perforce change %s is owned by %s - you are running as %s." % (change_list, change_owner, p4.user))
 
         if not options.force:
             # Inspect the review to make sure it meets requirements for submission.
             # If not, an RBError exception is raised with the reason for rejection.
             self.validate_review()
 
+        if options.edit:
+            p4.edit_change(change_list)
+
+        if p4.shelved(change_list):
+            print "Deleting shelve since --force option used."
+            p4.unshelve(change_list)
+
+        # We need to modify the change form to include additional information.
+        # Example:
+        #
+        #         Reviewed by: Bill Walker, Michael Slass, Zach Carter
+        #
+        #         Reviewboard: 53662
+        #
+        # We have a perforce trigger add the ReviewBoard URL so that it gets
+        # included even if the change is submitted without using this script.
+        #
+
+        # Get the change form
+        # TODO: Can this code be modified to use the dicts?
+        change_form = run_cmd("p4 change -o %s" % change_list)
+        insert_here = change_form.index("Files:")
+
+        # Add list of ship-its to the change list
+        ship_its = self.get_ship_its()
+        if ship_its:
+            # Need to add this to change list:
+            #
+            #
+            ship_it_line = "\tReviewed by: %s\n" % ", ".join(ship_its)
+            change_form.insert(insert_here, ship_it_line)
+            insert_here += 1
+
+        review_id_line = "\tReviewboard: %s\n" % review_id
+        change_form.insert(insert_here, review_id_line)
+
+        # Write new form to temp file and submit
+        change_form_file = tempfile.NamedTemporaryFile(mode="w", delete=False)
+        for line in change_form:
+            change_form_file.write(line + "\n")
+        change_form_file.close()
+        run_cmd("p4 change -i < %s" % change_form_file.name)
+        submitted_changelist = p4.submit(change_list)
+
+        postreview.debug("Setting review change list to %s and closing." % submitted_changelist)
         try:
-            if options.edit:
-                p4.edit_change(change_list)
-
-            if p4.shelved(change_list):
-                print "Deleting shelve since --force option used."
-                p4.unshelve(change_list)
-
-            # We need to modify the change form to include additional information.
-            # Example:
-            #
-            #         Reviewed by: Bill Walker, Michael Slass, Zach Carter
-            #
-            #         Reviewboard: 53662
-            #
-            # We have a perforce trigger add the ReviewBoard URL so that it gets
-            # included even if the change is submitted without using this script.
-            #
-
-            # Get the change form
-            # TODO: Can this code be modified to use the dicts?
-            change_form = run_cmd("p4 change -o %s" % change_list)
-            insert_here = change_form.index("Files:")
-
-            # Add list of ship-its to the change list
-            ship_its = self.get_ship_its()
-            if ship_its:
-                # Need to add this to change list:
-                #
-                #
-                ship_it_line = "\tReviewed by: %s\n" % ", ".join(ship_its)
-                change_form.insert(insert_here, ship_it_line)
-                insert_here += 1
-
-            review_id_line = "\tReviewboard: %s\n" % review_id
-            change_form.insert(insert_here, review_id_line)
-
-            # Write new form to temp file
-            change_form_file = tempfile.NamedTemporaryFile(mode="w", delete=False)
-            for line in change_form:
-                change_form_file.write(line + "\n")
-            change_form_file.close()
-            run_cmd("p4 change -i < %s" % change_form_file.name)
-
-            # Submit change list to perforce
-            # TODO: Need to actually write the p4.submit method
-            # submitted_change = p4.submit(change_list)
-            submit_output = run_cmd("p4 submit -c %s" % change_list)
-
-        except RuntimeError, e:
-            raise RBError("ERROR: Unable to submit change %s\n%s" % (change_list, e))
-
-        # Successful output will look like this:
-        # ['Submitting change 816.', 'Locking 1 files ...', 'edit //depot/Jam/MAIN/src/README#27',
-        # 'Change 816 submitted.']
-        #
-        # or
-        #
-        # ['Submitting change 816.', 'Locking 1 files ...', 'edit //depot/Jam/MAIN/src/README#27',
-        # 'Change 828 renamed change 830 and submitted.']
-        #
-        if submit_output[-1].endswith("submitted."):
-            # Figure out what change list number it went in with.
-            submit_status_message = submit_output[-1]
-            if submit_status_message == "Change %s submitted." % change_list:
-                submitted_changelist = change_list
-            else:
-                if submit_status_message.startswith("Change %s renamed change" % change_list):
-                    submitted_changelist = submit_status_message.split()[4]
-                else:
-                    raise RBError("Unrecognized output from p4 submit:\n%s" % "\n".join(submit_output))
-
-            postreview.debug("Setting review change list to %s and closing." % submitted_changelist)
-            try:
-                self.set_change_list(submitted_changelist)
-                self.set_status("submitted")
-                print "Change %s submitted." % submitted_changelist
-                print "Review %s closed." % review_id
-            except RBError, e:
-                raise RBError("Failed to submit review.\n%s" % e)
-        else:
-            raise RBError("Unrecognized p4 output: %s\nReview %s not closed." % ("\n".join(submit_output), review_id))
+            self.set_change_list(submitted_changelist)
+            self.set_status("submitted")
+            print "Change %s submitted." % submitted_changelist
+            print "Review %s closed." % review_id
+        except RBError, e:
+            raise RBError("Failed to submit review.\n%s" % e)
 
     def edit(self):
         """Edit the review."""
