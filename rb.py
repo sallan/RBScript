@@ -113,6 +113,11 @@ class P4:
     def edit_change(self, change_number):
         os.system("p4 change %s" % change_number)
 
+    def edit_change_i(self, change_number, text):
+        change_list = self.get_change(change_number)
+        change_list['Description'] += text
+
+
     def shelve(self, change_number=None):
         """Create a shelf either from default changelist or option change_number"""
         cmd = "shelve"
@@ -132,12 +137,13 @@ class P4:
     def shelves(self):
         """Return list of change list numbers that are currently shelved."""
         shelved_changes = self.changes("shelved")
-        return [sc['change'] for sc in shelved_changes]
+        return [int(sc['change']) for sc in shelved_changes]
 
     def unshelve(self, change_number):
         """Delete the shelf for the change_number"""
-        cmd = "p4 shelve -d -c %s" % change_number
-        self._p4_run(cmd)
+        cmd = "shelve -d -c %s" % change_number
+        output = self._p4_run(cmd)
+        return output
 
     def submit(self, change_number):
         # TODO: submit change and return submitted change number
@@ -190,9 +196,10 @@ class F5Review:
 
         try:
             if options.edit:
-                os.system("p4 change %s" % change_list)
+                p4.edit_change(change_list)
 
             if p4.shelved(change_list):
+                print "Deleting shelve since --force option used."
                 p4.unshelve(change_list)
 
             # We need to modify the change form to include additional information.
@@ -207,6 +214,7 @@ class F5Review:
             #
 
             # Get the change form
+            # TODO: Can this code be modified to use the dicts?
             change_form = run_cmd("p4 change -o %s" % change_list)
             insert_here = change_form.index("Files:")
 
@@ -231,9 +239,10 @@ class F5Review:
             run_cmd("p4 change -i < %s" % change_form_file.name)
 
             # Submit change list to perforce
+            # TODO: Need to actually write the p4.submit method
+            # submitted_change = p4.submit(change_list)
             submit_output = run_cmd("p4 submit -c %s" % change_list)
-            postreview.debug("submit returned:")
-            postreview.debug("\n".join(submit_output))
+
         except RuntimeError, e:
             raise RBError("ERROR: Unable to submit change %s\n%s" % (change_list, e))
 
@@ -406,33 +415,34 @@ def create(options, p4):
 
     if options.changenum is None:
         raise RBError("Can't determine the perforce change list number.")
+
+    options_string = convert_options(options)
+    cmd = "post-review %s" % options_string
+    pr_output = run_cmd(cmd)
+
+    # Successful output will look like this:
+    #
+    # ['Review request #38 posted.', '', 'http://reviewboard/r/38/']
+    #
+    if len(pr_output) < 3:
+        raise RBError("Unrecognized output from post-review: %s" % "\n".join(pr_output))
+    posted_message = pr_output[0]
+    posted_url = pr_output[2]
+    if posted_message.endswith("posted."):
+        review_id = posted_message.split()[2].strip()[1:]
     else:
-        # TODO: why is this an else? Why not have the if rasise RBError?
-        options_string = convert_options(options)
-        cmd = "post-review %s" % options_string
-        pr_output = run_cmd(cmd)
+        raise RBError("Unrecognized output from post-review: %s" % posted_message)
 
-        # Successful output will look like this:
-        #
-        # ['Review request #38 posted.', '', 'http://reviewboard/r/38/']
-        #
-        if len(pr_output) < 3:
-            raise RBError("Unrecognized output from post-review: %s" % "\n".join(pr_output))
-        posted_message = pr_output[0]
-        posted_url = pr_output[2]
-        if posted_message.endswith("posted."):
-            review_id = posted_message.split()[2].strip()[1:]
-        else:
-            raise RBError("Unrecognized output from post-review: %s" % posted_message)
-
-        if options.shelve:
-            shelve_message = "This change has been shelved in changeset %s." % options.changenum
-            shelve_message += "To unshelve this change into your workspace:\n\n\tp4 unshelve -s %s" % options.changenum
-            print shelve_message
-            # Add a comment to the review with shelving information
-            # Hmm, to do this we'll need the rb id number. Maybe we need to
-            # capture the output.
-            # TODO: Crap! I need a server instance to do this!!
+    if options.shelve:
+        shelve_message = "This change has been shelved in changeset %s." % options.changenum
+        shelve_message += "To unshelve this change into your workspace:\n\n\tp4 unshelve -s %s" % options.changenum
+        print shelve_message
+        # Add a comment to the review with shelving information
+        # Hmm, to do this we'll need the rb id number. Maybe we need to
+        # capture the output.
+        # TODO: Crap! I need a server instance to do this!!
+        # TODO: This function no longer prints a friendly message since
+        #       you replaced os.system with run_cmd.
 
 #==============================================================================
 # Utility functions
