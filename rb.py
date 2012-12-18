@@ -8,6 +8,7 @@ from rbtools import postreview
 import rbtools.api.errors
 
 class RBError(Exception): pass;
+class P4Error(Exception): pass;
 
 class P4:
 
@@ -21,16 +22,22 @@ class P4:
         Create an object to interact with perforce using the user, port an client
         settings from the environment.
         """
-        info = self._p4_run("info")[0]
+        info = self._p4_info()
         self.user = info['userName']
         self.port = info['serverAddress']
         self.client = info['clientName']
+
+    def _p4_info(self):
+        info = self._p4_run("info")
+        if not info:
+            raise P4Error("Could not talk to the perforce server.")
+        return info[0]
 
     def _p4_run(self, cmd):
         """Run supplied perforce command and return output as a list of dictionaries."""
         results = []
         if sys.version_info[1] < 6:
-            pipe = os.popen('p4 -G ' + cmd, 'r') # 'rb' on Windows for binary read
+            pipe = os.popen('p4 -G ' + cmd, 'r')
         else: # os.popen is deprecated in Python 2.6+
             from subprocess import Popen, PIPE
             pipe = Popen(["p4", "-G"] + cmd.split(), stdout=PIPE).stdout
@@ -38,9 +45,17 @@ class P4:
             while 1:
                 record = marshal.load(pipe)
                 results.append(record)
-        except EOFError:
+        except EOFError, e:
             pass
         pipe.close()
+
+        # check for known perforce errors
+        for r in results:
+            if r['code'] == 'error':
+                msg = "\n'p4 %s' command failed.\n\n" % cmd
+                msg += "%s\n" % r['data']
+                msg += "Please fix problem and try again."
+                raise P4Error(msg)
         return results
 
     def __str__(self):
@@ -117,7 +132,6 @@ class P4:
         change_list = self.get_change(change_number)
         change_list['Description'] += text
 
-
     def shelve(self, change_number=None):
         """Create a shelf either from default changelist or option change_number"""
         cmd = "shelve"
@@ -149,7 +163,6 @@ class P4:
         """Submit change and return submitted change number"""
         cmd = "submit -c %s" % change_number
         output = self._p4_run(cmd)
-        # TODO: Put some error checking in here. Try submitting an out of date file.
         return int(output[-1]['submittedChange'])
 
 class F5Review:
@@ -695,7 +708,11 @@ def main():
     postreview.parse_options(args)
 
     # Create a P4 object to interact with perforce
-    p4 = P4()
+    try:
+        p4 = P4()
+    except P4Error:
+        print "Failed to connect to the perforce server. Exiting."
+        sys.exit(1)
 
     # Strip off legacy UI elements if present
     if args[0] == "rr" or args[0] == "reviewrequest":
@@ -737,6 +754,9 @@ def main():
         print "Unknown action: %s" % action
         sys.exit(1)
 
+    except P4Error, e:
+        print e
+        sys.exit(1)
     except RBError, e:
         print e
         sys.exit(1)
