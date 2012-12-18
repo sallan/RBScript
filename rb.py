@@ -66,13 +66,52 @@ class P4:
         change_list = self.change(change_number, stdout=True)[0]
         return change_list['User']
 
-    def change(self, change_number=None, stdout=False):
-        cmd = "change"
-        if stdout:
-            cmd += " -o"
-        if change_number:
-            cmd += " %s" % change_number
-        return self._p4_run(cmd)
+    def new_change(self):
+        """
+        Create a numbered change list with all files in the default change list.
+
+        Run p4 change on the default change list to create a new, numbered change
+        and return the new change list number.
+
+        Raise exception if there are no files in the default changelist.
+
+        """
+        if len(self.opened("default")) == 0:
+            raise RBError("No files opened in default changelist.")
+
+        # Capture a change template with files opened in the default change list
+        change_template = run_cmd("p4 change -o")
+
+        # Create a temp file and dump the p4 change to it.
+        change_form = tempfile.NamedTemporaryFile(mode="w", delete=False)
+        for line in change_template:
+            change_form.write(line + "\n")
+        change_form.close()
+
+        # Open the file in the users editor
+        editor = get_editor()
+        os.system("%s %s" % (editor, change_form.name))
+
+        # The user may have changed their mind, so see if the file changed at all.
+        f = open(change_form.name, "r")
+        new_change_form = [s.rstrip() for s in f.readlines()]
+        f.close()
+
+        if change_template == new_change_form:
+            print "No changes made."
+            change = None
+        else:
+            change_output = run_cmd("p4 change -i < %s" % change_form.name)
+            change = change_output[0].split()[1]
+        os.unlink(change_form.name)
+        return change
+
+    def get_change(self, change_number):
+        """Return dict with change_number change list"""
+        return self._p4_run("change -o %s" % change_number)[0]
+
+    def edit_change(self, change_number):
+        os.system("p4 change %s" % change_number)
 
     def shelve(self, change_number=None):
         """Create a shelf either from default changelist or option change_number"""
@@ -406,54 +445,6 @@ def run_cmd(cmd):
         raise RuntimeError, "%r failed with return code: %d" % (cmd, err)
     return data
 
-'''
-def p4_change(shelve, p4):
-    """
-    Create a numbered change list with all files in the default change list.
-
-    Run p4 change on the default change list to create a new, numbered change
-    and return the new change list number.
-
-    Raises RBError on failure.
-
-    """
-
-    # Raise exception if there are no files in the default changelist.
-    if len(p4.opened()) == 0:
-        raise RBError("No files opened in default changelist.")
-
-    # Capture a change template with files opened in the default change list
-    change_template = run_cmd("p4 change -o")
-
-    # Create a temp file and dump the p4 change to it.
-    change_form = tempfile.NamedTemporaryFile(mode="w", delete=False)
-    for line in change_template:
-        change_form.write(line + "\n")
-    change_form.close()
-
-    # Open the file in the users editor
-    editor = get_editor()
-    os.system("%s %s" % (editor, change_form.name))
-
-    # The user may have changed their mind, so see if the file changed at all.
-    f = open(change_form.name, "r")
-    new_change_form = [s.rstrip() for s in f.readlines()]
-    f.close()
-
-    if change_template == new_change_form:
-        print "No changes made."
-        change = None
-    else:
-        # Feed form to p4 change or shelve and capture the output
-        if shelve:
-            change_output = run_cmd("p4 shelve -i < %s" % change_form.name)
-        else:
-            change_output = run_cmd("p4 change -i < %s" % change_form.name)
-        change = change_output[0].split()[1]
-    os.unlink(change_form.name)
-    return change
-
-'''
 
 def get_editor():
     """
@@ -693,6 +684,13 @@ def show_review_links(server, review_id):
 
 def main():
     MISSING_RB_ID = "Need the ReviewBoard ID number."
+
+    p4 = P4()
+#    print p4.opened('default')
+#    print p4.edit_change("887")
+#    print p4.new_change()
+    print p4.get_change("889")
+    sys.exit()
 
     # Configuration and options
     global options
