@@ -10,21 +10,17 @@ import rbtools.api.errors
 class RBError(Exception): pass;
 
 class P4:
-    '''
-    need to implement these methods
 
-    info()
-    opened(change_number=None)
-    shelve(change_number=None)
-    unshelve(change_numer)
-    update_shelve(change_number)
-    list_shelves()
-    change()
-    submit()
+    """
+    Provide necessary perforce data.
 
-    '''
+    """
 
     def __init__(self):
+        """
+        Create an object to interact with perforce using the user, port an client
+        settings from the environment.
+        """
         info = self._p4_run("info")[0]
         self.user = info['userName']
         self.port = info['serverAddress']
@@ -65,19 +61,20 @@ class P4:
             cmd += " -s %s" % status
         return self._p4_run(cmd)
 
-    def my_changelist(self, change_number):
-        return False
+    def changelist_owner(self, change_number):
+        """Return the user name of the change list owner"""
+        change_list = self.change(change_number, stdout=True)[0]
+        return change_list['User']
 
-    def change(self, change_number=None, output=False):
+    def change(self, change_number=None, stdout=False):
         cmd = "change"
-        if output:
+        if stdout:
             cmd += " -o"
         if change_number:
             cmd += " %s" % change_number
-        print "CMD: ", cmd
         return self._p4_run(cmd)
 
-    def shelve(self, change_number=None, update=False):
+    def shelve(self, change_number=None):
         """Create a shelf either from default changelist or option change_number"""
         cmd = "shelve"
         if change_number:
@@ -85,10 +82,12 @@ class P4:
         return self._p4_run(cmd)
 
     def update_shelf(self, change_number):
+        """Update the shelved change_number"""
         cmd = "shelve -r -c %s" % change_number
         return self._p4_run(cmd)
 
     def shelved(self, change_number):
+        """Return True if the change_number is a shelved change list"""
         return change_number in self.shelves()
 
     def shelves(self):
@@ -97,11 +96,13 @@ class P4:
         return [sc['change'] for sc in shelved_changes]
 
     def unshelve(self, change_number):
+        """Delete the shelf for the change_number"""
         cmd = "p4 shelve -d -c %s" % change_number
         self._p4_run(cmd)
 
     def submit(self, change_number):
-        pass
+        # TODO: submit change and return submitted change number
+        return None
 
 class F5Review:
 
@@ -406,21 +407,6 @@ def run_cmd(cmd):
         raise RuntimeError, "%r failed with return code: %d" % (cmd, err)
     return data
 
-def get_changelist_owner(change_number):
-    if not change_number:
-        raise RuntimeError("Program Error: get_changelist called without a changelist number.")
-
-    user = None
-    change_form = run_cmd("p4 change -o %s" % change_number)
-    for line in change_form:
-        if line.startswith("User:"):
-            user = line.split(":")[1].strip()
-            break
-
-    if not user:
-        raise RBError("Failed to determine owner for change list %s" % change_number)
-    return user
-
 def p4_change(shelve):
     """
     Create a numbered change list with all files in the default change list.
@@ -466,10 +452,6 @@ def p4_change(shelve):
         change = change_output[0].split()[1]
     os.unlink(change_form.name)
     return change
-
-def p4_submit(change):
-    # TODO: submit change and return submitted change number
-    return None
 
 def get_editor():
     """
@@ -714,7 +696,9 @@ def main():
 #    print p4.opened("888")
 #    my_changes = p4.changes()
 #    print "Number of changes: %d" % len(my_changes)
-    print p4.change('887', True)
+    print p4.changelist_owner('1')
+    print p4.changelist_owner('887')
+    print p4.changelist_owner('888')
     sys.exit()
 
     # Configuration and options
@@ -788,41 +772,5 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-    """
-    Links available from a review_request object
-
-    diffs
-    repository
-    changes
-    self
-    update
-    last_update
-    reviews
-    draft
-    file_attachments
-    submitter
-    screenshots
-    delete
-
-
-    Fields I might be able to update using server.set_review_request_field
-
-    status
-    last_updated
-    description
-    links
-    target_groups
-    bugs_closed
-    changenum
-    target_people
-    testing_done
-    branch
-    id
-    time_added
-    summary
-    public
-
-    """
 
 # EOF
