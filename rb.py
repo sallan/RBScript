@@ -386,22 +386,17 @@ def create(options, p4):
     much larger scope than I want to take on for this version.
     """
 
-    # Make sure a change number is in the options object
     if options.changenum is None:
+        # Create a new change list and capture the number.
         options.changenum = p4.new_change()
+    else:
+        # We we're given a change list number - make sure we're the owner.
+        change_owner = p4.changelist_owner(options.changenum)
+        if p4.user != change_owner:
+            raise RBError("Perforce change %s is owned by %s - you are running as %s." % (options.changenum, change_owner, p4.user))
 
     if options.shelve:
         p4.shelve(options.changenum)
-
-    # TODO: This test and the changenum test below seem clunky. Give it another look.
-    # Make sure we own the change list
-    user = p4.user
-    change_owner = p4.changelist_owner(options.changenum)
-    if user != change_owner:
-        raise RBError("Perforce change %s is owned by %s - you are running as %s." % (options.changenum, change_owner, user))
-
-    if options.changenum is None:
-        raise RBError("Can't determine the perforce change list number.")
 
     options_string = convert_options(options)
     cmd = "post-review %s" % options_string
@@ -671,9 +666,8 @@ below.
     return parser
 
 
-
-
 def show_review_links(server, review_id):
+    # This is a throwaway function I'm using as a development aid.
     review_request = server.get_review_request(review_id)
     for name in review_request['links']:
         print "%20s:  %s" % (name, review_request['links'][name]['href'])
