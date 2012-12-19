@@ -175,64 +175,84 @@ class F5Review:
     Encapsulate a review request.
     """
 
-    def __init__(self, server, review_id, p4, options):
+    def __init__(self, server, change_list, p4, options):
         """
         Create an instance of F5Review.
 
         Fields:
         server -- an instance of postreview.ReviewBoardServer
-        review_id -- the review board id number
+        change_list -- the perforce change list number
         options -- an options object as returned by optparse
 
         """
 
         self.server = server
-        self.review_id = review_id
+        self.change_list = change_list
         self.p4 = p4
         self.options = options
+        self.review_id = None
 
         # Create a PerforceClient object to create proper diffs. This comes from rbtools.
         self.p4client = perforce.PerforceClient(options=self.options)
         self.p4client.get_repository_info()
 
-        if review_id:
+    @property
+    def review_id(self):
+        """Return the review board id number for this review."""
+        if self.review_id is None:
+            review_request = self.review_request
+            self.review_id = review_request['id']
+        return self.review_id
+
+    @property
+    def review_request(self):
+        """Return the latest version of the review request and update id, changelist."""
+        review_request = None
+        if self.review_id:
             try:
-                self.review_request = server.get_review_request(review_id)
-                self.change_list = self.review_request['changenum']
+                review_request = self.server.get_review_request(self.review_id)
+                self.change_list = review_request['changenum']
             except rbtools.api.errors.APIError:
-                raise RBError("Failed to retrieve review: %s." % review_id)
+                raise RBError("Failed to retrieve review: %s." % self.review_id)
+        else:
+            if self.change_list:
+                try:
+                    review_request = get_review_from_changenum(self.server, self.change_list)
+                    self.review_id  = review_request['id']
+                except rbtools.api.errors.APIError:
+                    raise RBError("Failed to find review for change list: %s." % self.change_list)
+        return review_request
 
     def create(self):
-        if options.changenum is None:
-            # Create a new change list and capture the number.
-            options.changenum = self.p4.new_change()
-            self.change_list = options.changenum
-        else:
-            # We we're given a change list number - make sure we're the owner.
-            change_owner = self.p4.changelist_owner(options.changenum)
-            if self.p4.user != change_owner:
-                raise RBError("Perforce change %s is owned by %s - you are running as %s." % (
-                    options.changenum, change_owner, self.p4.user))
         if options.shelve:
-            self.p4.shelve(options.changenum)
+            self.p4.shelve(self.change_list)
         self.post_review()
-        self.add_shelve_comment()
+        if options.shelve:
+            self.add_shelve_comment()
 
     def edit(self):
         if options.shelve:
             self.post_review()
         self.p4.update_shelf(self.change_list)
 
-        # TODO: We need better logic to decide when to update the comment. For now, just do it.
-        if True:
+        self.post_review()
+
+        # TODO: We need better logic to decide when to update the comment. For now keep it simple.
+        if options.shelve:
             self.add_shelve_comment()
 
 
     def post_review(self):
-        options = self.options
         p4 = self.p4
         server = self.server
 
+        # Pass the options we care about along to postreview
+        postreview.options.publish = self.options.publish
+        postreview.options.target_people = self.options.target_people
+        postreview.options.target_groups = self.options.target_groups
+        postreview.options.publish = self.options.publish
+
+        # Create our diff using rbtools
         diff, parent_diff = self.p4client.diff([self.change_list])
 
         if len(diff) == 0:
@@ -651,15 +671,17 @@ below.
 """
 
     parser = optparse.OptionParser(
-        usage="%prog [OPTIONS] create|update|submit [RB_ID]",
+        usage="%prog [OPTIONS] create|update|submit [change_list]",
         description=description
     )
     parser.add_option("-d", "--debug",
         dest="debug", action="store_true", default=False,
         help="Display debug output.")
-    parser.add_option("-c", "--change",
-        dest="changenum", metavar="<changenum>",
-        help="Alternative to using RB_ID.")
+
+#    parser.add_option("-c", "--change",
+#        dest="changenum", metavar="<changenum>",
+#        help="Alternative to using RB_ID.")
+
     parser.add_option("--server",
         dest="server", metavar="<server_name>",
         help="Use specified server. Default is the REVIEWBOARD_URL entry in .reviewboardrc file.")
@@ -678,6 +700,10 @@ below.
         help="Specify P4PASSWD. Not used but needed in options.")
 
     create_group = optparse.OptionGroup(parser, "Create Options")
+
+#    create_group.add_option("-c", "--change",
+#        dest="changenum", metavar="<changenum>",
+#        help="Use this change list number for review instead of default change list.")
 
     create_group.add_option("-g", "--target-groups",
         dest="target_groups", metavar="<group [,groups]>",
@@ -725,8 +751,6 @@ def show_review_links(server, review_id):
 
 
 def main():
-    MISSING_RB_ID = "Need the ReviewBoard ID number."
-
     # Configuration and options
     global options
     global configs
@@ -762,24 +786,28 @@ def main():
     if args[0] == "rr" or args[0] == "reviewrequest":
         args = args[1:]
     action = args[0]
+    change_list = None
 
-    # Here we go...
+    # See if we have a change list number
+    if len(args) > 1:
+        change_list = args[1]
+    else:
+        if action == "create":
+            change_list = p4.new_change()
+
+    if change_list is None:
+        print "Need your perforce change list number for this review."
+        sys.exit(1)
+
+    options.changenum = change_list
     rb_cookies_file = os.path.join(user_home, ".post-review-cookies.txt")
     try:
         server = get_server(user_config, postreview.options, rb_cookies_file)
-        if options.changenum:
-            # TODO: BROKEN!! If it's a new review this will fail
-            review_id = get_review_from_changenum(server, options.changenum)
-        else:
-            if action == "create":
-                review_id = None
-            else:
-                if len(args) < 2:
-                    print MISSING_RB_ID
-                    sys.exit(1)
-                review_id = args[1]
 
-        review = F5Review(server, review_id, p4, options)
+        # TODO: Do we need p4? Maybe we should decouple p4 and review?
+        review = F5Review(server, change_list, p4, options)
+
+        # Looking more and more like a simple dispatch table would go here.
         if action == "create":
             review.create()
             sys.exit()
