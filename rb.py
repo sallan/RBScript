@@ -5,6 +5,7 @@ import os
 import tempfile
 import marshal
 from rbtools import postreview
+from rbtools.clients import perforce
 import rbtools.api.errors
 
 class RBError(Exception): pass;
@@ -190,11 +191,71 @@ class F5Review:
         self.p4 = p4
         self.options = options
 
+        # Create a PerforceClient object to create proper diffs. This comes from rbtools.
+        self.p4client = perforce.PerforceClient(options=self.options)
+        self.p4client.get_repository_info()
+
         try:
             self.review_request = server.get_review_request(review_id)
             self.change_list = self.review_request['changenum']
         except rbtools.api.errors.APIError:
             raise RBError("Failed to retrieve review: %s." % review_id)
+
+    def create(self):
+        if options.changenum is None:
+            # Create a new change list and capture the number.
+            options.changenum = self.p4.new_change()
+        else:
+            # We we're given a change list number - make sure we're the owner.
+            change_owner = self.p4.changelist_owner(options.changenum)
+            if p4.user != change_owner:
+                raise RBError("Perforce change %s is owned by %s - you are running as %s." % (
+                    options.changenum, change_owner, self.p4.user))
+
+        if options.shelve:
+            self.p4.shelve(options.changenum)
+
+        self._post_review()
+
+    def edit(self):
+        if options.shelve:
+            # TODO: What if they didn't shelve it the first time? You may need to check that.
+            self.p4.update_shelf(self.change_list)
+        self._post_review()
+
+    def _post_review(self):
+        options = self.options
+        p4 = self.p4
+        server = self.server
+
+        diff, parent_diff = self.p4client.diff([self.change_list])
+
+        if len(diff) == 0:
+            raise RBError("There don't seem to be any diffs!")
+
+        changenum = self.p4client.sanitize_changenum(options.changenum)
+
+        if options.output_diff_only:
+            # The comma here isn't a typo, but rather suppresses the extra newline
+            print diff,
+            sys.exit(0)
+
+        # Post to review board server
+        server.login()
+        review_url = postreview.tempt_fate(server, self.p4client, changenum, diff_content=diff,
+            parent_diff_content=parent_diff,
+            submit_as=options.submit_as)
+
+        # Review created, now post the shelve message.
+        if options.shelve:
+            shelve_message = "This change has been shelved in changeset %s." % options.changenum
+            shelve_message += "To unshelve this change into your workspace:\n\n\tp4 unshelve -s %s" % options.changenum
+            print shelve_message
+            # Add a comment to the review with shelving information
+            # Hmm, to do this we'll need the rb id number. Maybe we need to
+            # capture the output.
+            # TODO: This function no longer prints a friendly message since
+            #       you replaced os.system with run_cmd.
 
     def submit(self):
         """Submit the change list to perforce and mark review as submitted."""
@@ -266,26 +327,6 @@ class F5Review:
             print "Review %s closed." % review_id
         except RBError, e:
             raise RBError("Failed to submit review.\n%s" % e)
-
-    def edit(self):
-        """Edit the review."""
-
-        # TODO: What other editing functions do we want to support?
-
-        # if changenum option passed, take it out because we already
-        # have it in our review object
-        options.changenum = None
-
-        # Now convert the options to an options string for post-review
-        options_string = convert_options(options)
-
-        # Update shelved files if shelve option passed
-        if options.shelve:
-            self.p4.update_shelf(self.change_list)
-
-        # Let post-review handle the rest
-        cmd = "post-review %s %s" % (options_string, self.change_list)
-        os.system(cmd)
 
     def validate_review(self):
         """
@@ -397,7 +438,7 @@ def create(options, p4):
         change_owner = p4.changelist_owner(options.changenum)
         if p4.user != change_owner:
             raise RBError("Perforce change %s is owned by %s - you are running as %s." % (
-            options.changenum, change_owner, p4.user))
+                options.changenum, change_owner, p4.user))
 
     if options.shelve:
         p4.shelve(options.changenum)
@@ -623,13 +664,18 @@ below.
         dest="server", metavar="<server_name>",
         help="Use specified server. Default is the REVIEWBOARD_URL entry in .reviewboardrc file.")
 
-    # TODO: I don't think I want these
-    #    parser.add_option("--p4-port",
-    #        dest="p4_port", metavar="<p4_port>",
-    #        help="Specify P4PORT. Default is to use environment settings.")
-    #    parser.add_option("--p4-client",
-    #        dest="p4_client", metavar="<p4_client>",
-    #        help="Specify P4PORT. Default is to use environment settings.")
+    parser.add_option("--p4-port",
+        dest="p4_port", metavar="<p4_port>",
+        help="Specify P4PORT. Default is to use environment settings.")
+    parser.add_option("--p4-client",
+        dest="p4_client", metavar="<p4_client>",
+        help="Specify P4CLIENT. Default is to use environment settings.")
+    parser.add_option("--p4-user",
+        dest="p4_user", metavar="<p4_user>",
+        help="Specify P4USER. Default is to use environment settings.")
+    parser.add_option("--p4-passwd",
+        dest="p4_passwd", metavar="<p4_passwd>",
+        help="Specify P4PASSWD. Not used but needed in options.")
 
     create_group = optparse.OptionGroup(parser, "Create Options")
 
@@ -659,7 +705,7 @@ below.
         dest="publish", action="store_true", default=False,
         help="Publish the review.")
     edit_group.add_option("-n", "--output-diff",
-        dest="output_diff", action="store_true", default=False,
+        dest="output_diff_only", action="store_true", default=False,
         help="Output diff to console and exit. Do not post.")
     edit_group.add_option("-o", "--open",
         dest="open", action="store_true", default=False,
@@ -718,9 +764,9 @@ def main():
     action = args[0]
 
     # For creating a new review request, just hand everything off to post-review.
-    if action == "create":
-        create(options, p4)
-        sys.exit()
+    #    if action == "create":
+    #        create(options, p4)
+    #        sys.exit()
 
     # For everything else, we need to talk directly to the server, so we'll instantiate
     # an F5Review object with a server instance.
@@ -737,8 +783,16 @@ def main():
             review_id = args[1]
         review = F5Review(server, review_id, p4, options)
 
+        if action == "setup":
+            print "Nothing left to do."
+            sys.exit()
+
         if action == "show":
             review.add_change_description("This review has been shelved. What number you ask? Good question!")
+            sys.exit()
+
+        if action == "create":
+            review.create()
             sys.exit()
 
         if action == "update":
