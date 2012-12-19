@@ -195,26 +195,26 @@ class F5Review:
         self.p4client = perforce.PerforceClient(options=self.options)
         self.p4client.get_repository_info()
 
-        try:
-            self.review_request = server.get_review_request(review_id)
-            self.change_list = self.review_request['changenum']
-        except rbtools.api.errors.APIError:
-            raise RBError("Failed to retrieve review: %s." % review_id)
+        if review_id:
+            try:
+                self.review_request = server.get_review_request(review_id)
+                self.change_list = self.review_request['changenum']
+            except rbtools.api.errors.APIError:
+                raise RBError("Failed to retrieve review: %s." % review_id)
 
     def create(self):
         if options.changenum is None:
             # Create a new change list and capture the number.
             options.changenum = self.p4.new_change()
+            self.change_list = options.changenum
         else:
             # We we're given a change list number - make sure we're the owner.
             change_owner = self.p4.changelist_owner(options.changenum)
-            if p4.user != change_owner:
+            if self.p4.user != change_owner:
                 raise RBError("Perforce change %s is owned by %s - you are running as %s." % (
                     options.changenum, change_owner, self.p4.user))
-
         if options.shelve:
             self.p4.shelve(options.changenum)
-
         self._post_review()
 
     def edit(self):
@@ -763,34 +763,22 @@ def main():
         args = args[1:]
     action = args[0]
 
-    # For creating a new review request, just hand everything off to post-review.
-    #    if action == "create":
-    #        create(options, p4)
-    #        sys.exit()
-
-    # For everything else, we need to talk directly to the server, so we'll instantiate
-    # an F5Review object with a server instance.
+    # Here we go...
     rb_cookies_file = os.path.join(user_home, ".post-review-cookies.txt")
     try:
         server = get_server(user_config, postreview.options, rb_cookies_file)
-
         if options.changenum:
             review_id = get_review_from_changenum(server, options.changenum)
         else:
-            if len(args) < 2:
-                print MISSING_RB_ID
-                sys.exit(1)
-            review_id = args[1]
+            if action == "create":
+                review_id = None
+            else:
+                if len(args) < 2:
+                    print MISSING_RB_ID
+                    sys.exit(1)
+                review_id = args[1]
+
         review = F5Review(server, review_id, p4, options)
-
-        if action == "setup":
-            print "Nothing left to do."
-            sys.exit()
-
-        if action == "show":
-            review.add_change_description("This review has been shelved. What number you ask? Good question!")
-            sys.exit()
-
         if action == "create":
             review.create()
             sys.exit()
