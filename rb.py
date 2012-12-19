@@ -215,15 +215,20 @@ class F5Review:
                     options.changenum, change_owner, self.p4.user))
         if options.shelve:
             self.p4.shelve(options.changenum)
-        self._post_review()
+        self.post_review()
+        self.add_shelve_comment()
 
     def edit(self):
         if options.shelve:
-            # TODO: What if they didn't shelve it the first time? You may need to check that.
-            self.p4.update_shelf(self.change_list)
-        self._post_review()
+            self.post_review()
+        self.p4.update_shelf(self.change_list)
 
-    def _post_review(self):
+        # TODO: We need better logic to decide when to update the comment. For now, just do it.
+        if True:
+            self.add_shelve_comment()
+
+
+    def post_review(self):
         options = self.options
         p4 = self.p4
         server = self.server
@@ -246,16 +251,11 @@ class F5Review:
             parent_diff_content=parent_diff,
             submit_as=options.submit_as)
 
+    def add_shelve_comment(self):
         # Review created, now post the shelve message.
-        if options.shelve:
-            shelve_message = "This change has been shelved in changeset %s." % options.changenum
-            shelve_message += "To unshelve this change into your workspace:\n\n\tp4 unshelve -s %s" % options.changenum
-            print shelve_message
-            # Add a comment to the review with shelving information
-            # Hmm, to do this we'll need the rb id number. Maybe we need to
-            # capture the output.
-            # TODO: This function no longer prints a friendly message since
-            #       you replaced os.system with run_cmd.
+        shelve_message = "This change has been shelved in changeset %s." % self.change_list
+        shelve_message += "To unshelve this change into your workspace:\n\n\tp4 unshelve -s %s" % self.change_list
+        self.server.set_review_request_field(self.review_request, 'changedescription', shelve_message)
 
     def submit(self):
         """Submit the change list to perforce and mark review as submitted."""
@@ -768,6 +768,7 @@ def main():
     try:
         server = get_server(user_config, postreview.options, rb_cookies_file)
         if options.changenum:
+            # TODO: BROKEN!! If it's a new review this will fail
             review_id = get_review_from_changenum(server, options.changenum)
         else:
             if action == "create":
