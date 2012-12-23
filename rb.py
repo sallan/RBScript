@@ -242,6 +242,8 @@ class F5Review:
             self.review_id = review_request['id']
         return self.review_id
 
+
+
     @property
     def review_request(self):
         """Return the latest version of the review request and update id, changelist."""
@@ -303,32 +305,6 @@ class F5Review:
         except RBError, e:
             raise RBError("Failed to submit review.\n%s" % e)
 
-    def validate_review(self):
-        """
-        Validate the review before submitting.
-
-        To be valid the review must meet these requirements:
-        * Must be pending
-        * Must have a ship it unless -f
-        * Can't have shelved files unless -f
-
-        """
-
-        # Review must be pending
-        review_status = self.review_request['status']
-        if  review_status != "pending":
-            raise RBError("Can't submit a review with a '%s' status." % review_status)
-
-        # Check for ship_its
-        if not self.get_ship_its():
-            raise RBError("Review %s has no 'Ship It' reviews. Use --force to submit anyway." % self.review_id)
-
-        # Check for shelves
-        if self.p4.shelved(self.change_list):
-            msg = "\tError: Cannot submit a shelved change (%s).\n" % self.change_list
-            msg += "\tYou may use --force to delete the shelved change automatically prior to submit."
-            raise RBError(msg)
-
     def get_ship_its(self):
         """Get unique list of reviewers who gave a ship it."""
         reviews = self.get_reviews()['reviews']
@@ -336,7 +312,6 @@ class F5Review:
 
         # Return just the unique elements
         return list(set(ship_its))
-
 
     def get_review_summary(self):
         return self.review_request['summary']
@@ -544,15 +519,9 @@ below.
     parser.add_option("-d", "--debug",
         dest="debug", action="store_true", default=False,
         help="Display debug output.")
-
-#    parser.add_option("-c", "--change",
-#        dest="changenum", metavar="<changenum>",
-#        help="Alternative to using RB_ID.")
-
     parser.add_option("--server",
         dest="server", metavar="<server_name>",
         help="Use specified server. Default is the REVIEWBOARD_URL entry in .reviewboardrc file.")
-
     parser.add_option("--p4-port",
         dest="p4_port", metavar="<p4_port>",
         help="Specify P4PORT. Default is to use environment settings.")
@@ -567,11 +536,6 @@ below.
         help="Specify P4PASSWD. Not used but needed in options.")
 
     create_group = optparse.OptionGroup(parser, "Create Options")
-
-#    create_group.add_option("-c", "--change",
-#        dest="changenum", metavar="<changenum>",
-#        help="Use this change list number for review instead of default change list.")
-
     create_group.add_option("-g", "--target-groups",
         dest="target_groups", metavar="<group [,groups]>",
         help="List of ReviewBoard groups to assign.")
@@ -610,6 +574,35 @@ below.
     return parser
 
 
+def get_changelist_number(p4, action, args):
+    """Return change list number. Raise exception if we can't obtain one."""
+    change_list = None
+    if args:
+        change_list = args[0]
+    else:
+        if action == "create":
+            change_list = p4.new_change()
+    if change_list is None:
+        raise RBError("Need your perforce change list number for this review.")
+    return change_list
+
+
+def verify_owner(p4, change_list):
+    """Raise exception if we are not the owner of the change list."""
+    change_owner = p4.changelist_owner(change_list)
+    if p4.user != change_owner:
+        raise RBError(
+            "Perforce change %s is owned by %s - you are running as %s." % (change_list, change_owner, p4.user))
+
+
+def get_action(args):
+    """Strip off legacy UI elements if present and return action and remaining args"""
+    if args[0] == "rr" or args[0] == "reviewrequest":
+        print "Use of 'rr' or 'reviewrequest' is no longer required."
+        args = args[1:]
+    return (args[0], args[1:])
+
+
 def create_review(review, p4):
     if options.shelve:
         p4.shelve(review.change_list)
@@ -623,17 +616,15 @@ def update_review(review, p4):
         p4.update_shelf(review.change_list)
     review.post_review()
 
-    # TODO: Discussion
-    '''
-    Do we run add_shelve_comment? We don't want to do it multiple times. But here's a use case
-    where we may want to: We create a review and publish. Someone asks us to shelve the files. We
-    decide to do it using this script with the --shelve option. Now I want to add a comment. But if
-    later we update the files in our shelve and want to update the review with --shelve, we don't
-    need another comment. Although if we do get another comment, maybe that's not bad. After all, if we
-    ran --shelve again we should altert people the shelved files may have changed.
+    #  Do we run add_shelve_comment? We don't want to do it multiple times. But here's a use case
+    #    where we may want to: We create a review and publish. Someone asks us to shelve the files. We
+    #    decide to do it using this script with the --shelve option. Now I want to add a comment. But if
+    #    later we update the files in our shelve and want to update the review with --shelve, we don't
+    #    need another comment. Although if we do get another comment, maybe that's not bad. After all, if we
+    #    ran --shelve again we should altert people the shelved files may have changed.
+    #
+    #   So for now, always run add_shelve_comment()
 
-    So for now, always run add_shelve_comment()
-    '''
     if options.shelve:
         review.add_shelve_comment()
 
@@ -696,41 +687,16 @@ def main():
         print "Failed to connect to the perforce server. Exiting."
         sys.exit(1)
 
-    # Strip off legacy UI elements if present
-    if args[0] == "rr" or args[0] == "reviewrequest":
-        print "Use of 'rr' or 'reviewrequest' is no longer required."
-        args = args[1:]
-    action = args[0]
+    # Make sure we have all the required input.
+    action, args = get_action(args)
+    options.changenum = get_changelist_number(p4, action, args)
+    verify_owner(p4, options.changenum)
 
-    # TODO: Yuk, don't like this stuff section. Is there a better way? Or maybe move to function at least.
-    # Maybe all this stuff should be moved into small functions so the semantic level matches.
-    change_list = None
-
-    # See if we have a change list number
-    if len(args) > 1:
-        change_list = args[1]
-    else:
-        if action == "create":
-            change_list = p4.new_change()
-
-    if change_list is None:
-        print "Need your perforce change list number for this review."
-        sys.exit(1)
-
-    # End Yuk
-
-    # Put change list number in global options because postreview functions require it.
-    options.changenum = change_list
-
-    change_owner = p4.changelist_owner(change_list)
-    if p4.user != change_owner:
-        raise RBError(
-            "Perforce change %s is owned by %s - you are running as %s." % (change_list, change_owner, p4.user))
-
-    rb_cookies_file = os.path.join(user_home, ".post-review-cookies.txt")
+    # Here we go...
     try:
+        rb_cookies_file = os.path.join(user_home, ".post-review-cookies.txt")
         server = get_server(user_config, postreview.options, rb_cookies_file)
-        review = F5Review(server, change_list)
+        review = F5Review(server, options.changenum)
 
         actions = {
             "create" : lambda: create_review(review, p4),
