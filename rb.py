@@ -215,7 +215,7 @@ class F5Review:
     Encapsulate a review request.
     """
 
-    def __init__(self, server, change_list, p4, options):
+    def __init__(self, server, change_list, options):
         """
         Create an instance of F5Review.
 
@@ -228,7 +228,6 @@ class F5Review:
 
         self.server = server
         self.change_list = change_list
-        self.p4 = p4
         self.options = options
         self.review_id = None
 
@@ -797,10 +796,12 @@ def main():
 
     # Strip off legacy UI elements if present
     if args[0] == "rr" or args[0] == "reviewrequest":
+        print "Use of 'rr' or 'reviewrequest' is no longer required."
         args = args[1:]
     action = args[0]
 
     # TODO: Yuk, don't like this stuff section. Is there a better way? Or maybe move to function at least.
+    # Maybe all this stuff should be moved into small functions so the semantic level matches.
     change_list = None
 
     # See if we have a change list number
@@ -827,27 +828,20 @@ def main():
     rb_cookies_file = os.path.join(user_home, ".post-review-cookies.txt")
     try:
         server = get_server(user_config, postreview.options, rb_cookies_file)
+        # TODO: Do we need to pass options? Isn't it global?
+        review = F5Review(server, change_list, options)
 
-        # TODO: Do we need p4? Maybe we should decouple p4 and review?
-        review = F5Review(server, change_list, p4, options)
-
-        # Looking more and more like a simple dispatch table would go here.
-        if action == "create":
-            # We already did new change above. Still don't know if I like it up there.
-            create_review(review, p4)
+        actions = {
+            "create" : lambda: create_review(review, p4),
+            "update" : lambda: update_review(review, p4),
+            "submit" : lambda: submit_review(review, p4),
+        }
+        if actions.has_key(action):
+            actions[action]()
             sys.exit()
-
-        if action == "update":
-            update_review(review, p4)
-            sys.exit()
-
-        if action == "submit":
-            submit_review(review, p4)
-            sys.exit()
-
-        print "Unknown action: %s" % action
-        sys.exit(1)
-
+        else:
+            print "Unknown action: %s" % action
+            sys.exit(1)
     except P4Error, e:
         print e
         sys.exit(1)
