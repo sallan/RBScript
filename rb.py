@@ -242,7 +242,9 @@ class F5Review:
             self.review_id = review_request['id']
         return self.review_id
 
-
+    @review_id.setter
+    def review_id(self, value):
+        self.review_id = value
 
     @property
     def review_request(self):
