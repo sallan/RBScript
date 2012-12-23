@@ -132,6 +132,7 @@ class P4:
     def edit_change(self, change_number):
         os.system("p4 change %s" % change_number)
 
+    # TODO: Yuk. Don't like this methed name.
     def edit_change_i(self, change_number, text):
         change_list = self.get_change(change_number)
         change_list['Description'] += text
@@ -170,6 +171,45 @@ class P4:
         return int(output[-1]['submittedChange'])
 
 
+    def add_reviewboard_info(self, review):
+        # We need to modify the change form to include additional information.
+        # Example:
+        #
+        #         Reviewed by: Bill Walker, Michael Slass, Zach Carter
+        #
+        #         Reviewboard: 53662
+        #
+        # We have a perforce trigger add the ReviewBoard URL so that it gets
+        # included even if the change is submitted without using this script.
+        #
+
+        # Get the change form
+        # TODO: Can this code be modified to use the dicts?
+        change_form = run_cmd("p4 change -o %s" % review.change_list)
+        insert_here = change_form.index("Files:")
+
+        # Add list of ship-its to the change list
+        ship_its = review.get_ship_its()
+        if ship_its:
+            # Need to add this to change list:
+            #
+            #
+            ship_it_line = "\tReviewed by: %s\n" % ", ".join(ship_its)
+            change_form.insert(insert_here, ship_it_line)
+            insert_here += 1
+
+        # TODO: How important is this since we add the url? Probably cruft.
+        review_id_line = "\tReviewboard: %s\n" % review.review_id
+        change_form.insert(insert_here, review_id_line)
+
+        # Write new form to temp file and submit
+        change_form_file = tempfile.NamedTemporaryFile(mode="w", delete=False)
+        for line in change_form:
+            change_form_file.write(line + "\n")
+        change_form_file.close()
+        run_cmd("p4 change -i < %s" % change_form_file.name)
+
+
 class F5Review:
     """
     Encapsulate a review request.
@@ -206,44 +246,22 @@ class F5Review:
 
     @property
     def review_request(self):
+        # TODO: How is this supposed to work? Really? What is it, by id or by changelist?
         """Return the latest version of the review request and update id, changelist."""
         review_request = None
-        if self.review_id:
-            try:
-                review_request = self.server.get_review_request(self.review_id)
-                self.change_list = review_request['changenum']
-            except rbtools.api.errors.APIError:
-                raise RBError("Failed to retrieve review: %s." % self.review_id)
-        else:
-            if self.change_list:
-                try:
-                    review_request = get_review_from_changenum(self.server, self.change_list)
-                    self.review_id  = review_request['id']
-                except rbtools.api.errors.APIError:
-                    raise RBError("Failed to find review for change list: %s." % self.change_list)
+        try:
+            if not self.review_id:
+                if self.change_list:
+                    self.review_id = get_review_id_from_changenum(self.server, self.change_list)
+                else:
+                    raise RBError("Review has no change list number and no ID number.")
+            review_request = self.server.get_review_request(self.review_id)
+            self.change_list = review_request['changenum']
+        except rbtools.api.errors.APIError:
+            raise RBError("Failed to retrieve review number %s." % self.review_id)
         return review_request
 
-    def create(self):
-        if options.shelve:
-            self.p4.shelve(self.change_list)
-        self.post_review()
-        if options.shelve:
-            self.add_shelve_comment()
-
-    def edit(self):
-        if options.shelve:
-            self.post_review()
-        self.p4.update_shelf(self.change_list)
-
-        self.post_review()
-
-        # TODO: We need better logic to decide when to update the comment. For now keep it simple.
-        if options.shelve:
-            self.add_shelve_comment()
-
-
     def post_review(self):
-        p4 = self.p4
         server = self.server
 
         # Pass the options we care about along to postreview
@@ -277,69 +295,9 @@ class F5Review:
         shelve_message += "To unshelve this change into your workspace:\n\n\tp4 unshelve -s %s" % self.change_list
         self.server.set_review_request_field(self.review_request, 'changedescription', shelve_message)
 
-    def submit(self):
+    def submit(self, submitted_changelist):
         """Submit the change list to perforce and mark review as submitted."""
         review_id = self.review_id
-        change_list = self.change_list
-        options = self.options
-        p4 = self.p4
-
-        # Make sure we own this changelist
-        change_owner = p4.changelist_owner(change_list)
-        if p4.user != change_owner:
-            raise RBError(
-                "Perforce change %s is owned by %s - you are running as %s." % (change_list, change_owner, p4.user))
-
-        if not options.force:
-            # Inspect the review to make sure it meets requirements for submission.
-            # If not, an RBError exception is raised with the reason for rejection.
-            self.validate_review()
-
-        if options.edit:
-            p4.edit_change(change_list)
-
-        if p4.shelved(change_list):
-            print "Deleting shelve since --force option used."
-            p4.unshelve(change_list)
-
-        # We need to modify the change form to include additional information.
-        # Example:
-        #
-        #         Reviewed by: Bill Walker, Michael Slass, Zach Carter
-        #
-        #         Reviewboard: 53662
-        #
-        # We have a perforce trigger add the ReviewBoard URL so that it gets
-        # included even if the change is submitted without using this script.
-        #
-
-        # Get the change form
-        # TODO: Can this code be modified to use the dicts?
-        change_form = run_cmd("p4 change -o %s" % change_list)
-        insert_here = change_form.index("Files:")
-
-        # Add list of ship-its to the change list
-        ship_its = self.get_ship_its()
-        if ship_its:
-            # Need to add this to change list:
-            #
-            #
-            ship_it_line = "\tReviewed by: %s\n" % ", ".join(ship_its)
-            change_form.insert(insert_here, ship_it_line)
-            insert_here += 1
-
-        review_id_line = "\tReviewboard: %s\n" % review_id
-        change_form.insert(insert_here, review_id_line)
-
-        # Write new form to temp file and submit
-        change_form_file = tempfile.NamedTemporaryFile(mode="w", delete=False)
-        for line in change_form:
-            change_form_file.write(line + "\n")
-        change_form_file.close()
-        run_cmd("p4 change -i < %s" % change_form_file.name)
-        submitted_changelist = p4.submit(change_list)
-
-        postreview.debug("Setting review change list to %s and closing." % submitted_changelist)
         try:
             self.set_change_list(submitted_changelist)
             self.set_status("submitted")
@@ -400,7 +358,7 @@ class F5Review:
         # At any rate, this works.
         self.change_list = new_change
         self.server.api_put(self.review_request['links']['self']['href'], {
-            'changenum': self.change_list,
+            'changenum': new_change,
         })
 
     def set_status(self, status):
@@ -607,7 +565,8 @@ def get_server(user_config, options, cookie_file):
     return server
 
 
-def get_review_from_changenum(server, changenum):
+def get_review_id_from_changenum(server, changenum):
+    """Return Review Board ID number for given changenum. Raises exception if not found."""
     url = "%sapi/review-requests?changenum=%s" % (server.url, changenum)
     try:
         review = server.api_get(url)
@@ -750,6 +709,60 @@ def show_review_links(server, review_id):
         print "%20s:  %s" % (name, review_request['links'][name]['href'])
 
 
+def create_review(review, p4):
+    if options.shelve:
+        p4.shelve(review.change_list)
+    review.post_review()
+    if options.shelve:
+        review.add_shelve_comment()
+
+
+def update_review(review, p4):
+    if options.shelve:
+        p4.update_shelf(review.change_list)
+    review.post_review()
+
+    # TODO: Discussion
+    '''
+    Do we run add_shelve_comment? We don't want to do it multiple times. But here's a use case
+    where we may want to: We create a review and publish. Someone asks us to shelve the files. We
+    decide to do it using this script with the --shelve option. Now I want to add a comment. But if
+    later we update the files in our shelve and want to update the review with --shelve, we don't
+    need another comment. Although if we do get another comment, maybe that's not bad. After all, if we
+    ran --shelve again we should altert people the shelved files may have changed.
+
+    So for now, always run add_shelve_comment()
+    '''
+    if options.shelve:
+        review.add_shelve_comment()
+
+
+def submit_review(review, p4):
+    # TODO: should these functions exit, or raise exception?
+    # They're not objects.
+
+    if not review.get_ship_its() and not options.force:
+        # TODO: Better message
+        print "nope - you neeed ship_its"
+        sys.exit(1)
+
+    if p4.shelved(review.change_list):
+        if options.force:
+            print "Deleting shelve since --force option used."
+            p4.unshelve(review.change_list)
+        else:
+            # TODO: Better message
+            print "Nope. Review shelved."
+            sys.exit(1)
+
+    if options.edit:
+        p4.edit_change(review.change_list)
+
+    p4.add_reviewboard_info(review)
+    submitted_change_list = p4.submit(review.change_list)
+    review.submit(submitted_change_list)
+
+
 def main():
     # Configuration and options
     global options
@@ -786,6 +799,8 @@ def main():
     if args[0] == "rr" or args[0] == "reviewrequest":
         args = args[1:]
     action = args[0]
+
+    # TODO: Yuk, don't like this stuff section. Is there a better way? Or maybe move to function at least.
     change_list = None
 
     # See if we have a change list number
@@ -799,7 +814,16 @@ def main():
         print "Need your perforce change list number for this review."
         sys.exit(1)
 
+    # TODO: Does this still need to be in options? Does postreview need it?
     options.changenum = change_list
+
+    # End Yuk
+
+    change_owner = p4.changelist_owner(change_list)
+    if p4.user != change_owner:
+        raise RBError(
+            "Perforce change %s is owned by %s - you are running as %s." % (change_list, change_owner, p4.user))
+
     rb_cookies_file = os.path.join(user_home, ".post-review-cookies.txt")
     try:
         server = get_server(user_config, postreview.options, rb_cookies_file)
@@ -809,15 +833,16 @@ def main():
 
         # Looking more and more like a simple dispatch table would go here.
         if action == "create":
-            review.create()
+            # We already did new change above. Still don't know if I like it up there.
+            create_review(review, p4)
             sys.exit()
 
         if action == "update":
-            review.edit()
+            update_review(review, p4)
             sys.exit()
 
         if action == "submit":
-            review.submit()
+            submit_review(review, p4)
             sys.exit()
 
         print "Unknown action: %s" % action
