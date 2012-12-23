@@ -215,7 +215,7 @@ class F5Review:
     Encapsulate a review request.
     """
 
-    def __init__(self, server, change_list, options):
+    def __init__(self, server, change_list):
         """
         Create an instance of F5Review.
 
@@ -228,11 +228,10 @@ class F5Review:
 
         self.server = server
         self.change_list = change_list
-        self.options = options
         self.review_id = None
 
         # Create a PerforceClient object to create proper diffs. This comes from rbtools.
-        self.p4client = perforce.PerforceClient(options=self.options)
+        self.p4client = perforce.PerforceClient(options=options)
         self.p4client.get_repository_info()
 
     @property
@@ -245,7 +244,6 @@ class F5Review:
 
     @property
     def review_request(self):
-        # TODO: How is this supposed to work? Really? What is it, by id or by changelist?
         """Return the latest version of the review request and update id, changelist."""
         review_request = None
         try:
@@ -264,10 +262,10 @@ class F5Review:
         server = self.server
 
         # Pass the options we care about along to postreview
-        postreview.options.publish = self.options.publish
-        postreview.options.target_people = self.options.target_people
-        postreview.options.target_groups = self.options.target_groups
-        postreview.options.publish = self.options.publish
+        postreview.options.publish = options.publish
+        postreview.options.target_people = options.target_people
+        postreview.options.target_groups = options.target_groups
+        postreview.options.publish = options.publish
 
         # Create our diff using rbtools
         diff, parent_diff = self.p4client.diff([self.change_list])
@@ -393,60 +391,6 @@ class F5Review:
 
 # End of F5Review class
 
-#==============================================================================
-# Create a new review - no server object needed for this.
-#==============================================================================
-def create(options, p4):
-    """
-    A thin wrapper to the rbtools post-review script.
-
-    This stays here rather than F5Review because we don't create an F5Review
-    object when creating a new review request. We just shell out to post-review.
-    That may change in a future version of this script because I'd actually like
-    to bypass all the other repository checks that post-review does. But that's a
-    much larger scope than I want to take on for this version.
-    """
-
-    if options.changenum is None:
-        # Create a new change list and capture the number.
-        options.changenum = p4.new_change()
-    else:
-        # We we're given a change list number - make sure we're the owner.
-        change_owner = p4.changelist_owner(options.changenum)
-        if p4.user != change_owner:
-            raise RBError("Perforce change %s is owned by %s - you are running as %s." % (
-                options.changenum, change_owner, p4.user))
-
-    if options.shelve:
-        p4.shelve(options.changenum)
-
-    options_string = convert_options(options)
-    cmd = "post-review %s" % options_string
-    pr_output = run_cmd(cmd)
-
-    # Successful output will look like this:
-    #
-    # ['Review request #38 posted.', '', 'http://reviewboard/r/38/']
-    #
-    if len(pr_output) < 3:
-        raise RBError("Unrecognized output from post-review: %s" % "\n".join(pr_output))
-    posted_message = pr_output[0]
-    posted_url = pr_output[2]
-    if posted_message.endswith("posted."):
-        review_id = posted_message.split()[2].strip()[1:]
-    else:
-        raise RBError("Unrecognized output from post-review: %s" % posted_message)
-
-    if options.shelve:
-        shelve_message = "This change has been shelved in changeset %s." % options.changenum
-        shelve_message += "To unshelve this change into your workspace:\n\n\tp4 unshelve -s %s" % options.changenum
-        print shelve_message
-        # Add a comment to the review with shelving information
-        # Hmm, to do this we'll need the rb id number. Maybe we need to
-        # capture the output.
-        # TODO: Crap! I need a server instance to do this!!
-        # TODO: This function no longer prints a friendly message since
-        #       you replaced os.system with run_cmd.
 
 #==============================================================================
 # Utility functions
@@ -578,41 +522,6 @@ def get_review_id_from_changenum(server, changenum):
     return review_id
 
 
-def convert_options(options):
-    """Convert our options to post-review options string."""
-
-    post_rev_opts = ""
-
-    if options.debug:
-        post_rev_opts += " --debug"
-
-    if options.open:
-        post_rev_opts += " --open"
-
-    if options.output_diff:
-        post_rev_opts += " --output-diff"
-
-    if options.publish:
-        post_rev_opts += " --publish"
-
-    if options.server:
-        post_rev_opts += " --server %s" % options.server
-
-    if options.changenum:
-        post_rev_opts += " %s" % options.changenum
-
-    if options.target_people:
-        post_rev_opts += " --target-people %s" % options.target_people
-
-    if options.target_groups:
-        post_rev_opts += " --target-groups %s" % options.target_groups
-
-    if options.submit_as:
-        post_rev_opts += " --submit-as %s" % options.submit_as
-
-    return post_rev_opts.strip()
-
-
 def parse_options():
     """
     Our options parser
@@ -699,13 +608,6 @@ below.
     parser.add_option_group(create_group)
     parser.add_option_group(submit_group)
     return parser
-
-
-def show_review_links(server, review_id):
-    # This is a throwaway function I'm using as a development aid.
-    review_request = server.get_review_request(review_id)
-    for name in review_request['links']:
-        print "%20s:  %s" % (name, review_request['links'][name]['href'])
 
 
 def create_review(review, p4):
@@ -815,10 +717,10 @@ def main():
         print "Need your perforce change list number for this review."
         sys.exit(1)
 
-    # TODO: Does this still need to be in options? Does postreview need it?
-    options.changenum = change_list
-
     # End Yuk
+
+    # Put change list number in global options because postreview functions require it.
+    options.changenum = change_list
 
     change_owner = p4.changelist_owner(change_list)
     if p4.user != change_owner:
@@ -828,8 +730,7 @@ def main():
     rb_cookies_file = os.path.join(user_home, ".post-review-cookies.txt")
     try:
         server = get_server(user_config, postreview.options, rb_cookies_file)
-        # TODO: Do we need to pass options? Isn't it global?
-        review = F5Review(server, change_list, options)
+        review = F5Review(server, change_list)
 
         actions = {
             "create" : lambda: create_review(review, p4),
