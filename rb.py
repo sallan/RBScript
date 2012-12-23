@@ -499,7 +499,7 @@ def get_review_id_from_changenum(server, changenum):
     return review_id
 
 
-def parse_options():
+def get_option_parser():
     """
     Our options parser
     """
@@ -575,7 +575,18 @@ below.
     parser.add_option_group(submit_group)
     return parser
 
+def parse_options(parser):
+    """Parse command line options, strip of legacy UI elements and return args, optiions and action."""
+    options, args = parser.parse_args()
+    if args[0] == "rr" or args[0] == "reviewrequest":
+        print "Use of 'rr' or 'reviewrequest' is no longer required."
+        args = args[1:]
+    action = args[0]
+    args = args[1:]
+    return (options, args, action)
 
+
+# TODO: move these two functions into the P4 class
 def get_changelist_number(p4, action, args):
     """Return change list number. Raise exception if we can't obtain one."""
     change_list = None
@@ -595,14 +606,6 @@ def verify_owner(p4, change_list):
     if p4.user != change_owner:
         raise RBError(
             "Perforce change %s is owned by %s - you are running as %s." % (change_list, change_owner, p4.user))
-
-
-def get_action(args):
-    """Strip off legacy UI elements if present and return action and remaining args"""
-    if args[0] == "rr" or args[0] == "reviewrequest":
-        print "Use of 'rr' or 'reviewrequest' is no longer required."
-        args = args[1:]
-    return (args[0], args[1:])
 
 
 def create_review(review, p4):
@@ -671,7 +674,7 @@ def main():
         sys.exit(1)
 
     user_config, configs = postreview.load_config_files(user_home)
-    parser = parse_options()
+    parser = get_option_parser()
     if len(sys.argv) == 1:
         parser.print_help()
         sys.exit()
@@ -679,8 +682,17 @@ def main():
     # We need to call our option parser and then also call postreview's parse_options
     # because it sets global variables that we need for our operations.
     # We don't care about the return value of postreview's parse_options.
-    options, args = parser.parse_args()
+    options, args, action = parse_options(parser)
     postreview.parse_options(args)
+
+    actions = {
+        "create": lambda: create_review(review, p4),
+        "update": lambda: update_review(review, p4),
+        "submit": lambda: submit_review(review, p4),
+    }
+    if not actions.has_key(action):
+        print "Unknown action: %s" % action
+        sys.exit(1)
 
     # Create a P4 object to interact with perforce
     try:
@@ -690,7 +702,7 @@ def main():
         sys.exit(1)
 
     # Make sure we have all the required input.
-    action, args = get_action(args)
+    #    action, args = get_action(args)
     options.changenum = get_changelist_number(p4, action, args)
     verify_owner(p4, options.changenum)
 
@@ -699,18 +711,8 @@ def main():
         rb_cookies_file = os.path.join(user_home, ".post-review-cookies.txt")
         server = get_server(user_config, postreview.options, rb_cookies_file)
         review = F5Review(server, options.changenum)
-
-        actions = {
-            "create" : lambda: create_review(review, p4),
-            "update" : lambda: update_review(review, p4),
-            "submit" : lambda: submit_review(review, p4),
-        }
-        if actions.has_key(action):
-            actions[action]()
-            sys.exit()
-        else:
-            print "Unknown action: %s" % action
-            sys.exit(1)
+        actions[action]()
+        sys.exit()
     except P4Error, e:
         print e
         sys.exit(1)

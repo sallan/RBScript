@@ -1,11 +1,11 @@
 #!/usr/bin/python
 from unittest import TestCase
 from rb import convert_options
-from rb import parse_options
+from rb import get_option_parser
 
 class TestConvert_options(TestCase):
     def setUp(self):
-        self.options_parser = parse_options()
+        self.options_parser = get_option_parser()
 
 
     def test_none(self):
