@@ -266,13 +266,14 @@ class F5Review:
         return review_request
 
     def post_review(self):
-        server = self.server
+        """Engine for creating and updating reviews on the Review Board Server."""
 
         # Pass the options we care about along to postreview
         postreview.options.publish = options.publish
         postreview.options.target_people = options.target_people
         postreview.options.target_groups = options.target_groups
         postreview.options.publish = options.publish
+        postreview.options.debug = options.debug
 
         # Create our diff using rbtools
         diff, parent_diff = self.p4client.diff([self.change_list])
@@ -280,17 +281,15 @@ class F5Review:
         if len(diff) == 0:
             raise RBError("There don't seem to be any diffs!")
 
-        # TODO: Does it work to not set options.changenum and do self.change_list intead?
-        changenum = self.p4client.sanitize_changenum(options.changenum)
-
         if options.output_diff_only:
             # The comma here isn't a typo, but rather suppresses the extra newline
             print diff,
             sys.exit(0)
 
         # Post to review board server
-        server.login()
-        review_url = postreview.tempt_fate(server, self.p4client, changenum, diff_content=diff,
+        changenum = self.p4client.sanitize_changenum(self.change_list)
+        self.server.login()
+        review_url = postreview.tempt_fate(self.server, self.p4client, changenum, diff_content=diff,
             parent_diff_content=parent_diff,
             submit_as=options.submit_as)
 
@@ -693,11 +692,11 @@ def main():
 
     try:
         p4 = P4()
-        options.changenum = get_changelist_number(p4, action, args)
-        p4.verify_owner(options.changenum)
+        change_list = get_changelist_number(p4, action, args)
+        p4.verify_owner(change_list)
         rb_cookies_file = os.path.join(user_home, ".post-review-cookies.txt")
         server = get_server(user_config, postreview.options, rb_cookies_file)
-        review = F5Review(server, options.changenum)
+        review = F5Review(server, change_list)
         actions[action]()
         sys.exit()
     except P4Error, e:
