@@ -16,7 +16,7 @@ class P4Error(Exception): pass;
 
 class P4:
     """
-    Provide necessary perforce data.
+    Encapsulate perforce environment and handle calls to the perforce server.
 
     """
 
@@ -85,6 +85,13 @@ class P4:
         change_list = self.get_change(change_number)
         return change_list['User']
 
+    def verify_owner(self, change_list):
+        """Raise exception if we are not the owner of the change list."""
+        change_owner = self.changelist_owner(change_list)
+        if self.user != change_owner:
+            raise P4Error(
+                "Perforce change %s is owned by %s - you are running as %s." % (change_list, change_owner, self.user))
+
     def new_change(self):
         """
         Create a numbered change list with all files in the default change list.
@@ -96,7 +103,7 @@ class P4:
 
         """
         if len(self.opened("default")) == 0:
-            raise RBError("No files opened in default changelist.")
+            raise P4Error("No files opened in default changelist.")
 
         # Capture a change template with files opened in the default change list
         change_template = run_cmd("p4 change -o")
@@ -112,6 +119,7 @@ class P4:
         os.system("%s %s" % (editor, change_form.name))
 
         # The user may have changed their mind, so see if the file changed at all.
+        # TODO: Protect against parse error. Maybe give user 2 tries
         f = open(change_form.name, "r")
         new_change_form = [s.rstrip() for s in f.readlines()]
         f.close()
@@ -131,11 +139,6 @@ class P4:
 
     def edit_change(self, change_number):
         os.system("p4 change %s" % change_number)
-
-    # TODO: Yuk. Don't like this methed name.
-    def edit_change_i(self, change_number, text):
-        change_list = self.get_change(change_number)
-        change_list['Description'] += text
 
     def shelve(self, change_number=None):
         """Create a shelf either from default changelist or option change_number"""
@@ -212,7 +215,7 @@ class P4:
 
 class F5Review:
     """
-    Encapsulate a review request.
+    Encapsulate a review request and handle interaction with Review Board server.
     """
 
     def __init__(self, server, change_list):
@@ -277,6 +280,7 @@ class F5Review:
         if len(diff) == 0:
             raise RBError("There don't seem to be any diffs!")
 
+        # TODO: Does it work to not set options.changenum and do self.change_list intead?
         changenum = self.p4client.sanitize_changenum(options.changenum)
 
         if options.output_diff_only:
@@ -455,6 +459,7 @@ def check_config(user_home):
     reviewboardrc_file = os.path.join(user_home, ".reviewboardrc")
     if os.path.isfile(rbrc_file):
         if os.path.isfile(reviewboardrc_file):
+            # TODO: Does this still work?
             postreview.debug("Found .reviewboardrc and legacy .rbrc file. Using .reviewboardrc")
         else:
             print "Found legacy %s file." % rbrc_file
@@ -586,7 +591,6 @@ def parse_options(parser):
     return (options, args, action)
 
 
-# TODO: move these two functions into the P4 class
 def get_changelist_number(p4, action, args):
     """Return change list number. Raise exception if we can't obtain one."""
     change_list = None
@@ -598,14 +602,6 @@ def get_changelist_number(p4, action, args):
     if change_list is None:
         raise RBError("Need your perforce change list number for this review.")
     return change_list
-
-
-def verify_owner(p4, change_list):
-    """Raise exception if we are not the owner of the change list."""
-    change_owner = p4.changelist_owner(change_list)
-    if p4.user != change_owner:
-        raise RBError(
-            "Perforce change %s is owned by %s - you are running as %s." % (change_list, change_owner, p4.user))
 
 
 def create_review(review, p4):
@@ -661,6 +657,7 @@ def submit_review(review, p4):
 
 
 def main():
+    # TODO: Need to test / implement --debug option
     # Configuration and options
     global options
     global configs
@@ -694,20 +691,10 @@ def main():
         print "Unknown action: %s" % action
         sys.exit(1)
 
-    # Create a P4 object to interact with perforce
     try:
         p4 = P4()
-    except P4Error:
-        print "Failed to connect to the perforce server. Exiting."
-        sys.exit(1)
-
-    # Make sure we have all the required input.
-    #    action, args = get_action(args)
-    options.changenum = get_changelist_number(p4, action, args)
-    verify_owner(p4, options.changenum)
-
-    # Here we go...
-    try:
+        options.changenum = get_changelist_number(p4, action, args)
+        p4.verify_owner(options.changenum)
         rb_cookies_file = os.path.join(user_home, ".post-review-cookies.txt")
         server = get_server(user_config, postreview.options, rb_cookies_file)
         review = F5Review(server, options.changenum)
