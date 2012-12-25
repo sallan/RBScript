@@ -22,7 +22,7 @@ class P4:
 
     def __init__(self):
         """
-        Create an object to interact with perforce using the user, port an client
+        Create an object to interact with perforce using the user, port and client
         settings from the environment.
         """
         info = self._p4_info()
@@ -140,11 +140,9 @@ class P4:
     def edit_change(self, change_number):
         os.system("p4 change %s" % change_number)
 
-    def shelve(self, change_number=None):
-        """Create a shelf either from default changelist or option change_number"""
-        cmd = "shelve"
-        if change_number:
-            cmd += " -c %s" % change_number
+    def shelve(self, change_number):
+        """Create a p4 shelve from change_number"""
+        cmd = "shelve -c %s" % change_number
         return self._p4_run(cmd)
 
     def update_shelf(self, change_number):
@@ -157,7 +155,7 @@ class P4:
         return change_number in self.shelves()
 
     def shelves(self):
-        """Return list of change list numbers that are currently shelved."""
+        """Return list of change list numbers for user that are currently shelved."""
         shelved_changes = self.changes("shelved")
         return [int(sc['change']) for sc in shelved_changes]
 
@@ -175,16 +173,19 @@ class P4:
 
 
     def add_reviewboard_info(self, review):
-        # We need to modify the change form to include additional information.
-        # Example:
-        #
-        #         Reviewed by: Bill Walker, Michael Slass, Zach Carter
-        #
-        #         Reviewboard: 53662
-        #
-        # We have a perforce trigger add the ReviewBoard URL so that it gets
-        # included even if the change is submitted without using this script.
-        #
+        """
+        Add review board ID and list of users who approved the review to the change list.
+
+        Example:
+
+                 Reviewed by: Bill Walker, Michael Slass, Zach Carter
+
+                 Reviewboard: 53662
+
+        Note: We have a perforce trigger that adds the ReviewBoard URL so that it gets
+        included even if the change is submitted without using this script.
+
+        """
 
         # Get the change form
         # TODO: Can this code be modified to use the dicts?
@@ -194,13 +195,11 @@ class P4:
         # Add list of ship-its to the change list
         ship_its = review.get_ship_its()
         if ship_its:
-            # Need to add this to change list:
-            #
-            #
             ship_it_line = "\tReviewed by: %s\n" % ", ".join(ship_its)
             change_form.insert(insert_here, ship_it_line)
             insert_here += 1
 
+        # Add review board id
         # TODO: How important is this since we add the url? Probably cruft.
         review_id_line = "\tReviewboard: %s\n" % review.review_id
         change_form.insert(insert_here, review_id_line)
@@ -225,7 +224,10 @@ class F5Review:
         Fields:
         server -- an instance of postreview.ReviewBoardServer
         change_list -- the perforce change list number
-        options -- an options object as returned by optparse
+        review_id  -- the review board id number
+
+        We only need a server and change_list to instantiate the object.
+        The review_id is obtained from the server via the change_list
 
         """
 
@@ -251,7 +253,12 @@ class F5Review:
 
     @property
     def review_request(self):
-        """Return the latest version of the review request and update id, changelist."""
+        """
+        Return the latest version of the review request and update id, changelist.
+
+        We always get the latest version of the review from the server, we never store
+        it in our object.
+        """
         review_request = None
         try:
             if not self.review_id:
@@ -294,7 +301,7 @@ class F5Review:
             submit_as=options.submit_as)
 
     def add_shelve_comment(self):
-        # Review created, now post the shelve message.
+        """Add comment to review regarding the shelved change list."""
         shelve_message = "This change has been shelved in changeset %s." % self.change_list
         shelve_message += "To unshelve this change into your workspace:\n\n\tp4 unshelve -s %s" % self.change_list
         self.server.set_review_request_field(self.review_request, 'changedescription', shelve_message)
@@ -315,7 +322,7 @@ class F5Review:
         reviews = self.get_reviews()['reviews']
         ship_its = [self.get_reviewer_name(r) for r in reviews if r['ship_it']]
 
-        # Return just the unique elements
+        # Idiom for extracting unique elements from list
         return list(set(ship_its))
 
     def get_review_summary(self):
@@ -353,12 +360,16 @@ class F5Review:
         reviews = self.server.api_get(reviews_url)
         return reviews
 
+    def save_draft(self):
+        self.server.save_draft(self.review_request)
+
+
+    # The methods below are currently not used. But I may need them later
+    # so I'm leaving them in for now.
+    # TODO: Delete these if not used by 06/13.
     def get_review_draft(self):
         draft_url = self.review_request['links']['draft']['href']
         return self.server.api_get(draft_url)['draft']
-
-    def save_draft(self):
-        self.server.save_draft(self.review_request)
 
     def add_change_description(self, description):
         self.server.set_review_request_field(self.review_request, 'changedescription', description)
@@ -579,6 +590,7 @@ below.
     parser.add_option_group(submit_group)
     return parser
 
+
 def parse_options(parser):
     """Parse command line options, strip of legacy UI elements and return args, optiions and action."""
     options, args = parser.parse_args()
@@ -656,7 +668,6 @@ def submit_review(review, p4):
 
 
 def main():
-    # TODO: Need to test / implement --debug option
     # Configuration and options
     global options
     global configs
