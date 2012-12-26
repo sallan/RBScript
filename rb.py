@@ -469,8 +469,8 @@ def check_config(user_home):
     reviewboardrc_file = os.path.join(user_home, ".reviewboardrc")
     if os.path.isfile(rbrc_file):
         if os.path.isfile(reviewboardrc_file):
-            # TODO: Does this still work?
-            postreview.debug("Found .reviewboardrc and legacy .rbrc file. Using .reviewboardrc")
+            # TODO: Either remove this or write a debug() function.
+            print("Found .reviewboardrc and legacy .rbrc file. Using .reviewboardrc")
         else:
             print "Found legacy %s file." % rbrc_file
             print "Migrating to %s" % reviewboardrc_file
@@ -672,6 +672,11 @@ def main():
     global options
     global configs
     user_home = os.path.expanduser("~")
+    user_config, configs = postreview.load_config_files(user_home)
+    parser = get_option_parser()
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit()
 
     # Check for a legacy .rbrc file and migrate it to .reviewboardrc if necessary
     try:
@@ -679,12 +684,6 @@ def main():
     except RBError, e:
         print e
         sys.exit(1)
-
-    user_config, configs = postreview.load_config_files(user_home)
-    parser = get_option_parser()
-    if len(sys.argv) == 1:
-        parser.print_help()
-        sys.exit()
 
     # We need to call our option parser and then also call postreview's parse_options
     # because it sets global variables that we need for our operations.
