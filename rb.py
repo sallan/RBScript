@@ -273,7 +273,14 @@ class F5Review:
         return review_request
 
     def post_review(self):
-        """Engine for creating and updating reviews on the Review Board Server."""
+        """Main method for creating and updating reviews on the Review Board Server."""
+
+        # Pass the options we care about over to postreview.options
+        postreview.options.publish = options.publish
+        postreview.options.target_people = options.target_people
+        postreview.options.target_groups = options.target_groups
+        postreview.options.server = options.server
+        postreview.options.debug = options.debug
 
         # Create our diff using rbtools
         diff, parent_diff = self.p4client.diff([self.change_list])
@@ -464,7 +471,7 @@ def check_config(user_home):
         migrate_rbrc_file(rbrc_file, reviewboardrc_file)
 
 
-def get_server(user_config, options, cookie_file):
+def get_server(user_config, cookie_file):
     """
     Create an instance of a ReviewBoardServer with our configuration settings.
 
@@ -588,15 +595,6 @@ def parse_options(parser):
     return (options, args, action)
 
 
-def pass_options():
-    """Pass the options we care about over to postreview.options"""
-    postreview.options.publish = options.publish
-    postreview.options.target_people = options.target_people
-    postreview.options.target_groups = options.target_groups
-    postreview.options.server = options.server
-    postreview.options.debug = options.debug
-
-
 def get_changelist_number(p4, action, args):
     """Return change list number. Raise exception if we can't obtain one."""
     change_list = None
@@ -674,10 +672,6 @@ def main():
     options, args, action = parse_options(parser)
     postreview.parse_options(args)
 
-    # Pass the options we care about from our options namespace to
-    # postreview.options.
-    pass_options()
-
     actions = {
         "create": lambda: create_review(review, p4),
         "update": lambda: update_review(review, p4),
@@ -692,7 +686,7 @@ def main():
         change_list = get_changelist_number(p4, action, args)
         p4.verify_owner(change_list)
         rb_cookies_file = os.path.join(user_home, ".post-review-cookies.txt")
-        server = get_server(user_config, postreview.options, rb_cookies_file)
+        server = get_server(user_config, rb_cookies_file)
         review = F5Review(server, change_list)
         actions[action]()
         sys.exit()
