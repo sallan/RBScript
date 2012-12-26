@@ -428,10 +428,8 @@ def migrate_rbrc_file(old_rc_file, new_rc_file):
 
     """
     try:
-        # Need to support older pythons so can't use the 'with' statement
-        f = open(old_rc_file, "r")
-        old_rc = f.read().splitlines()
-        f.close()
+        with open(old_rc_file, "r") as f:
+            old_rc = f.read().splitlines()
     except IOError, e:
         raise RBError("Can't read %s\n%s" % (old_rc_file, e))
 
@@ -639,7 +637,7 @@ def submit_review(review, p4):
             p4.unshelve(review.change_list)
         else:
             msg = "Cannot submit a shelved change (%s).\n" % review.change_list
-            msg += "You may use --force to delete the shelved change automatically prior to submit."
+            msg += "gYou may use --force to delete the shelved change automatically prior to submit."
             raise RBError(msg)
 
     if options.edit:
