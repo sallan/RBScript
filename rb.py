@@ -275,13 +275,6 @@ class F5Review:
     def post_review(self):
         """Engine for creating and updating reviews on the Review Board Server."""
 
-        # Pass the options we care about along to postreview
-        postreview.options.publish = options.publish
-        postreview.options.target_people = options.target_people
-        postreview.options.target_groups = options.target_groups
-        postreview.options.publish = options.publish
-        postreview.options.debug = options.debug
-
         # Create our diff using rbtools
         diff, parent_diff = self.p4client.diff([self.change_list])
 
@@ -595,6 +588,15 @@ def parse_options(parser):
     return (options, args, action)
 
 
+def pass_options():
+    """Pass the options we care about over to postreview.options"""
+    postreview.options.publish = options.publish
+    postreview.options.target_people = options.target_people
+    postreview.options.target_groups = options.target_groups
+    postreview.options.server = options.server
+    postreview.options.debug = options.debug
+
+
 def get_changelist_number(p4, action, args):
     """Return change list number. Raise exception if we can't obtain one."""
     change_list = None
@@ -671,6 +673,10 @@ def main():
     # We don't care about the return value of postreview's parse_options.
     options, args, action = parse_options(parser)
     postreview.parse_options(args)
+
+    # Pass the options we care about from our options namespace to
+    # postreview.options.
+    pass_options()
 
     actions = {
         "create": lambda: create_review(review, p4),
