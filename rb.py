@@ -302,7 +302,7 @@ class F5Review:
 
     def add_shelve_comment(self):
         """Add comment to review regarding the shelved change list."""
-        shelve_message = "This change has been shelved in changeset %s." % self.change_list
+        shelve_message = "This change has been shelved in changeset %s. " % self.change_list
         shelve_message += "To unshelve this change into your workspace:\n\n\tp4 unshelve -s %s" % self.change_list
         self.server.set_review_request_field(self.review_request, 'changedescription', shelve_message)
 
@@ -467,21 +467,18 @@ def check_config(user_home):
     """
     rbrc_file = os.path.join(user_home, ".rbrc")
     reviewboardrc_file = os.path.join(user_home, ".reviewboardrc")
-    if os.path.isfile(rbrc_file):
-        if os.path.isfile(reviewboardrc_file):
-            # TODO: Either remove this or write a debug() function.
-            print("Found .reviewboardrc and legacy .rbrc file. Using .reviewboardrc")
-        else:
-            print "Found legacy %s file." % rbrc_file
-            print "Migrating to %s" % reviewboardrc_file
-            migrate_rbrc_file(rbrc_file, reviewboardrc_file)
+    if os.path.isfile(rbrc_file) and not os.path.isfile(reviewboardrc_file):
+        print "Found legacy %s file." % rbrc_file
+        print "Migrating to %s" % reviewboardrc_file
+        migrate_rbrc_file(rbrc_file, reviewboardrc_file)
 
 
 def get_server(user_config, options, cookie_file):
     """
     Create an instance of a ReviewBoardServer with our configuration settings.
 
-    This is used by the F5Review class and is the workhorse for our customizations.
+    The server returned by this function is used by the F5Review class to talk
+    directly to the Review Board server.
 
     """
     tool = postreview.PerforceClient(options=options)
@@ -515,9 +512,7 @@ def get_review_id_from_changenum(server, changenum):
 
 
 def get_option_parser():
-    """
-    Our options parser
-    """
+    """Options parser and usage."""
 
     description = """
 Create, update and submit review requests.
@@ -616,6 +611,7 @@ def get_changelist_number(p4, action, args):
 
 
 def create_review(review, p4):
+    """Create a new review request"""
     if options.shelve:
         p4.shelve(review.change_list)
     review.post_review()
@@ -624,40 +620,27 @@ def create_review(review, p4):
 
 
 def update_review(review, p4):
+    """Update existing review request."""
     if options.shelve:
         p4.update_shelf(review.change_list)
     review.post_review()
-
-    #  Do we run add_shelve_comment? We don't want to do it multiple times. But here's a use case
-    #    where we may want to: We create a review and publish. Someone asks us to shelve the files. We
-    #    decide to do it using this script with the --shelve option. Now I want to add a comment. But if
-    #    later we update the files in our shelve and want to update the review with --shelve, we don't
-    #    need another comment. Although if we do get another comment, maybe that's not bad. After all, if we
-    #    ran --shelve again we should altert people the shelved files may have changed.
-    #
-    #   So for now, always run add_shelve_comment()
-
     if options.shelve:
         review.add_shelve_comment()
 
 
 def submit_review(review, p4):
-    # TODO: should these functions exit, or raise exception?
-    # They're not objects.
-
+    """Submit review request change list and mark review as submitted."""
     if not review.get_ship_its() and not options.force:
-        # TODO: Better message
-        print "nope - you neeed ship_its"
-        sys.exit(1)
+        raise RBError("Review %s has no 'Ship It' reviews. Use --force to submit anyway." % review.review_id)
 
     if p4.shelved(review.change_list):
         if options.force:
             print "Deleting shelve since --force option used."
             p4.unshelve(review.change_list)
         else:
-            # TODO: Better message
-            print "Nope. Review shelved."
-            sys.exit(1)
+            msg = "Cannot submit a shelved change (%s).\n" % review.change_list
+            msg += "You may use --force to delete the shelved change automatically prior to submit."
+            raise RBError(msg)
 
     if options.edit:
         p4.edit_change(review.change_list)
