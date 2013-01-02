@@ -596,6 +596,12 @@ def parse_options(parser):
         args = args[1:]
     action = args[0]
     args = args[1:]
+
+    # We don't support passing p4_passwd, but if we don't set it here, rbtools
+    # fails. I suspect there's a better way to handle this, but it's beyond my
+    # current skill level, so set it to None and move on.
+    options.p4_passwd = None
+
     return (options, args, action)
 
 
@@ -670,11 +676,6 @@ def main():
     # because it sets global variables that we need for our operations.
     # We don't care about the return value of postreview's parse_options.
     options, args, action = parse_options(parser)
-
-    # We don't support passing p4_passwd, but if we don't set it here, rbtools
-    # fails. I suspect there's a better way to handle this, but it's beyond my
-    # current skill level, so set it to None and move on.
-    options.p4_passwd = None
     postreview.parse_options(args)
 
     actions = {
