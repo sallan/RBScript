@@ -281,6 +281,7 @@ class F5Review:
         postreview.options.target_groups = options.target_groups
         postreview.options.server = options.server
         postreview.options.debug = options.debug
+        postreview.options.p4_passwd = None
 
         # Create our diff using rbtools
         diff, parent_diff = self.p4client.diff([self.change_list])
@@ -547,9 +548,6 @@ below.
     parser.add_option("--p4-user",
         dest="p4_user", metavar="<p4_user>",
         help="Specify P4USER. Default is to use environment settings.")
-    parser.add_option("--p4-passwd",
-        dest="p4_passwd", metavar="<p4_passwd>",
-        help="Specify P4PASSWD. Not used but needed in options.")
 
     create_group = optparse.OptionGroup(parser, "Create Options")
     create_group.add_option("-g", "--target-groups",
@@ -672,6 +670,11 @@ def main():
     # because it sets global variables that we need for our operations.
     # We don't care about the return value of postreview's parse_options.
     options, args, action = parse_options(parser)
+
+    # We don't support passing p4_passwd, but if we don't set it here, rbtools
+    # fails. I suspect there's a better way to handle this, but it's beyond my
+    # current skill level, so set it to None and move on.
+    options.p4_passwd = None
     postreview.parse_options(args)
 
     actions = {
