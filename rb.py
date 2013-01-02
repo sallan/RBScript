@@ -300,6 +300,11 @@ class F5Review:
             parent_diff_content=parent_diff,
             submit_as=options.submit_as)
 
+        if options.shelve:
+            self.add_shelve_comment()
+        if options.publish:
+            self.save_draft()
+
     def add_shelve_comment(self):
         """Add comment to review regarding the shelved change list."""
         shelve_message = "This change has been shelved in changeset %s. " % self.change_list
@@ -361,6 +366,7 @@ class F5Review:
         return reviews
 
     def save_draft(self):
+        """Save current review draft. This is used when --publish option is passed."""
         self.server.save_draft(self.review_request)
 
 
@@ -613,8 +619,6 @@ def create_review(review, p4):
     if options.shelve:
         p4.shelve(review.change_list)
     review.post_review()
-    if options.shelve:
-        review.add_shelve_comment()
 
 
 def update_review(review, p4):
@@ -622,8 +626,6 @@ def update_review(review, p4):
     if options.shelve:
         p4.update_shelf(review.change_list)
     review.post_review()
-    if options.shelve:
-        review.add_shelve_comment()
 
 
 def submit_review(review, p4):
