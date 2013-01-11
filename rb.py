@@ -539,6 +539,8 @@ below.
     parser.add_option("--server",
         dest="server", metavar="<server_name>",
         help="Use specified server. Default is the REVIEWBOARD_URL entry in .reviewboardrc file.")
+
+    # TODO: I still don't want these, but I think I added them to keep post-review happy. Fix that.
     parser.add_option("--p4-port",
         dest="p4_port", metavar="<p4_port>",
         help="Specify P4PORT. Default is to use environment settings.")
@@ -549,19 +551,19 @@ below.
         dest="p4_user", metavar="<p4_user>",
         help="Specify P4USER. Default is to use environment settings.")
 
+
     create_group = optparse.OptionGroup(parser, "Create Options")
-    create_group.add_option("-g", "--target-groups",
-        dest="target_groups", metavar="<group [,groups]>",
-        help="List of ReviewBoard groups to assign.")
-    create_group.add_option("-u", "--target-people",
-        dest="target_people", metavar="<user [,users]>",
-        help="List of users to assign.")
-    create_group.add_option("--shelve",
-        dest="shelve", action="store_true", default=False,
-        help="Run 'p4 shelve' on the files and then create review.")
-    create_group.add_option("--submit-as",
-        dest="submit_as", metavar="<user>",
-        help="Create review with this username. Useful if review board name is different from p4 user name.")
+    # TODO: Do we need short options for these? I don't like them.
+#    create_group.add_option("--target-groups",
+#        dest="target_groups", metavar="<group [,groups]>",
+#        help="Assign or replace ReviewBoard groups for this review.")
+#    create_group.add_option("--target-people",
+#        dest="target_people", metavar="<user [,users]>",
+#        help="Assign or replace reviewers for this review.")
+    # TODO: If you create with username, what happens on update? Need username every time?
+#    create_group.add_option("--username",
+#        dest="username", metavar="<user>",
+#        help="Create review with this username. Useful if review board name is different from p4 user name.")
 
     submit_group = optparse.OptionGroup(parser, "Submit Options")
     submit_group.add_option("-f", "--force",
@@ -575,15 +577,42 @@ below.
     edit_group.add_option("-p", "--publish",
         dest="publish", action="store_true", default=False,
         help="Publish the review.")
+    # TODO: Does -n work before review created? Will it force a numbered changelist?
+    #       And if so, does it matter?
     edit_group.add_option("-n", "--output-diff",
         dest="output_diff_only", action="store_true", default=False,
         help="Output diff to console and exit. Do not post.")
-    edit_group.add_option("-o", "--open",
-        dest="open", action="store_true", default=False,
-        help="Open review in default web browser after creating/updating.")
+    # TODO: Do we need short options for these? I don't like them.
+    edit_group.add_option("--target-groups",
+        dest="target_groups", metavar="<group [,groups]>",
+        help="Assign or replace ReviewBoard groups for this review.")
+    edit_group.add_option("--target-people",
+        dest="target_people", metavar="<user [,users]>",
+        help="Assign or replace reviewers for this review.")
+    # TODO: If you create with username, what happens on update? Need username every time?
+    edit_group.add_option("--username",
+        dest="username", metavar="<user>",
+        help="Create review with this username. Useful if review board name is different from p4 user name.")
+
+    edit_group.add_option("--shelve",
+        dest="shelve", action="store_true", default=False,
+        help="Create or update p4 shelve for the files in the review.")
+    # TODO: do diff-only and change-only work on new reviews? Should be only for updates
+    edit_group.add_option("--diff-only",
+        dest="diff_only", action="store_true", default=False,
+        help="Uploads a new diff, but does not update information from change list.")
+    edit_group.add_option("--change-only",
+        dest="change_only", action="store_true", default=False,
+        help="Updates info from change list, but does not upload diff.")
+    edit_group.add_option("--testing-done",
+        dest="testing_done", metavar="<string>",
+        help="description of testing done.")
+    edit_group.add_option("--testing-done-file",
+        dest="testing_done_file", metavar="<filename>",
+        help="text file containing description of testing done.")
 
     parser.add_option_group(edit_group)
-    parser.add_option_group(create_group)
+#    parser.add_option_group(create_group)
     parser.add_option_group(submit_group)
     return parser
 
