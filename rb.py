@@ -169,8 +169,16 @@ class P4:
         """Submit change and return submitted change number"""
         cmd = "submit -c %s" % change_number
         output = self._p4_run(cmd)
-        return int(output[-1]['submittedChange'])
 
+        # Check each dict in the output until we find submittedChange
+        submitted_change = None
+        for line in output:
+            if line.has_key("submittedChange"):
+                submitted_change = int(line['submittedChange'])
+                break
+        if submitted_change is None:
+            raise P4Error("Failed to determine submitted change list number.")
+        return submitted_change
 
     def add_reviewboard_info(self, review):
         """
