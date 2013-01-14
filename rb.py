@@ -169,8 +169,16 @@ class P4:
         """Submit change and return submitted change number"""
         cmd = "submit -c %s" % change_number
         output = self._p4_run(cmd)
-        return int(output[-1]['submittedChange'])
 
+        # Check each dict in the output until we find submittedChange
+        submitted_change = None
+        for line in output:
+            if line.has_key("submittedChange"):
+                submitted_change = int(line['submittedChange'])
+                break
+        if submitted_change is None:
+            raise P4Error("Failed to determine submitted change list number.")
+        return submitted_change
 
     def add_reviewboard_info(self, review):
         """
@@ -183,7 +191,9 @@ class P4:
                  Reviewboard: 53662
 
         Note: We have a perforce trigger that adds the ReviewBoard URL so that it gets
-        included even if the change is submitted without using this script.
+        included even if the change is submitted without using this script. So once that's
+        proven to be working with the new server, we can leave out this extra ReviewBoard
+        line.
 
         """
 
@@ -200,7 +210,7 @@ class P4:
             insert_here += 1
 
         # Add review board id
-        # TODO: How important is this since we add the url? Probably cruft.
+        # TODO: How important is this since we add the url? Probably cruft. Remove after new trigger is working.
         review_id_line = "\tReviewboard: %s\n" % review.review_id
         change_form.insert(insert_here, review_id_line)
 
@@ -672,7 +682,7 @@ def submit_review(review, p4):
             p4.unshelve(review.change_list)
         else:
             msg = "Cannot submit a shelved change (%s).\n" % review.change_list
-            msg += "gYou may use --force to delete the shelved change automatically prior to submit."
+            msg += "You may use --force to delete the shelved change automatically prior to submit."
             raise RBError(msg)
 
     if options.edit:
