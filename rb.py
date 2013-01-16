@@ -165,6 +165,12 @@ class P4:
         output = self._p4_run(cmd)
         return output
 
+    def get_jobs(self, change_number):
+        """Return list of jobs associated with this change list."""
+        change = self.get_change(change_number)
+        jobs = [ change[k] for k in change.keys() if k.startswith('Jobs')]
+        return jobs
+
     def submit(self, change_number):
         """Submit change and return submitted change number"""
         cmd = "submit -c %s" % change_number
@@ -227,7 +233,7 @@ class F5Review:
     Encapsulate a review request and handle interaction with Review Board server.
     """
 
-    def __init__(self, server, change_list):
+    def __init__(self, server, change_list, bugs_closed=[]):
         """
         Create an instance of F5Review.
 
@@ -243,6 +249,7 @@ class F5Review:
 
         self.server = server
         self.change_list = change_list
+        self.bugs_closed = bugs_closed
         self.review_id = None
 
         # Create a PerforceClient object to create proper diffs. This comes from rbtools.
@@ -321,6 +328,8 @@ class F5Review:
             parent_diff_content=parent_diff,
             submit_as=options.submit_as)
 
+
+        self.set_bugs_closed()
         if options.shelve:
             self.add_shelve_comment()
         if options.publish:
@@ -360,6 +369,11 @@ class F5Review:
         user_url = self.server.url + "api/users/%s" % user_id
         user = self.server.api_get(user_url)
         return "%s %s" % (user['user']['first_name'], user['user']['last_name'])
+
+    def set_bugs_closed(self):
+        """Add list of bugs to the review request."""
+        # We want to run this even if the bugs_closed list is empty.
+        self.server.set_review_request_field(self.review_request, 'bugs_closed', ",".join(self.bugs_closed))
 
     def set_change_list(self, new_change):
         """Assign new change list number to review request."""
@@ -741,9 +755,10 @@ def main():
         p4 = P4()
         change_list = get_changelist_number(p4, action, args)
         p4.verify_owner(change_list)
+        bugs_closed = p4.get_jobs(change_list)
         rb_cookies_file = os.path.join(user_home, ".post-review-cookies.txt")
         server = get_server(user_config, rb_cookies_file)
-        review = F5Review(server, change_list)
+        review = F5Review(server, change_list, bugs_closed)
         actions[action]()
         sys.exit()
     except P4Error, e:
