@@ -290,12 +290,18 @@ class F5Review:
         postreview.options.target_people = options.target_people
         postreview.options.target_groups = options.target_groups
         postreview.options.server = options.server
-        postreview.options.username = options.username
         postreview.options.diff_only = options.diff_only
         postreview.options.change_only = options.change_only
         postreview.options.testing_done = options.testing_done
         postreview.options.testing_file = options.testing_file
         postreview.options.debug = options.debug
+
+        # I decided against supporting the username option. I think it's confusing
+        # and there's rarely a need for it. On those occasions where it's
+        # needed, we can run post-review.  Leaving the code in for now in
+        # case I change my mind. Delete on 06/01/13 if still commented out.
+        # -sallan
+        # postreview.options.username = options.username
 
         # Create our diff using rbtools
         diff, parent_diff = self.p4client.diff([self.change_list])
@@ -594,10 +600,16 @@ below.
     edit_group.add_option("--testing-done-file",
         dest="testing_file", metavar="<filename>",
         help="Text file containing description of testing done.")
-    edit_group.add_option("--username",
-        dest="username", metavar="<user>",
-        help="Switch to this Review Board username. Useful if different from p4 username (e.g. mergeit). " +
-            "The new login credentials will remain in effect until you use --username again.")
+
+    # I decided against supporting the username option. I think it's confusing
+    # and there's rarely a need for it. On those occasions where it's
+    # needed, we can run post-review.  Leaving the code in for now in
+    # case I change my mind. Delete on 06/01/13 if still commented out.
+    # -sallan
+    #    edit_group.add_option("--username",
+    #        dest="username", metavar="<user>",
+    #        help="Switch to this Review Board username. Useful if different from p4 username (e.g. mergeit). " +
+    #            "The new login credentials will remain in effect until you use --username again.")
 
     parser.add_option_group(edit_group)
     parser.add_option_group(submit_group)
