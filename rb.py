@@ -290,8 +290,12 @@ class F5Review:
         postreview.options.target_people = options.target_people
         postreview.options.target_groups = options.target_groups
         postreview.options.server = options.server
+        postreview.options.username = options.username
+        postreview.options.diff_only = options.diff_only
+        postreview.options.change_only = options.change_only
+        postreview.options.testing_done = options.testing_done
+        postreview.options.testing_file = options.testing_file
         postreview.options.debug = options.debug
-        postreview.options.p4_passwd = None
 
         # Create our diff using rbtools
         diff, parent_diff = self.p4client.diff([self.change_list])
@@ -540,7 +544,7 @@ below.
 """
 
     parser = optparse.OptionParser(
-        usage="%prog [OPTIONS] create|update|submit [change_list]",
+        usage="%prog [OPTIONS] create|update|submit [changenum]",
         description=description
     )
     parser.add_option("-d", "--debug",
@@ -549,31 +553,6 @@ below.
     parser.add_option("--server",
         dest="server", metavar="<server_name>",
         help="Use specified server. Default is the REVIEWBOARD_URL entry in .reviewboardrc file.")
-
-    # TODO: I still don't want these, but I think I added them to keep post-review happy. Fix that.
-    parser.add_option("--p4-port",
-        dest="p4_port", metavar="<p4_port>",
-        help="Specify P4PORT. Default is to use environment settings.")
-    parser.add_option("--p4-client",
-        dest="p4_client", metavar="<p4_client>",
-        help="Specify P4CLIENT. Default is to use environment settings.")
-    parser.add_option("--p4-user",
-        dest="p4_user", metavar="<p4_user>",
-        help="Specify P4USER. Default is to use environment settings.")
-
-
-    create_group = optparse.OptionGroup(parser, "Create Options")
-    # TODO: Do we need short options for these? I don't like them.
-#    create_group.add_option("--target-groups",
-#        dest="target_groups", metavar="<group [,groups]>",
-#        help="Assign or replace ReviewBoard groups for this review.")
-#    create_group.add_option("--target-people",
-#        dest="target_people", metavar="<user [,users]>",
-#        help="Assign or replace reviewers for this review.")
-    # TODO: If you create with username, what happens on update? Need username every time?
-#    create_group.add_option("--username",
-#        dest="username", metavar="<user>",
-#        help="Create review with this username. Useful if review board name is different from p4 user name.")
 
     submit_group = optparse.OptionGroup(parser, "Submit Options")
     submit_group.add_option("-f", "--force",
@@ -592,17 +571,12 @@ below.
     edit_group.add_option("-n", "--output-diff",
         dest="output_diff_only", action="store_true", default=False,
         help="Output diff to console and exit. Do not post.")
-    # TODO: Do we need short options for these? I don't like them.
-    edit_group.add_option("--target-groups",
+    edit_group.add_option("-g", "--target-groups",
         dest="target_groups", metavar="<group [,groups]>",
         help="Assign or replace ReviewBoard groups for this review.")
-    edit_group.add_option("--target-people",
+    edit_group.add_option("-u", "--target-people",
         dest="target_people", metavar="<user [,users]>",
         help="Assign or replace reviewers for this review.")
-    # TODO: If you create with username, what happens on update? Need username every time?
-    edit_group.add_option("--username",
-        dest="username", metavar="<user>",
-        help="Create review with this username. Useful if review board name is different from p4 user name.")
 
     edit_group.add_option("--shelve",
         dest="shelve", action="store_true", default=False,
@@ -616,13 +590,16 @@ below.
         help="Updates info from change list, but does not upload diff.")
     edit_group.add_option("--testing-done",
         dest="testing_done", metavar="<string>",
-        help="description of testing done.")
+        help="Description of testing done.")
     edit_group.add_option("--testing-done-file",
-        dest="testing_done_file", metavar="<filename>",
-        help="text file containing description of testing done.")
+        dest="testing_file", metavar="<filename>",
+        help="Text file containing description of testing done.")
+    edit_group.add_option("--username",
+        dest="username", metavar="<user>",
+        help="Switch to this Review Board username. Useful if different from p4 username (e.g. mergeit). " +
+            "The new login credentials will remain in effect until you use --username again.")
 
     parser.add_option_group(edit_group)
-#    parser.add_option_group(create_group)
     parser.add_option_group(submit_group)
     return parser
 
@@ -636,10 +613,32 @@ def parse_options(parser):
     action = args[0]
     args = args[1:]
 
-    # We don't support passing p4_passwd, but if we don't set it here, rbtools
-    # fails. I suspect there's a better way to handle this, but it's beyond my
-    # current skill level, so set it to None and move on.
+    if options.testing_done and options.testing_file:
+        sys.stderr.write("The --testing-done and --testing-done-file options "
+                         "are mutually exclusive.\n")
+        sys.exit(1)
+
+    if options.testing_file:
+        if os.path.exists(options.testing_file):
+            fp = open(options.testing_file, "r")
+            options.testing_done = fp.read()
+            fp.close()
+        else:
+            sys.stderr.write("The testing file %s does not exist.\n" %
+                             options.testing_file)
+            sys.exit(1)
+
+    # We expect these to be set in the environment. For that to work we
+    # have to provide a value of None to these in the options namespace
+    # because rbtools checks for it.
+    options.p4_client = None
+    options.p4_port = None
+
+    # We don't support passing p4_passwd at all, so set it to None also.
     options.p4_passwd = None
+
+    # This unsupported option also needs to be initialized
+    options.submit_as = None
 
     return (options, args, action)
 
