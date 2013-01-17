@@ -4,9 +4,6 @@ import sys
 import os
 import tempfile
 import marshal
-from rbtools import postreview
-from rbtools.clients import perforce
-import rbtools.api.errors
 
 # Make sure RBTools has been installed on this system
 try:
