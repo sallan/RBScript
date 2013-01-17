@@ -36,27 +36,32 @@ class P4:
             raise P4Error("Could not talk to the perforce server.")
         return info[0]
 
-    def _p4_run(self, cmd):
-        """Run supplied perforce command and return output as a list of dictionaries."""
-        results = []
+    def _p4_run( self, cmd, input=0 ):
+#        c = "p4 -G " + cmd + " " + " ".join( args )
+        c = "p4 -G " + cmd
         if sys.version_info[1] < 6:
-            pipe = os.popen('p4 -G ' + cmd, 'r')
-        else: # os.popen is deprecated in Python 2.6+
+            (pi, po) = os.popen2( c , "b" )
+        else:
             from subprocess import Popen, PIPE
+            p = Popen( c, stdin=PIPE, stdout=PIPE, shell=True )
+            (pi, po) = (p.stdin, p.stdout)
 
-            pipe = Popen(["p4", "-G"] + cmd.split(), stdout=PIPE).stdout
+        if input:
+            marshal.dump( input, pi, 0 )
+            pi.close()
+
+        results = []
         try:
             while 1:
-                record = marshal.load(pipe)
-                results.append(record)
-        except EOFError, e:
-            pass
-        pipe.close()
+                x = marshal.load( po )
+                results.append(x)
+        except EOFError: pass
+        po.close()
 
         # check for known perforce errors
         for r in results:
             if r['code'] == 'error':
-                msg = "\n'p4 %s' command failed.\n\n" % cmd
+                msg = "\n'%s' command failed.\n\n" % c
                 msg += "%s\n" % r['data']
                 msg += "Please fix problem and try again."
                 raise P4Error(msg)
@@ -204,28 +209,19 @@ class P4:
         """
 
         # Get the change form
-        # TODO: Can this code be modified to use the dicts?
-        change_form = run_cmd("p4 change -o %s" % review.change_list)
-        insert_here = change_form.index("Files:")
+        change = self.get_change(review.change_list)
 
         # Add list of ship-its to the change list
         ship_its = review.get_ship_its()
         if ship_its:
-            ship_it_line = "\tReviewed by: %s\n" % ", ".join(ship_its)
-            change_form.insert(insert_here, ship_it_line)
-            insert_here += 1
+            ship_it_line = "\nReviewed by: %s\n" % ", ".join(ship_its)
+            change['Description'] += ship_it_line
 
         # Add review board id
         # TODO: How important is this since we add the url? Probably cruft. Remove after new trigger is working.
-        review_id_line = "\tReviewboard: %s\n" % review.review_id
-        change_form.insert(insert_here, review_id_line)
-
-        # Write new form to temp file and submit
-        change_form_file = tempfile.NamedTemporaryFile(mode="w", delete=False)
-        for line in change_form:
-            change_form_file.write(line + "\n")
-        change_form_file.close()
-        run_cmd("p4 change -i < %s" % change_form_file.name)
+        review_id_line = "\nReviewboard: %s\n" % review.review_id
+        change['Description'] +=  review_id_line
+        self._p4_run("change -i", input=change)
 
 
 class F5Review:
@@ -355,7 +351,7 @@ class F5Review:
     def get_ship_its(self):
         """Get unique list of reviewers who gave a ship it."""
         reviews = self.get_reviews()['reviews']
-        ship_its = [self.get_reviewer_name(r) for r in reviews if r['ship_it']]
+        ship_its = [str(self.get_reviewer_name(r)) for r in reviews if r['ship_it']]
 
         # Idiom for extracting unique elements from list
         return list(set(ship_its))
@@ -587,7 +583,7 @@ below.
         dest="publish", action="store_true", default=False,
         help="Publish the review.")
     # TODO: Does -n work before review created? Will it force a numbered changelist?
-    #       And if so, does it matter?
+    #       And if so, does it matter? You need a numbered change because the diff comes from rbtools.
     edit_group.add_option("-n", "--output-diff",
         dest="output_diff_only", action="store_true", default=False,
         help="Output diff to console and exit. Do not post.")
@@ -601,7 +597,6 @@ below.
     edit_group.add_option("--shelve",
         dest="shelve", action="store_true", default=False,
         help="Create or update p4 shelve for the files in the review.")
-    # TODO: do diff-only and change-only work on new reviews? Should be only for updates
     edit_group.add_option("--diff-only",
         dest="diff_only", action="store_true", default=False,
         help="Uploads a new diff, but does not update information from change list.")
