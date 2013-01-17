@@ -36,9 +36,17 @@ class P4:
             raise P4Error("Could not talk to the perforce server.")
         return info[0]
 
-    def _p4_run( self, cmd, input=0 ):
-#        c = "p4 -G " + cmd + " " + " ".join( args )
-        c = "p4 -G " + cmd
+    def _p4_run( self, cmd, args=[], input=0 ):
+        """
+        Run perforce command and marshall the IO
+
+        This code was copied from this perforce knowledge base page:
+
+        http://kb.perforce.com/article/585/using-p4-g
+
+        I modified it slightly for error checking.
+        """
+        c = "p4 -G " + cmd + " " + " ".join( args )
         if sys.version_info[1] < 6:
             (pi, po) = os.popen2( c , "b" )
         else:
