@@ -8,6 +8,22 @@ from rbtools import postreview
 from rbtools.clients import perforce
 import rbtools.api.errors
 
+# Make sure RBTools has been installed on this system
+try:
+    from rbtools import postreview
+    from rbtools.clients import perforce
+    import rbtools.api.errors
+except ImportError:
+    print """
+Use of this script requires post-review from RBTools.
+For installation instructions, see this page:
+
+https://peterpan.f5net.com/twiki/bin/view/CM/ReviewBoard#Installing_post_review
+
+"""
+    sys.exit(1)
+
+
 class RBError(Exception): pass;
 
 
@@ -473,8 +489,9 @@ def migrate_rbrc_file(old_rc_file, new_rc_file):
 
     """
     try:
-        with open(old_rc_file, "r") as f:
-            old_rc = f.read().splitlines()
+        f = open(old_rc_file, "r")
+        old_rc = f.read().splitlines()
+        f.close()
     except IOError, e:
         raise RBError("Can't read %s\n%s" % (old_rc_file, e))
 
