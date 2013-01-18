@@ -38,19 +38,20 @@ class P4:
         Create an object to interact with perforce using the user, port and client
         settings from the environment.
         """
-        info = self._p4_info()
-        self.user = info['userName']
-        self.port = info['serverAddress']
-        self.client = info['clientName']
+        p4info = self.info()
+        self.user = p4info['userName']
+        self.port = p4info['serverAddress']
+        self.client = p4info['clientName']
 
-    def _p4_info(self):
-        info = self.run_G("info")
-        if not info:
+    def info(self):
+        p4info = self.run_G("info")
+        if not p4info:
             raise P4Error("Could not talk to the perforce server.")
-        return info[0]
+        return p4info[0]
 
     def run(self, cmd):
         """Run perforce cmd and return output as a list of output lines."""
+        cmd = "p4 " + cmd
         child = os.popen(cmd)
         data = child.read().splitlines()
         err = child.close()
@@ -140,7 +141,7 @@ class P4:
             raise P4Error("No files opened in default changelist.")
 
         # Capture a change template with files opened in the default change list
-        change_template = self.run("p4 change -o")
+        change_template = self.run("change -o")
 
         # Create a temp file and dump the p4 change to it.
         change_form = tempfile.NamedTemporaryFile(mode="w", delete=False)
@@ -149,7 +150,7 @@ class P4:
         change_form.close()
 
         # Open the file in the users editor
-        editor = get_editor()
+        editor = self.get_editor()
         os.system("%s %s" % (editor, change_form.name))
 
         # The user may have changed their mind, so see if the file changed at all.
@@ -162,7 +163,7 @@ class P4:
             change = None
         else:
             try:
-                change_output = self.run("p4 change -i < %s" % change_form.name)
+                change_output = self.run("change -i < %s" % change_form.name)
             except P4Error, e:
                 # Give user a chance to fix the problem
                 print "Error in change specification:\n"
@@ -170,7 +171,7 @@ class P4:
                 confirm = raw_input("Try again? n|[y]: ")
                 if confirm == '' or confirm.lower() == 'y':
                     os.system("%s %s" % (editor, change_form.name))
-                    change_output = self.run("p4 change -i < %s" % change_form.name)
+                    change_output = self.run("change -i < %s" % change_form.name)
                 else:
                     print "Exiting"
                     os.unlink(change_form.name)
@@ -263,6 +264,43 @@ class P4:
         review_id_line = "\nReviewboard: %s\n" % review.review_id
         change['Description'] +=  review_id_line
         self.run_G("change -i", input=change)
+
+    def set(self):
+        """Return output of 'p4 set' as a dict."""
+        set_list = self.run("set")
+        set_dict = {}
+        for item in set_list:
+            k, v = item.split('=')
+            set_dict[k] = v
+        return set_dict
+
+    def get_editor(self):
+        """
+        Return the editor to use based on environment variables.
+
+        Look at various environment variables to see if the user has
+        specified a favorite and return that value.
+
+        Default: vi on linux and mac, notepad on windows
+
+        """
+
+        p4set = self.set()
+        if p4set.has_key("P4EDITOR"):
+            editor = p4set["P4EDITOR"]
+
+            # If the editor is set in a p4.config file, the entry will end with (config)
+            if editor.endswith(" (config)"):
+                editor = editor[0:-9]
+        elif os.environ.has_key("EDITOR"):
+            editor = os.environ["EDITOR"]
+        else:
+            if os.name == "nt":
+                editor = "notepad"
+            else:
+                editor = "vi"
+
+        return editor
 
 
 class F5Review:
@@ -463,36 +501,8 @@ class F5Review:
 
 
 #==============================================================================
-# Utility functions
+# Top-level functions
 #==============================================================================
-
-
-
-def get_editor():
-    """
-    Return the editor to use based on environment variables.
-
-    Look at various environment variables to see if the user has
-    specified a favorite and return that value.
-
-    Default: vi
-
-    """
-
-    # TODO: What about windows?
-    editor = "vi"
-
-    # See if user has a favorite
-    # TODO: Use 'p4 set' instead. It's more robust
-    if "P4EDITOR" in os.environ:
-        editor = os.environ["P4EDITOR"]
-    else:
-        if "EDITOR" in os.environ:
-            editor = os.environ['EDITOR']
-    # Here is where you should add another else that check what os you're on.
-    return editor
-
-
 def migrate_rbrc_file(old_rc_file, new_rc_file):
     """
     Migrate any legacy .rbrc settings.
