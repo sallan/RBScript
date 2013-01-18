@@ -15,7 +15,7 @@ except ImportError:
 Use of this script requires post-review from RBTools.
 For installation instructions, see this page:
 
-https://peterpan.f5net.com/twiki/bin/view/CM/ReviewBoard#Installing_post_review
+http://www.reviewboard.org/docs/manual/1.6/users/tools/post-review/#post-review
 
 """
     sys.exit(1)
