@@ -278,6 +278,7 @@ class F5Review:
         server -- an instance of postreview.ReviewBoardServer
         change_list -- the perforce change list number
         review_id  -- the review board id number
+        bugs_closed -- list of bugs attached to the change_list
 
         We only need a server and change_list to instantiate the object.
         The review_id is obtained from the server via the change_list
