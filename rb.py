@@ -44,14 +44,23 @@ class P4:
         self.client = info['clientName']
 
     def _p4_info(self):
-        info = self._p4_run("info")
+        info = self.run_G("info")
         if not info:
             raise P4Error("Could not talk to the perforce server.")
         return info[0]
 
-    def _p4_run( self, cmd, args=[], input=0 ):
+    def run(self, cmd):
+        """Run perforce cmd and return output as a list of output lines."""
+        child = os.popen(cmd)
+        data = child.read().splitlines()
+        err = child.close()
+        if err:
+            raise P4Error("Perforce command '%s' failed.\n" % cmd)
+        return data
+
+    def run_G( self, cmd, args=[], input=0 ):
         """
-        Run perforce command and marshall the IO
+        Run perforce command and marshal the IO. Returns stdout as a  dict.
 
         This code was copied from this perforce knowledge base page:
 
@@ -84,7 +93,6 @@ class P4:
             if r['code'] == 'error':
                 msg = "\n'%s' command failed.\n\n" % c
                 msg += "%s\n" % r['data']
-                msg += "Please fix problem and try again."
                 raise P4Error(msg)
         return results
 
@@ -97,14 +105,14 @@ class P4:
             cmd = "opened -c %s" % change_number
         else:
             cmd = "opened"
-        return self._p4_run(cmd)
+        return self.run_G(cmd)
 
     def changes(self, status=None):
         """Return a dict with changes for user."""
         cmd = "changes -u %s" % self.user
         if status:
             cmd += " -s %s" % status
-        return self._p4_run(cmd)
+        return self.run_G(cmd)
 
     def changelist_owner(self, change_number):
         """Return the user name of the change list owner"""
@@ -132,7 +140,7 @@ class P4:
             raise P4Error("No files opened in default changelist.")
 
         # Capture a change template with files opened in the default change list
-        change_template = run_cmd("p4 change -o")
+        change_template = self.run("p4 change -o")
 
         # Create a temp file and dump the p4 change to it.
         change_form = tempfile.NamedTemporaryFile(mode="w", delete=False)
@@ -145,7 +153,6 @@ class P4:
         os.system("%s %s" % (editor, change_form.name))
 
         # The user may have changed their mind, so see if the file changed at all.
-        # TODO: Protect against parse error. Maybe give user 2 tries
         f = open(change_form.name, "r")
         new_change_form = [s.rstrip() for s in f.readlines()]
         f.close()
@@ -154,14 +161,27 @@ class P4:
             print "No changes made."
             change = None
         else:
-            change_output = run_cmd("p4 change -i < %s" % change_form.name)
+            try:
+                change_output = self.run("p4 change -i < %s" % change_form.name)
+            except P4Error, e:
+                # Give user a chance to fix the problem
+                print "Error in change specification:\n"
+                print e
+                confirm = raw_input("Try again? n|[y]: ")
+                if confirm == '' or confirm.lower() == 'y':
+                    os.system("%s %s" % (editor, change_form.name))
+                    change_output = self.run("p4 change -i < %s" % change_form.name)
+                else:
+                    print "Exiting"
+                    os.unlink(change_form.name)
+                    sys.exit(1)
             change = change_output[0].split()[1]
         os.unlink(change_form.name)
         return change
 
     def get_change(self, change_number):
         """Return dict with change_number change list"""
-        return self._p4_run("change -o %s" % change_number)[0]
+        return self.run_G("change -o %s" % change_number)[0]
 
     def edit_change(self, change_number):
         os.system("p4 change %s" % change_number)
@@ -169,12 +189,12 @@ class P4:
     def shelve(self, change_number):
         """Create a p4 shelve from change_number"""
         cmd = "shelve -c %s" % change_number
-        return self._p4_run(cmd)
+        return self.run_G(cmd)
 
     def update_shelf(self, change_number):
         """Update the shelved change_number"""
         cmd = "shelve -r -c %s" % change_number
-        return self._p4_run(cmd)
+        return self.run_G(cmd)
 
     def shelved(self, change_number):
         """Return True if the change_number is a shelved change list"""
@@ -188,7 +208,7 @@ class P4:
     def unshelve(self, change_number):
         """Delete the shelf for the change_number"""
         cmd = "shelve -d -c %s" % change_number
-        output = self._p4_run(cmd)
+        output = self.run_G(cmd)
         return output
 
     def get_jobs(self, change_number):
@@ -200,7 +220,7 @@ class P4:
     def submit(self, change_number):
         """Submit change and return submitted change number"""
         cmd = "submit -c %s" % change_number
-        output = self._p4_run(cmd)
+        output = self.run_G(cmd)
 
         # Check each dict in the output until we find submittedChange
         submitted_change = None
@@ -242,7 +262,7 @@ class P4:
         # TODO: How important is this since we add the url? Probably cruft. Remove after new trigger is working.
         review_id_line = "\nReviewboard: %s\n" % review.review_id
         change['Description'] +=  review_id_line
-        self._p4_run("change -i", input=change)
+        self.run_G("change -i", input=change)
 
 
 class F5Review:
@@ -444,14 +464,7 @@ class F5Review:
 #==============================================================================
 # Utility functions
 #==============================================================================
-def run_cmd(cmd):
-    """Run cmd and return output as a list of output lines."""
-    child = os.popen(cmd)
-    data = child.read().splitlines()
-    err = child.close()
-    if err:
-        raise RuntimeError, "%r failed with return code: %d" % (cmd, err)
-    return data
+
 
 
 def get_editor():
