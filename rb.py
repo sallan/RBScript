@@ -465,14 +465,17 @@ def get_editor():
 
     """
 
+    # TODO: What about windows?
     editor = "vi"
 
     # See if user has a favorite
+    # TODO: Use 'p4 set' instead. It's more robust
     if "P4EDITOR" in os.environ:
         editor = os.environ["P4EDITOR"]
     else:
         if "EDITOR" in os.environ:
             editor = os.environ['EDITOR']
+    # Here is where you should add another else that check what os you're on.
     return editor
 
 
