@@ -763,6 +763,12 @@ def submit_review(review, p4):
 
 
 def main():
+    # For now, we don't run on Windows
+    if os.name == "nt":
+        print "This script is currently not supported on Windows."
+        print "Please use post-review."
+        sys.exit()
+
     # Configuration and options
     global options
     global configs
