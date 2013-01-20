@@ -69,16 +69,16 @@ class SampleDepot:
 def parse_options():
     parser = argparse.ArgumentParser(description="Create a sample perforce depot.")
     parser.add_argument("dir", help="Directory to install depot - will overwrite all contents.")
-    parser.add_argument("-v", "--verbose", action="store_true", help="Do I need any options?")
+    parser.add_argument("tarfile", help="Gzipped tar file containing contents of sample depot.")
     parser.add_argument("-p", "--prompt", action="store_true", help="Prompt if destination directory exists.")
     return parser.parse_args()
 
 
 def main():
-    tarfile = os.path.join(os.path.expanduser("~"), "Projects", "sample-depot", "p4sample-depot.tar.gz")
     args = parse_options()
 
     destination = os.path.abspath(args.dir)
+    tarfile = os.path.abspath(args.tarfile)
 
     p4 = SampleDepot(tarfile, destination)
     p4.server_install()
