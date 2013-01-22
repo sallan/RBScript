@@ -631,8 +631,6 @@ below.
     edit_group.add_option("-p", "--publish",
         dest="publish", action="store_true", default=False,
         help="Publish the review.")
-    # TODO: Does -n work before review created? Will it force a numbered changelist?
-    #       And if so, does it matter? You need a numbered change because the diff comes from rbtools.
     edit_group.add_option("-n", "--output-diff",
         dest="output_diff_only", action="store_true", default=False,
         help="Output diff to console and exit. Do not post.")
