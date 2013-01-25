@@ -508,6 +508,10 @@ sub rb_uri($) {
 sub rb_exec_request($) {
     my $request = shift;
 
+    # TODO: this needs to be handled properly.
+    $request->authorization_basic( 'sallan', 'sallan' );
+    print Dumper($request);
+    
     my $response = http_transaction($request);
     if ( !$response->is_success() ) {
         my $errcode = $response->code();
@@ -568,7 +572,6 @@ sub rb_login($) {
     return rb_exec_request($request);
 }
 
-
 # sub rb_repositories() {
 #     my $uri     = rb_uri("api/repositories/");
 #     my $request = HTTP::Request::Common::GET($uri);
@@ -616,23 +619,19 @@ sub rb_login($) {
 #     return rb_exec_request($request);
 # }
 
-# sub rb_review_request_create($ $ $) {
-#     my $repo  = shift;
-#     my $cset  = shift;
-#     my $alias = shift;
-
-#     my $uri     = rb_uri("api/json/reviewrequests/new/");
-#     my $request = HTTP::Request::Common::POST(
-#         $uri,
-#         Content_Type => 'form-data',
-#         Content      => [
-#             'repository_path' => $repo,
-#             'changenum'       => $cset,
-#             'submit_as'       => $alias
-#         ]
-#     );
-#     return rb_exec_request($request);
-# }
+sub rb_review_request_create {
+    my ($repo, $cset, $alias)   = @_;
+    my $uri     = rb_uri("api/review-requests/");
+    my $request = HTTP::Request::Common::POST(
+        $uri,
+        Content_Type => 'form-data',
+        Content      => [
+            'repository' => $repo,
+            'changenum'       => $cset,
+        ]
+    );
+    return rb_exec_request($request);
+}
 
 sub rb_review_request_get($) {
     my $rid = shift;
@@ -706,45 +705,49 @@ sub rb_review_request_get($) {
 #     return rb_exec_request($request);
 # }
 
-# sub rb_review_request_set_status($ $) {
-#     my $rid    = shift;
-#     my $status = shift;
+sub rb_review_request_set_changelist {
+    my ( $rid, $changelist ) = @_;
+    my $uri     = rb_uri("api/review-requests/$rid/");
+    my $request = HTTP::Request::Common::POST(
+        $uri,
+        Content_Type => 'form-data',
+        Content      => [ 'changenum' => $changelist ]
+    );
+    # $request->authorization_basic( 'sallan', 'sallan' );
+    return rb_exec_request($request);
+}
 
-#     my $uri = rb_uri("api/json/reviewrequests/$rid/$status/");
-#     if ( "$status" eq "submitted" or "$status" eq "discarded" ) {
-#         $uri = rb_uri("api/json/reviewrequests/$rid/close/$status/");
-#     }
+sub rb_review_request_set_status {
+    my ( $rid, $status ) = @_;
+    my $uri = rb_uri("api/review-requests/$rid/");
+#    if ( "$status" eq "submitted" or "$status" eq "discarded" ) {
+#        $uri = rb_uri("api/review-requests/$rid/close/$status/");
+#    }
+    my $request = HTTP::Request::Common::PUT($uri);
 
-#     my $request = HTTP::Request::Common::POST(
-#         $uri,
-#         Content_Type => 'form-data',
-#         Content      => [ 'id' => $rid ]
-#     );
+    # my $uri     = rb_uri("api/review-requests/$rid/");
+    # my $request = HTTP::Request::Common::POST(
+    #     $uri,
+    #     Content      => [ 'status' => $status ]
+    # );
+    # $request->authorization_basic( 'sallan', 'sallan' );
+    print Dumper($request);
+    return rb_exec_request($request);
 
-#     # This is unfortunate: $status returns HTTP code 302 with no content, so
-#     # we cannot use rb_exec_request()
-#     my $response = http_transaction($request);
-#     if ( !$response->is_success() && !$response->is_redirect() ) {
-#         my $errcode = $response->code();
-#         my $errmsg  = $response->message();
-#         die("Error: server returned error $errcode ($errmsg)\n");
-#     }
-# }
+    # See if this is still true. sallan.
+    # This is unfortunate: $status returns HTTP code 302 with no content, so
+    # we cannot use rb_exec_request()
+    # my $response = http_transaction($request);
+    # if ( !$response->is_success() && !$response->is_redirect() ) {
+    #     my $errcode = $response->code();
+    #     my $errmsg  = $response->message();
+    #     die("Error: server returned error $errcode ($errmsg)\n");
+    # }
+}
 
-sub rb_review_request_draft_set_field($ $ $) {
-    my $rid = shift;
-    my $key = shift;
-    my $val = shift;
-
-    #   my $uri     = rb_uri("api/review-requests/$rid/draft/set/");
+sub rb_review_request_draft_set_field {
+    my ($rid, $key, $val)  = @_;
     my $uri = rb_uri("api/review-requests/$rid/draft/");
-    print "Trying to PUT to $uri\n";
-
-    #   my $request = HTTP::Request::Common::POST(
-    #       $uri,
-    #       Content_Type => 'form-data',
-    #       Content      => [ $key => $val ]
-    #   );
     my $request = HTTP::Request::Common::POST(
         $uri,
         Content_Type => 'form-data',
@@ -752,8 +755,7 @@ sub rb_review_request_draft_set_field($ $ $) {
     );
 
     # TODO: all these need to be handled properly.
-    $request->authorization_basic( 'sallan', 'sallan' );
-    print Dumper($request);
+    # $request->authorization_basic( 'sallan', 'sallan' );
     return rb_exec_request($request);
 }
 
@@ -766,35 +768,31 @@ sub rb_review_request_draft_save {
         Content_Type => 'form-data',
         Content      => [ public => 1 ]
     );
-    $request->authorization_basic( 'sallan', 'sallan' );
+    # $request->authorization_basic( 'sallan', 'sallan' );
     return rb_exec_request($request);
 }
 
-# sub rb_review_request_review_get_all($) {
-#     my $rid = shift;
+sub rb_review_request_review_get_all {
+    my $rid = shift;
+    my $uri = rb_uri("api/review-requests/$rid/reviews/");
+    my $request = HTTP::Request::Common::GET($uri);
+    # $request->authorization_basic( 'sallan', 'sallan' );
+    return rb_exec_request($request);
+}
 
-#     my $uri     = rb_uri("api/json/reviewrequests/$rid/reviews/");
-#     my $request = HTTP::Request::Common::POST(
-#         $uri,
-#         Content_Type => 'form-data',
-#         Content      => [ 'id' => $rid ]
-#     );
-#     return rb_exec_request($request);
-# }
-
-# sub rb_review_request_review_get_ship_its {
-#     my $rid         = shift;
-#     my %review_data = rb_review_request_review_get_all($rid);
-#     my @reviews     = @{ $review_data{'reviews'} };
-#     my @reviewers;
-#     my %reviewers;
-#     for my $review (@reviews) {
-#         if ( $review->{'ship_it'} eq 'true' ) {
-#             $reviewers{ $review->{'user'}{'fullname'} } = 1;
-#         }
-#     }
-#     return keys(%reviewers);
-# }
+sub rb_review_request_review_get_ship_its {
+    my $rid         = shift;
+    my %review_data = rb_review_request_review_get_all($rid);
+    my @reviews     = @{ $review_data{'reviews'} };
+    my @reviewers;
+    my %reviewers;
+    for my $review (@reviews) {
+        if ( $review->{'ship_it'} eq 'true' ) {
+            $reviewers{ $review->{'user'}{'fullname'} } = 1;
+        }
+    }
+    return keys(%reviewers);
+}
 
 # # Calls json.py@review_draft_save() with publish=False.
 # sub rb_review_request_review_draft_save {
@@ -1255,6 +1253,7 @@ sub p4_cset_set_meta(\% $ $) {
 }
 
 sub p4_submit_cset($ $) {
+    # TODO: This needs to return the submitted change list number.
     my ( $cset_id, $edit ) = @_;
 
     if ($edit) {
@@ -2293,7 +2292,7 @@ sub do_rr_edit() {
         $changed = 1;
     }
 
-# TODO: As with the better script (ahem) this should be 2 choices. Update changelist info or diff. So prune!!!
+    # TODO: Consider limiting this to 2 choices like post-review does.
     if ( $opt_update_description || $opt_update_all ) {
         my $description = join( "\n", @{ $cset{'Description'} } );
         print "Updating description\n";
@@ -2301,7 +2300,6 @@ sub do_rr_edit() {
             $description );
         $rr{'description'} = join( '\n', @{ $cset{'Description'} } );
         $changed = 1;
-        print "Done with update\n";
     }
     if ( $opt_update_summary || $opt_update_all ) {
         my $summary = ${ $cset{'Description'} }[0];
@@ -2320,25 +2318,23 @@ sub do_rr_edit() {
         $rr{'bugs_closed'} = $bugs;
         $changed = 1;
     }
-
-   #   if ($opt_summary) {
-   #       rb_review_request_draft_set_field( $rid, 'summary', $opt_summary );
-   #       $rr{'summary'} = $opt_summary;
-   #       $changed = 1;
-   #   }
-   #   if ($opt_description) {
-   #       rb_review_request_draft_set_field( $rid, 'description',
-   #           $opt_description );
-   #       $rr{'description'} = $opt_description;
-   #       $changed = 1;
-   #   }
-   #   if ($opt_submit_as) {
-   #       rb_review_request_draft_set_field( $rid, 'submit_as',
-   #           $opt_submit_as );
-   #       $rr{'submit_as'} = $opt_submit_as;
-   #       $changed = 1;
-   #   }
-   #
+    if ($opt_summary) {
+        rb_review_request_draft_set_field( $rid, 'summary', $opt_summary );
+        $rr{'summary'} = $opt_summary;
+        $changed = 1;
+    }
+    if ($opt_description) {
+        rb_review_request_draft_set_field( $rid, 'description',
+            $opt_description );
+        $rr{'description'} = $opt_description;
+        $changed = 1;
+    }
+    if ($opt_submit_as) {
+        rb_review_request_draft_set_field( $rid, 'submit_as',
+            $opt_submit_as );
+        $rr{'submit_as'} = $opt_submit_as;
+        $changed = 1;
+    }
     if ( $opt_update_diff || $opt_update_all ) {
         my %p4info       = p4_info();
         my @diff_lines   = p4_diff_cset( $rr{'changenum'} );
@@ -2361,8 +2357,9 @@ sub do_rr_edit() {
 
     if ($changed) {
         if ($opt_publish) {
-            # TODO: Consider fixing rb_review_request_publish so it can be called here.
-            #rb_review_request_publish($rid);
+
+   # TODO: Consider fixing rb_review_request_publish so it can be called here.
+   #rb_review_request_publish($rid);
             rb_review_request_draft_save($rid);
             print "Review request $rid published ("
                 . rb_uri("r/$rid/") . ")\n";
