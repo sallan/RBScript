@@ -712,23 +712,13 @@ sub rb_review_request_set_changelist {
         $uri,
         Content => "changenum=$changelist"
     );
-    print "CREATED REQUESt\n";
     return rb_exec_request($request);
 }
 
 sub rb_review_request_set_status {
     my ( $rid, $status ) = @_;
     my $uri = rb_uri("api/review-requests/$rid/");
-#    if ( "$status" eq "submitted" or "$status" eq "discarded" ) {
-#        $uri = rb_uri("api/review-requests/$rid/close/$status/");
-#    }
-    my $request = HTTP::Request::Common::PUT($uri);
-
-    # my $uri     = rb_uri("api/review-requests/$rid/");
-    # my $request = HTTP::Request::Common::POST(
-    #     $uri,
-    #     Content      => [ 'status' => $status ]
-    # );
+    my $request = HTTP::Request::Common::PUT($uri, Content => "status=$status");
     return rb_exec_request($request);
 
     # See if this is still true. sallan.
@@ -2700,7 +2690,7 @@ $ua->cookie_jar(
 );
 
 $ua->timeout( $prefs{'timeout'} );
-rb_review_request_set_changelist(73, 956);
+rb_review_request_set_status(73, "submitted");
 exit;
 
 # XXX: Could use GetOptions() with permute disabled
