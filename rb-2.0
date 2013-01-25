@@ -708,12 +708,11 @@ sub rb_review_request_get($) {
 sub rb_review_request_set_changelist {
     my ( $rid, $changelist ) = @_;
     my $uri     = rb_uri("api/review-requests/$rid/");
-    my $request = HTTP::Request::Common::POST(
+    my $request = HTTP::Request::Common::PUT(
         $uri,
-        Content_Type => 'form-data',
-        Content      => [ 'changenum' => $changelist ]
+        Content => "changenum=$changelist"
     );
-    # $request->authorization_basic( 'sallan', 'sallan' );
+    print "CREATED REQUESt\n";
     return rb_exec_request($request);
 }
 
@@ -730,8 +729,6 @@ sub rb_review_request_set_status {
     #     $uri,
     #     Content      => [ 'status' => $status ]
     # );
-    # $request->authorization_basic( 'sallan', 'sallan' );
-    print Dumper($request);
     return rb_exec_request($request);
 
     # See if this is still true. sallan.
@@ -2703,6 +2700,8 @@ $ua->cookie_jar(
 );
 
 $ua->timeout( $prefs{'timeout'} );
+rb_review_request_set_changelist(73, 956);
+exit;
 
 # XXX: Could use GetOptions() with permute disabled
 while ( scalar(@ARGV) > 0 ) {
