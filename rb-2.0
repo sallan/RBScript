@@ -471,7 +471,7 @@ sub json_decode(\$) {
 ### rb
 ###
 
-sub rb_uri($) {
+sub rb_uri {
     my $path = shift;
 
     if ( $prefs{'use_ssl'} && !$ua->is_protocol_supported('https') ) {
@@ -505,7 +505,7 @@ sub rb_uri($) {
     return $uri;
 }
 
-sub rb_exec_request($) {
+sub rb_exec_request {
     my $request = shift;
 
     # TODO: this needs to be handled properly.
@@ -553,7 +553,7 @@ sub rb_exec_request($) {
     return %data;
 }
 
-sub rb_login($) {
+sub rb_login {
 
     # Disable this function
     return;
@@ -633,7 +633,7 @@ sub rb_review_request_create {
     return rb_exec_request($request);
 }
 
-sub rb_review_request_get($) {
+sub rb_review_request_get {
     my $rid = shift;
 
     my $uri     = rb_uri("api/review-requests/$rid/");
@@ -982,9 +982,7 @@ sub rb_review_request_review_get_ship_its {
 # }
 
 sub rb_upload_diff {
-    my $rid       = shift;
-    my $basedir   = shift;
-    my $diff_text = shift;
+    my ( $rid, $basedir, $diff_text ) = @_;
 
     my $uri     = rb_uri("api/review-requests/$rid/diffs/");
     my $request = HTTP::Request::Common::POST(
@@ -998,10 +996,8 @@ sub rb_upload_diff {
     return rb_exec_request($request);
 }
 
-sub rb_diff_header($ $ $) {
-    my $depot_file = shift;
-    my $depot_rev  = shift;
-    my $local_file = shift;
+sub rb_diff_header {
+    my ( $depot_file, $depot_rev, $local_file ) = @_;
 
     my @lt;
     if ( defined($local_file) ) {
@@ -1028,7 +1024,7 @@ sub rb_diff_header($ $ $) {
 ### p4
 ###
 
-sub p4_info() {
+sub p4_info {
     my %info;
     open( FH, "p4 info|" ) or return;
     while (<FH>) {
@@ -1043,7 +1039,7 @@ sub p4_info() {
     return %info;
 }
 
-sub p4_config_load() {
+sub p4_config_load {
     open( FH, "<$home/.p4config" ) or return;
     my $line;
     while ( $line = <FH> ) {
@@ -1075,7 +1071,7 @@ sub p4_cset_validate(\%) {
     }
 }
 
-sub p4_cset_owner($) {
+sub p4_cset_owner {
     my $cset_id = shift;
     my %cset    = p4_cset_get($cset_id);
 
@@ -1084,7 +1080,7 @@ sub p4_cset_owner($) {
     return $cset{'User'};
 }
 
-sub p4_cset_get($) {
+sub p4_cset_get {
     my $cset_id = shift;
 
     my %cset;
@@ -1234,7 +1230,7 @@ sub p4_cset_set_meta(\% $ $) {
     push( @{ $cset->{'Description'} }, "$key: $val" );
 }
 
-sub p4_submit_cset($ $) {
+sub p4_submit_cset {
 
     # TODO: This needs to return the submitted change list number.
     my ( $cset_id, $edit ) = @_;
@@ -1257,7 +1253,7 @@ sub p4_submit_cset($ $) {
     }
 }
 
-sub p4_delete_shelve($) {
+sub p4_delete_shelve {
     my $cset_id = shift;
 
     system("p4 shelve -d -c $cset_id");
@@ -1267,9 +1263,8 @@ sub p4_delete_shelve($) {
     }
 }
 
-sub p4_update_shelve($ $) {
-    my $rid     = shift;
-    my $cset_id = shift;
+sub p4_update_shelve {
+    my ( $rid, $cset_id ) = @_;
     my $comment = "";
 
     system("p4 shelve -r -c $cset_id");
@@ -1278,7 +1273,7 @@ sub p4_update_shelve($ $) {
     }
 }
 
-sub p4_change_is_shelved($) {
+sub p4_change_is_shelved {
     my $cset_id  = shift;
     my $line     = "";
     my $desc_cmd = "p4 describe -s -S $cset_id";
@@ -1315,11 +1310,8 @@ sub p4_change_is_shelved($) {
     return 0;
 }
 
-sub p4_diff_file($ $ $ $) {
-    my $depot_file  = shift;
-    my $depot_rev   = shift;
-    my $change_type = shift;
-    my $pending     = shift;
+sub p4_diff_file {
+    my ( $depot_file, $depot_rev, $change_type, $pending ) = @_;
 
     my $local_file;
     my @diff_lines = ();
@@ -1473,7 +1465,7 @@ sub p4_diff_file($ $ $ $) {
     return @diff_lines;
 }
 
-sub p4_diff_cset($) {
+sub p4_diff_cset {
     my $cset       = shift;
     my @cset_lines = `p4 describe -s $cset`;
     if ( $? != 0 || scalar(@cset_lines) < 2 ) {
@@ -1508,7 +1500,7 @@ sub p4_diff_cset($) {
     return @diff_lines;
 }
 
-sub p4_diff_opened() {
+sub p4_diff_opened {
     my @opened_lines = `p4 opened`;
     if ( $? != 0 || scalar(@opened_lines) == 0 ) {
         die("Error: no opened files\n");
@@ -1618,7 +1610,7 @@ my %top_abbr = (
     'repos'   => 'repositories'
 );
 
-sub usage() {
+sub usage {
     print STDERR "$0 [-v|-q ...] [command] [args...]\n" . "Commands:\n";
     foreach ( keys %top_cmds ) {
         print "\t$_\n";
@@ -1810,7 +1802,7 @@ sub usage() {
 #     }
 # }
 
-sub do_help() {
+sub do_help {
     if ( scalar(@ARGV) == 0 ) {
         usage();
     }
@@ -1830,7 +1822,7 @@ sub do_help() {
     }
 }
 
-sub do_pref() {
+sub do_pref {
     my $key = '';
     my $val = '';
     if ( scalar(@ARGV) == 1 ) {
@@ -1861,7 +1853,7 @@ sub do_pref() {
     prefs_save();
 }
 
-sub do_login() {
+sub do_login {
     my $opt_ssl      = undef;
     my $opt_server   = '';
     my $opt_username = '';
@@ -2002,7 +1994,7 @@ sub do_login() {
 #     }
 # }
 
-sub do_reviewrequest() {
+sub do_reviewrequest {
     if ( scalar(@ARGV) == 0 ) {
         usage();
     }
@@ -2020,7 +2012,7 @@ sub do_reviewrequest() {
     }
 }
 
-sub do_rr_help() {
+sub do_rr_help {
     if ( scalar(@ARGV) == 0 ) {
         usage();
     }
@@ -2036,7 +2028,7 @@ sub do_rr_help() {
     }
 }
 
-sub do_rr_create() {
+sub do_rr_create {
     my $opt_cset        = '';
     my $opt_bugs        = '';
     my $opt_groups      = '';
@@ -2195,7 +2187,7 @@ sub do_rr_create() {
     }
 }
 
-sub do_rr_edit() {
+sub do_rr_edit {
     my $opt_cset               = '';
     my $opt_bugs               = '';
     my $opt_groups             = '';
@@ -2379,7 +2371,7 @@ sub do_rr_edit() {
 #     }
 # }
 
-sub do_rr_submit() {
+sub do_rr_submit {
     my $opt_asis  = '';
     my $opt_force = 0;
     my $opt_edit  = 0;
