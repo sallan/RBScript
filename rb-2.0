@@ -705,6 +705,17 @@ sub rb_review_request_get($) {
 #     return rb_exec_request($request);
 # }
 
+sub rb_review_request_add_shelve_comment {
+    my ( $rid, $cset_id ) = @_;
+    my $comment
+        = "This change has been shelved in changeset $cset_id.\n"
+        . "To unshelve this change into your workspace:\n\n"
+        . "        p4 unshelve -s $cset_id\n";
+
+    rb_review_request_draft_set_field( $rid, "changedescription", $comment );
+    rb_review_request_draft_save($rid);
+}
+
 sub rb_review_request_set_changelist {
     my ( $rid, $changelist ) = @_;
     my $uri     = rb_uri("api/review-requests/$rid/");
@@ -1265,16 +1276,6 @@ sub p4_update_shelve($ $) {
     if ( $? != 0 ) {
         die("Error: p4 shelve command failed: error code $?\n");
     }
-
-    $comment
-        = "This change has been shelved in changeset $cset_id.\n"
-        . "To unshelve this change into your workspace:\n\n"
-        . "        p4 unshelve -s $cset_id\n";
-
-    if ($rid) {
-        rb_review_request_review_draft_publish( $rid, 0, $comment, '' );
-    }
-
 }
 
 sub p4_change_is_shelved($) {
@@ -2167,9 +2168,11 @@ sub do_rr_create() {
     my %rr  = %{ $data{'review_request'} };
     my $rid = $rr{'id'};
 
-    if ($opt_shelve) {
-        p4_update_shelve( $rid, $opt_cset );
-    }
+    # TODO: Don't think we need this because it's called in do_rr_edit()
+    # if ($opt_shelve) {
+    #     p4_update_shelve( $rid, $opt_cset );
+    #     rb_review_request_add_shelve_comment($rid), $cset_id);
+    # }
 
     rb_upload_diff( $rid, $p4info{'Server address'}, $diff_content );
 
@@ -2178,6 +2181,8 @@ sub do_rr_create() {
     do_rr_edit();
 
     if ($opt_publish) {
+
+        # TODO: Fix this so it's like rr_edit
 
         # $rid has been pushed onto @ARGV at this point,
         # so do_rr_publish() will know about it.
@@ -2320,6 +2325,7 @@ sub do_rr_edit() {
 
         if ($opt_shelve) {
             p4_update_shelve( $rid, $rr{'changenum'} );
+            rb_review_request_add_shelve_comment( $rid, $rr{'changenum'} );
         }
 
         rb_upload_diff( $rid, $p4info{'Server address'}, $diff_content );
@@ -2675,10 +2681,7 @@ $ua->cookie_jar(
 );
 
 $ua->timeout( $prefs{'timeout'} );
-rb_review_request_set_status( 73, "submitted" );
-exit;
 
-# XXX: Could use GetOptions() with permute disabled
 while ( scalar(@ARGV) > 0 ) {
     if ( $ARGV[0] eq '-q' || $ARGV[0] eq '--quiet' ) {
         shift(@ARGV);
