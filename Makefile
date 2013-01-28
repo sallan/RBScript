@@ -4,7 +4,7 @@ help:
 new:
 	@p4 edit readme.txt
 	@echo "Testing 1, 2, 3" >> readme.txt
-	@./rb-2.0 create --tu sallan --publish
+	@./rb-2.0 create --tp sallan --publish
 
 stomp:
 	@p4 edit relnotes.txt
@@ -15,7 +15,7 @@ conflict:
 	@p4 sync readme.txt#1
 	@p4 edit readme.txt
 	@echo "Causing a conflict" >> readme.txt
-	@./rb-2.0 create --tu sallan --publish
+	@./rb-2.0 create --tp sallan --publish
 
 
 p4d:
