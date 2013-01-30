@@ -508,11 +508,20 @@ sub rb_uri {
 sub rb_exec_request {
     my $request = shift;
 
-    # TODO: this needs to be handled properly.
-    $request->authorization_basic( 'sallan', 'sallan' );
+    # TODO: Remove after testing
     print Dumper($request);
 
     my $response = http_transaction($request);
+    if ( !$response->is_success() ) {
+        my $errcode = $response->code();
+        if ( $errcode == 401 ) {
+
+            # Need to authenticate and try again.
+            my ( $username, $password ) = do_login();
+            $request->authorization_basic( $username, $password );
+            $response = http_transaction($request);
+        }
+    }
     if ( !$response->is_success() ) {
         my $errcode = $response->code();
         my $errmsg  = $response->message();
@@ -551,25 +560,6 @@ sub rb_exec_request {
             . json_encode(%data)
             . "<<<\n" );
     return %data;
-}
-
-sub rb_login {
-
-    # Disable this function
-    return;
-    my $password = shift;
-
-    my $uri     = rb_uri("api/json/accounts/login/");
-    my $request = HTTP::Request::Common::POST(
-        $uri,
-        Content_Type => 'form-data',
-        Content      => [
-            'username' => $prefs{'username'},
-            'password' => $password
-        ]
-    );
-
-    return rb_exec_request($request);
 }
 
 # sub rb_repositories() {
@@ -1231,8 +1221,6 @@ sub p4_cset_set_meta(\% $ $) {
 }
 
 sub p4_submit_cset {
-
-    # TODO: This needs to return the submitted change list number.
     my ( $cset_id, $edit ) = @_;
 
     if ($edit) {
@@ -1875,16 +1863,14 @@ sub do_login {
     if (!GetOptions(
             'ssl!'       => \$opt_ssl,
             'server=s'   => \$opt_server,
-            'password=s' => \$opt_password
+            'username=s' => \$opt_username,
         )
         )
     {
         usage();
     }
-    if ( scalar(@ARGV) >= 1 ) {
-        $opt_username = shift(@ARGV);
-    }
 
+    # Put any options we received into the prefs file.
     if ( defined($opt_ssl) ) {
         $prefs{'use_ssl'} = $opt_ssl;
     }
@@ -1895,6 +1881,8 @@ sub do_login {
     if ($opt_username) {
         $prefs{'username'} = $opt_username;
     }
+
+    # If no user name in prefs, try to find a default.
     if ( !defined( $prefs{'username'} ) ) {
         if ( defined( $ENV{'P4USER'} ) ) {
             $prefs{'username'} = $ENV{'P4USER'};
@@ -1903,28 +1891,20 @@ sub do_login {
             $prefs{'username'} = $ENV{'USER'};
         }
     }
-
-    my $password = '';
-    if ($opt_password) {
-        $password = $opt_password;
-    }
-    if ( !$password ) {
-        if ( defined( $ENV{'P4PASSWD'} ) ) {
-            $password = $ENV{'P4PASSWD'};
-        }
-        else {
-            system("stty -echo");
-            print "Password: ";
-            $password = <>;
-            chop($password);
-            print "\n";
-            system("stty echo");
-        }
-    }
-
-    rb_login($password);
     prefs_save();
-    $ua->cookie_jar()->save();
+    my $username = $prefs{'username'};
+    die "Need a Review Board username.\n" unless $username;
+
+    # Prompt user for password
+    my $password = '';
+    system("stty -echo");
+    print "Password required for $username\n";
+    print "Password: ";
+    chomp( $password = <> );
+    print "\n";
+    system("stty echo");
+    die "Empty password!\n" unless $password;
+    return ( $username, $password );
 }
 
 # sub do_repositories() {
@@ -2020,6 +2000,7 @@ sub do_reviewrequest {
         die($@) if $@;
     }
     else {
+        # TODO: Need to do something else here since do_rr_show is going away.
         unshift( @ARGV, $cmd );
         do_rr_show();
     }
@@ -2245,7 +2226,7 @@ sub do_rr_edit {
         usage();
     }
 
-    my $rid  = $ARGV[0];
+    my $rid  = shift @ARGV;
     my %data = rb_review_request_get($rid);
     my %rr   = %{ $data{'review_request'} };
 
@@ -2679,7 +2660,8 @@ p4_config_load();
 $ua->cookie_jar(
     HTTP::Cookies->new(
         file         => $prefs{'cookiefile'},
-        hide_cookie2 => 1
+        hide_cookie2 => 1,
+        autosave     => 1
     )
 );
 
