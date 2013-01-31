@@ -415,7 +415,11 @@ class F5Review:
         """Add comment to review regarding the shelved change list."""
         shelve_message = "This change has been shelved in changeset %s. " % self.change_list
         shelve_message += "To unshelve this change into your workspace:\n\n\tp4 unshelve -s %s" % self.change_list
-        self.server.set_review_request_field(self.review_request, 'changedescription', shelve_message)
+        reviews_url = self.review_request['links']['reviews']['href']
+        self.server.api_post(reviews_url, {
+            'body_top' : shelve_message,
+            'public' : 1
+        })
 
     def submit(self, submitted_changelist):
         """Submit the change list to perforce and mark review as submitted."""
