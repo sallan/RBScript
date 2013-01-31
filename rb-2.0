@@ -8,7 +8,6 @@
 # it under the terms of the GNU General Public License version 2, as
 # published by the Free Software Foundation.
 
-# TODO: Do we need 'refs' here?
 use strict 'refs';
 use warnings;
 use Data::Dumper;
@@ -601,11 +600,16 @@ sub rb_review_request_add_shelve_comment {
         . "To unshelve this change into your workspace:\n\n"
         . "        p4 unshelve -s $cset_id\n";
 
-    print
-        "DEBUG: Calling rb_review_request_draft_save from add_shelve_comment.\n";
-    rb_review_request_draft_save($rid);
-    print "DEBUG: Calling rb_review_request_draft_set_field\n";
-    rb_review_request_draft_set_field( $rid, "changedescription", $comment );
+    my $uri     = rb_uri("api/review-requests/$rid/reviews/");
+    my $request = HTTP::Request::Common::POST(
+        $uri,
+        Content_Type => 'form-data',
+        Content      => [
+            'body_top' => $comment,
+            'public'   => 1
+        ]
+    );
+    return rb_exec_request($request);
 }
 
 sub rb_review_request_set_changelist {
@@ -1564,11 +1568,6 @@ sub do_rr_create {
     push( @ARGV, $rid );
     do_rr_edit();
 
-    # TODO: Delete if rr_edit works correctly
-    #   if ($opt_shelve) {
-    #       rb_review_request_add_shelve_comment($rid, $opt_cset);
-    #   }
-
     # If the opt_publish option was used, then do_rr_edit will have
     # published and printed a message. If not, print this message.
     # This is a hack until I have time to refactor these 2 functions.
@@ -1576,7 +1575,6 @@ sub do_rr_create {
         print "Review request $rid created (" . rb_uri("r/$rid/") . ")\n"
             . "Be sure to publish when finished.\n";
     }
-
 
 }
 
@@ -1776,7 +1774,7 @@ sub do_rr_submit {
             }
             else {
                 if ( !$opt_force ) {
-                    die("No reviews marked Ship It\n");
+                    die("No reviews marked Ship It. You may use --force to submit anyway.\n");
                 }
             }
 
@@ -1816,7 +1814,6 @@ $ua->cookie_jar(
         autosave     => 1
     )
 );
-
 $ua->timeout( $prefs{'timeout'} );
 
 while ( scalar(@ARGV) > 0 ) {
