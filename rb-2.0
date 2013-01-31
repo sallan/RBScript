@@ -601,8 +601,11 @@ sub rb_review_request_add_shelve_comment {
         . "To unshelve this change into your workspace:\n\n"
         . "        p4 unshelve -s $cset_id\n";
 
-    rb_review_request_draft_set_field( $rid, "changedescription", $comment );
+    print
+        "DEBUG: Calling rb_review_request_draft_save from add_shelve_comment.\n";
     rb_review_request_draft_save($rid);
+    print "DEBUG: Calling rb_review_request_draft_set_field\n";
+    rb_review_request_draft_set_field( $rid, "changedescription", $comment );
 }
 
 sub rb_review_request_set_changelist {
@@ -1554,19 +1557,17 @@ sub do_rr_create {
         $opt_cset, $opt_submit_as );
     my %rr  = %{ $data{'review_request'} };
     my $rid = $rr{'id'};
-
-    # TODO: Don't think we need this because it's called in do_rr_edit()
-    # if ($opt_shelve) {
-    #     p4_update_shelve( $rid, $opt_cset );
-    #     rb_review_request_add_shelve_comment($rid), $cset_id);
-    # }
-
     rb_upload_diff( $rid, $p4info{'Server address'}, $diff_content );
 
     # Let do_rr_edit finish the job.
     @ARGV = @args;
     push( @ARGV, $rid );
     do_rr_edit();
+
+    # TODO: Delete if rr_edit works correctly
+    #   if ($opt_shelve) {
+    #       rb_review_request_add_shelve_comment($rid, $opt_cset);
+    #   }
 
     # If the opt_publish option was used, then do_rr_edit will have
     # published and printed a message. If not, print this message.
@@ -1575,6 +1576,8 @@ sub do_rr_create {
         print "Review request $rid created (" . rb_uri("r/$rid/") . ")\n"
             . "Be sure to publish when finished.\n";
     }
+
+
 }
 
 sub do_rr_edit {
@@ -1615,6 +1618,7 @@ sub do_rr_edit {
     {
         usage();
     }
+
     if ($opt_status) {
         if (   $opt_status ne 'submitted'
             && $opt_status ne 'discarded'
@@ -1707,24 +1711,20 @@ sub do_rr_edit {
 
         if ($opt_shelve) {
             p4_update_shelve( $rid, $rr{'changenum'} );
-            rb_review_request_add_shelve_comment( $rid, $rr{'changenum'} );
         }
-
         rb_upload_diff( $rid, $p4info{'Server address'}, $diff_content );
 
         $changed = 1;
     }
 
-    if ($changed) {
-        if ($opt_publish) {
+    if ($opt_shelve) {
+        rb_review_request_add_shelve_comment( $rid, $rr{'changenum'} );
+    }
 
-            rb_review_request_publish($rid);
-
-            # TODO: If this works, delete the line below.
-            # rb_review_request_draft_save($rid);
-            print "Review request $rid published ("
-                . rb_uri("r/$rid/") . ")\n";
-        }
+    if ($opt_publish) {
+        my $review_url = rb_uri("r/$rid/");
+        rb_review_request_publish($rid);
+        print "Review request $rid published ($review_url)\n";
     }
 
     if ($opt_status) {

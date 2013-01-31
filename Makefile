@@ -1,3 +1,5 @@
+.PHONY: shelve unshelve help new stomp conflict p4d
+
 help:
 	@echo Targets: new, stomp, conflict, p4d
 
@@ -17,6 +19,15 @@ conflict:
 	@echo "Causing a conflict" >> readme.txt
 	@./rb-2.0 create --tp sallan --publish
 
+shelve:
+	@p4 edit relnotes.txt
+	@echo "Create a shelve" >> relnotes.txt
+	@./rb-2.0 create --shelve
+
+pshelve:
+	@p4 edit relnotes.txt
+	@echo "Create a shelve" >> relnotes.txt
+	./rb-2.0 rr create --tp sallan --publish --shelve
 
 p4d:
 	@/usr/local/bin/p4d -r $$(pwd)/P4Test_Server/PerforceSample -p buffy:1492 -d
