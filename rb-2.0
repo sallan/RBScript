@@ -1243,12 +1243,12 @@ my $rr_editargs_help
     . "\t--update-all\n"
     . "\t(This would update description, summary, bugs, and diff\n"
     . "\t from perforce changeset)\n";
-my $rr_listargs_help
-    = "listargs:\n"
-    . "\t--status=<pending|submitted|discarded|reopen> (default: pending)\n"
-    . "\t--to-group=STRING (or --tg)\n"
-    . "\t--to-person=STRING (or --tp) [Use \".\" for self]\n"
-    . "\t--from-person=STRING (or --fp) [Use \".\" for self]\n";
+#my $rr_listargs_help
+#    = "listargs:\n"
+#    . "\t--status=<pending|submitted|discarded|reopen> (default: pending)\n"
+#    . "\t--to-group=STRING (or --tg)\n"
+#    . "\t--to-person=STRING (or --tp) [Use \".\" for self]\n"
+#    . "\t--from-person=STRING (or --fp) [Use \".\" for self]\n";
 
 my %sub_cmds = (
     'create' => "[editargs...]\n"
@@ -1257,55 +1257,25 @@ my %sub_cmds = (
     'edit' => "[editargs...] ID\n"
         . "Edit an existing reviewrequest\n"
         . $rr_editargs_help,
-    'show' => "[--diff] ID ...\n"
-        . "Show given reviewrequest(s), optionally with diff\n",
     'submit' => "[--asis] [--force] [--edit] ID\n"
         . "Submit given reviewrequest. \n\t--asis   Don't check for or add reviewers names.\n\t--force  Submit even if not reviewed.\n\t--edit   Edit changelist first.\n",
-    'review'      => "ID\n" . "Create review for given reviewrequest\n",
-    'reviews'     => "ID\n" . "Show reviews for given reviewrequest\n",
-    'reviewreply' => "ID ID\n" . "Reply to given reviewrequest review\n",
-    'list'        => "[listargs...]\n"
-        . "List reviewrequests matching given criteria\n"
-        . $rr_listargs_help,
-    'publish' => "ID ...\n" . "Publish given reviewrequest(s)\n",
 );
 my %sub_abbr = (
     'new' => 'create',
-
-    #'ufc' => 'update',
+    'updat' => 'edit',
     'del' => 'delete'
 );
 
 my %top_cmds = (
     'help' => "\n" . "This text\n",
-    'pref' => "key [val]\n"
-        . "Get or set preferences.  Some useful preferences:\n"
-        . "\tuse_ssl [0|1]\n"
-        . "\tserver STRING\n"
-        . "\tusername STRING\n"
-        . "\tuse_color [0|1]\n"
-        . "\ttimeout SECONDS\n",
-    'login' =>
-        "[--ssl|--nossl] [--server=STRING] [--password=STRING] [username]\n"
-        . "Login to reviewboard server.\n",
     'reviewrequest' => "[subcommand] [args]\n"
         . "Manipulate reviewrequest object.\n"
         . "Subcommands:\n\t"
         . join( "\n\t", keys(%sub_cmds) ) . "\n"
         . "For help on a specific subcommand, try \"$0 help reviewrequest <subcommand>\"\n",
-    'repositories' => "\n" . "Show available repositories\n",
-    'users'  => "[query]\n" . "Show users, optionally matching given query\n",
-    'groups' => "[query]\n"
-        . "Show groups, optionally matching given query\n",
-    'group' => "<--star|--unstar> [name ...]\n"
-        . "Manipulate given groups(s)\n",
-    'diff' => "[--changeset=NUMBER]\n"
-        . "Show current diff in reviewboard format\n"
 );
 my %top_abbr = (
     'rr'      => 'reviewrequest',
-    'request' => 'reviewrequest',
-    'repos'   => 'repositories'
 );
 
 sub usage {
@@ -1402,11 +1372,6 @@ sub do_reviewrequest {
     if ( defined( $sub_cmds{$cmd} ) ) {
         eval("do_rr_$cmd");
         die($@) if $@;
-    }
-    else {
-        # TODO: Need to do something else here since do_rr_show is going away.
-        unshift( @ARGV, $cmd );
-        do_rr_show();
     }
 }
 
