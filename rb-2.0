@@ -730,6 +730,21 @@ sub p4_info {
     return %info;
 }
 
+sub p4_get_shelved_changelists {
+    my ($p4_user) = @_;
+    my @changelists;
+
+    my $cmd = "p4 changes -u $p4_user -s shelved";
+    open( FH, "$cmd |" ) or die "Failed to execute '$cmd'\n";
+    while (<FH>) {
+        chomp;
+        my $changelist = ( split ' ', $_, 3 )[1];
+        push @changelists, $changelist;
+    }
+    close FH or warn "'$cmd' returned a non-zero value.\n";
+    return @changelists;
+}
+
 sub p4_config_load {
     open( FH, "<$home/.p4config" ) or return;
     my $line;
@@ -976,40 +991,10 @@ sub p4_update_shelve {
 }
 
 sub p4_change_is_shelved {
-    my $cset_id  = shift;
-    my $line     = "";
-    my $desc_cmd = "p4 describe -s -S $cset_id";
-
-    open( F, "$desc_cmd|" ) or die "Error: could not run $desc_cmd:$!\n";
-
-    # Keep scanning until we see Shelved files ...
-    while ( $line !~ /^Shelved files \.\.\./ ) {
-        if ( $line =~ /^Affected files \.\.\./ ) {
-
-            # Shelved changes would never say this
-            close(F);
-            return 0;
-        }
-        if ( !chomp( $line = <F> ) ) {
-            die "Error: prematurely reached end of $desc_cmd output.\n";
-        }
-    }
-
-    # An unshelved change would still match "Shelved files ..."
-    # however, there would be no files listed afterward.
-
-    while (<F>) {
-        if (/\S+/) {
-
-            # we found something after Shelved files..., so this must be
-            # a shelved change.
-            close(F);
-            return 1;
-        }
-    }
-
-    close(F);
-    return 0;
+    my ($cset_id) = @_;
+    my %p4info = p4_info();
+    my @shelved_changes = p4_get_shelved_changelists($p4info{'User name'});
+    return grep { $_ == $cset_id } @shelved_changes;
 }
 
 sub p4_diff_file {
