@@ -668,10 +668,19 @@ sub rb_review_request_review_get_ship_its {
     my %reviewers;
     for my $review (@reviews) {
         if ( $review->{'ship_it'} eq 'true' ) {
-            $reviewers{ $review->{'user'}{'fullname'} } = 1;
+            my $reviewer_name = rb_review_get_reviewer_name($review);
+            $reviewers{ $reviewer_name } = 1;
         }
     }
     return keys(%reviewers);
+}
+
+sub rb_review_get_reviewer_name {
+    my ($review) = @_;
+    my $uri = $review->{'links'}->{'user'}->{'href'};
+    my $request = HTTP::Request::Common::GET($uri);
+    my $user = (rb_exec_request($request))[1];
+    return $user->{'fullname'};
 }
 
 sub rb_upload_diff {
