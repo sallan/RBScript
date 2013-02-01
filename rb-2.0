@@ -86,7 +86,7 @@ sub new_lwp {
 
 my $verbose_level = 1;
 
-sub verbose($ $) {
+sub verbose {
     print STDERR $_[1] if ( $verbose_level >= $_[0] );
 }
 
@@ -97,40 +97,40 @@ sub stripws {
     }
 }
 
-sub is_numeric($) {
-    my $val = shift;
-    if ( $val =~ /^-?\d+(\.\d+)?$/ ) {
-        return 1;
-    }
-    return 0;
-}
+#sub is_numeric($) {
+#    my $val = shift;
+#    if ( $val =~ /^-?\d+(\.\d+)?$/ ) {
+#        return 1;
+#    }
+#    return 0;
+#}
 
-sub string_to_bool($) {
-    my $val = shift;
-    if ( $val =~ /^yes$/i || $val =~ /^true/i ) {
-        return 1;
-    }
-    if ( $val =~ /^no$/i || $val =~ /^false/i ) {
-        return 0;
-    }
-    if ( is_numeric($val) ) {
-        return ( $val == 0 ? 0 : 1 );
-    }
-    warn("to_bool: assume false for $val\n");
-    return 0;
-}
+#sub string_to_bool($) {
+#    my $val = shift;
+#    if ( $val =~ /^yes$/i || $val =~ /^true/i ) {
+#        return 1;
+#    }
+#    if ( $val =~ /^no$/i || $val =~ /^false/i ) {
+#        return 0;
+#    }
+#    if ( is_numeric($val) ) {
+#        return ( $val == 0 ? 0 : 1 );
+#    }
+#    warn("to_bool: assume false for $val\n");
+#    return 0;
+#}
 
-sub bool_to_yn($) {
-    my $val = shift;
-    return ( $val ? 'Yes' : 'No' );
-}
+#sub bool_to_yn($) {
+#    my $val = shift;
+#    return ( $val ? 'Yes' : 'No' );
+#}
 
-sub bool_to_tf($) {
-    my $val = shift;
-    return ( $val ? 'True' : 'False' );
-}
+#sub bool_to_tf($) {
+#    my $val = shift;
+#    return ( $val ? 'True' : 'False' );
+#}
 
-sub prompt_y_or_n($ $) {
+sub prompt_y_or_n {
     my ( $query, $default ) = @_;
     if ( $default eq 'y' ) {
         $query = "$query n|[y]: ";
@@ -145,7 +145,7 @@ sub prompt_y_or_n($ $) {
     return lc $response eq 'y';
 }
 
-sub http_transaction($) {
+sub http_transaction {
     my $request = shift;
     verbose( 4, ">>>\n" . $request->as_string() . ">>>\n" );
     my $response = $ua->request($request);
@@ -153,9 +153,12 @@ sub http_transaction($) {
     return $response;
 }
 
+###
+### Preferences
+###
 my $prefs_file = "$home/.rbrc";
 
-sub prefs_load() {
+sub prefs_load {
     if ( open( FH, "<$prefs_file" ) ) {
         my $line;
         my ( $key, $val );
@@ -176,7 +179,7 @@ sub prefs_load() {
     }
 }
 
-sub prefs_save() {
+sub prefs_save {
     open( FH, ">$prefs_file" ) or return;
     my $key;
     foreach $key ( sort keys %prefs ) {
@@ -188,7 +191,6 @@ sub prefs_save() {
 ###
 ### JSON
 ###
-
 my $json_indent_step = 2;
 
 sub json_encode_scalar(\$);
@@ -508,10 +510,7 @@ sub rb_uri {
 }
 
 sub rb_exec_request {
-    my $request = shift;
-
-    # TODO: Remove after testing
-    print Dumper($request);
+    my ($request) = @_;
 
     my $response = http_transaction($request);
     if ( !$response->is_success() ) {
@@ -991,9 +990,9 @@ sub p4_update_shelve {
 }
 
 sub p4_change_is_shelved {
-    my ($cset_id) = @_;
-    my %p4info = p4_info();
-    my @shelved_changes = p4_get_shelved_changelists($p4info{'User name'});
+    my ($cset_id)       = @_;
+    my %p4info          = p4_info();
+    my @shelved_changes = p4_get_shelved_changelists( $p4info{'User name'} );
     return grep { $_ == $cset_id } @shelved_changes;
 }
 
@@ -1556,6 +1555,8 @@ sub do_rr_create {
     # If the opt_publish option was used, then do_rr_edit will have
     # published and printed a message. If not, print this message.
     # This is a hack until I have time to refactor these 2 functions.
+    # TODO: I may not need this anymore. If you get duplicate messages,
+    #        then delete all this.
     unless ($opt_publish) {
         print "Review request $rid created (" . rb_uri("r/$rid/") . ")\n"
             . "Be sure to publish when finished.\n";
@@ -1601,7 +1602,14 @@ sub do_rr_edit {
     {
         usage();
     }
+    if ( scalar(@ARGV) != 1 ) {
+        usage();
+    }
+    my $rid  = shift @ARGV;
+    my %data = rb_review_request_get($rid);
+    my %rr   = %{ $data{'review_request'} };
 
+    # If we're updating status, just do that and exit.
     if ($opt_status) {
         if (   $opt_status ne 'submitted'
             && $opt_status ne 'discarded'
@@ -1609,14 +1617,12 @@ sub do_rr_edit {
         {
             usage();
         }
+        else {
+            rb_review_request_set_status( $rid, $opt_status );
+            print "Status changed to: $opt_status\n";
+            exit;
+        }
     }
-    if ( scalar(@ARGV) != 1 ) {
-        usage();
-    }
-
-    my $rid  = shift @ARGV;
-    my %data = rb_review_request_get($rid);
-    my %rr   = %{ $data{'review_request'} };
 
     my $changed = 0;
     if ($opt_cset) {
@@ -1641,7 +1647,6 @@ sub do_rr_edit {
     # TODO: Consider limiting this to 2 choices like post-review does.
     if ( $opt_update_description || $opt_update_all ) {
         my $description = join( "\n", @{ $cset{'Description'} } );
-        print "Updating description\n";
         rb_review_request_draft_set_field( $rid, 'description',
             $description );
         $rr{'description'} = join( '\n', @{ $cset{'Description'} } );
@@ -1704,15 +1709,16 @@ sub do_rr_edit {
         rb_review_request_add_shelve_comment( $rid, $rr{'changenum'} );
     }
 
+    my $review_url = rb_uri("r/$rid/");
     if ($opt_publish) {
-        my $review_url = rb_uri("r/$rid/");
         rb_review_request_publish($rid);
         print "Review request $rid published ($review_url)\n";
     }
-
-    if ($opt_status) {
-        rb_review_request_set_status( $rid, $opt_status );
+    else {
+        print "Review request $rid is ready ($review_url).\n";
+        print "Be sure to publish when finished.\n";
     }
+
 }
 
 sub do_rr_submit {
@@ -1759,7 +1765,8 @@ sub do_rr_submit {
             }
             else {
                 if ( !$opt_force ) {
-                    die("No reviews marked Ship It. You may use --force to submit anyway.\n");
+                    die("No reviews marked Ship It. You may use --force to submit anyway.\n"
+                    );
                 }
             }
 
@@ -1779,9 +1786,11 @@ sub do_rr_submit {
         my $submitted_change = p4_submit_cset( $cset_id, $opt_edit );
         if ( defined $submitted_change ) {
             rb_review_request_set_changelist( $rid, $submitted_change );
+            print "Change $submitted_change submitted.\n";
         }
     }
     rb_review_request_set_status( $rid, 'submitted' );
+    print "Review $rid closed.\n";
 }
 
 ########################################
