@@ -1570,17 +1570,6 @@ sub do_rr_create {
     @ARGV = @args;
     push( @ARGV, $rid );
     do_rr_edit();
-
-    # If the opt_publish option was used, then do_rr_edit will have
-    # published and printed a message. If not, print this message.
-    # This is a hack until I have time to refactor these 2 functions.
-    # TODO: I may not need this anymore. If you get duplicate messages,
-    #        then delete all this.
-    unless ($opt_publish) {
-        print "Review request $rid created (" . rb_uri("r/$rid/") . ")\n"
-            . "Be sure to publish when finished.\n";
-    }
-
 }
 
 sub do_rr_edit {
@@ -1842,7 +1831,8 @@ while ( scalar(@ARGV) > 0 ) {
         ++$verbose_level;
     }
     elsif ( $ARGV[0] eq '-d' || $ARGV[0] eq '--debug' ) {
-        # This causes all UA requests to get dumped to the screen.
+        # This causes all HTTP request objects to get dumped to the screen.
+        # Occasionally useful, but -v -v is usally more what you want.
         shift(@ARGV);
         $DEBUG = 1;
     }
