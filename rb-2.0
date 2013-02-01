@@ -1253,6 +1253,8 @@ my %sub_cmds = (
     'submit' => "[--asis] [--force] [--edit] ID\n"
         . "Submit given reviewrequest. \n\t--asis   Don't check for or add reviewers names.\n\t--force  Submit even if not reviewed.\n\t--edit   Edit changelist first.\n",
 );
+
+# TODO: do we want these? Do they even work?
 my %sub_abbr = (
     'new' => 'create',
     'updat' => 'edit',
@@ -1267,18 +1269,65 @@ my %top_cmds = (
         . join( "\n\t", keys(%sub_cmds) ) . "\n"
         . "For help on a specific subcommand, try \"$0 help reviewrequest <subcommand>\"\n",
 );
+
+# TODO: We can probably get rid of this.
 my %top_abbr = (
     'rr'      => 'reviewrequest',
 );
 
 sub usage {
-    print STDERR "$0 [-v|-q ...] [command] [args...]\n" . "Commands:\n";
-    foreach ( keys %top_cmds ) {
-        print "\t$_\n";
-    }
-    print STDERR
-        "For help on a specific command, try \"$0 help <command>\"\n";
-    exit(0);
+    use File::Basename;
+    my $prog = basename $0;
+
+    print <<EOH;
+Usage: $prog [OPTIONS] create|edit|submit [RID]
+
+Create, edit and submit review requests. 
+
+This script is a greatly-reduced version of the old rb script that has  been
+updated to work with the new Review Board Web API. The functionality has been
+distilled to the common workflow of creating, editing and submitting reviews.
+It only works with Perforce and is support on Linux and Mac.
+
+DEPRECATION WARNING
+
+<INSERT SOMETHING PITHY HERE>
+
+Options:
+  -h, --help            show this help message and exit
+  -v [-v -v],           Increase verbosity level with each 'v'.
+  --server=<host>       Use specified server. Default is the 'server' entry in
+                        your \$HOME/.rbrc file.  You will be prompted for login 
+                        if necessary and the server name will be saved.
+
+  Create and Update Options:
+    -p, --publish       Publish the review.
+    -n, --output-diff   Output diff to console and exit. Do not post.
+    -g <group [,groups]>, --target-groups=<group [,groups]>
+                        Assign or replace ReviewBoard groups for this review.
+    -u <user [,users]>, --target-people=<user [,users]>
+                        Assign or replace reviewers for this review.
+    --changeset=<num>   Create or update using this perforce changeset number.
+    --shelve            Create or update p4 shelve for the files in the
+                        review.
+    --diff-only         Uploads a new diff, but does not update information
+                        from change list.
+    --change-only       Updates info from change list, but does not upload
+                        diff.
+    --testing-done=<string>
+                        Description of testing done.
+    --testing-done-file=<filename>
+                        Text file containing description of testing done.
+
+  Submit Options:
+    -f, --force         Submit even if the review doesn't meet all
+                        requirements.
+    -e, --edit-changelist
+                        Edit the change list before submitting.
+
+EOH
+
+    exit();
 }
 
 sub do_help {
