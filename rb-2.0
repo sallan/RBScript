@@ -24,6 +24,7 @@ use Term::ANSIColor;
 # Globals
 my $home = $ENV{'HOME'};
 my %prefs;
+my $DEBUG = 0;
 
 my %prefs_default = (
     'use_ssl'             => 1,
@@ -511,6 +512,8 @@ sub rb_uri {
 
 sub rb_exec_request {
     my ($request) = @_;
+
+    print Dumper($request) if $DEBUG;
 
     my $response = http_transaction($request);
     if ( !$response->is_success() ) {
@@ -1613,12 +1616,15 @@ sub do_rr_edit {
     if ($opt_status) {
         if (   $opt_status ne 'submitted'
             && $opt_status ne 'discarded'
+            && $opt_status ne 'pending'
             && $opt_status ne 'reopen' )
         {
             usage();
         }
         else {
-            rb_review_request_set_status( $rid, $opt_status );
+            # What we think of as reopen, RB calls pending.
+            my $status = $opt_status eq 'reopen' ? 'pending' : $opt_status;
+            rb_review_request_set_status( $rid, $status );
             print "Status changed to: $opt_status\n";
             exit;
         }
@@ -1818,6 +1824,11 @@ while ( scalar(@ARGV) > 0 ) {
     elsif ( $ARGV[0] eq '-v' || $ARGV[0] eq '--verbose' ) {
         shift(@ARGV);
         ++$verbose_level;
+    }
+    elsif ( $ARGV[0] eq '-d' || $ARGV[0] eq '--debug' ) {
+        # This causes all UA requests to get dumped to the screen.
+        shift(@ARGV);
+        $DEBUG = 1;
     }
     elsif ( $ARGV[0] eq '-h' || $ARGV[0] eq '--help' ) {
         usage();
