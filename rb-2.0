@@ -19,7 +19,6 @@ use HTTP::Request;
 use HTTP::Request::Common;
 use HTTP::Response;
 use LWP::UserAgent;
-use Term::ANSIColor;
 
 # Globals
 my $home = $ENV{'HOME'};
@@ -520,7 +519,7 @@ sub rb_exec_request {
         my $errcode = $response->code();
         if ( $errcode == 401 ) {
 
-            # Need to authenticate and try again.
+            # 401 means not authorized. Authenticate and try again.
             my ( $username, $password ) = do_login();
             $request->authorization_basic( $username, $password );
             $response = http_transaction($request);
@@ -1243,12 +1242,6 @@ my $rr_editargs_help
     . "\t--update-all\n"
     . "\t(This would update description, summary, bugs, and diff\n"
     . "\t from perforce changeset)\n";
-#my $rr_listargs_help
-#    = "listargs:\n"
-#    . "\t--status=<pending|submitted|discarded|reopen> (default: pending)\n"
-#    . "\t--to-group=STRING (or --tg)\n"
-#    . "\t--to-person=STRING (or --tp) [Use \".\" for self]\n"
-#    . "\t--from-person=STRING (or --fp) [Use \".\" for self]\n";
 
 my %sub_cmds = (
     'create' => "[editargs...]\n"
