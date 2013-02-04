@@ -2,6 +2,26 @@
 #
 # Perl replacement for Review Board's post-review script for use with perforce only.
 #
+#
+# Here's a summary from the Review Board docs for the REST API:
+#
+# ---------------------------------------------------------------------
+# Resource URLs
+#
+# Resources are arranged in consistent, clean URLs underneath
+# /api/. The top-level “root” resource is at /api/ and is used as a
+# starting point for finding other resources.
+#
+# It's highly recommended that clients browse through the resources by
+# following their links, rather than hard-coding the paths. This will
+# help keep your client forward-compatible with future versions of
+# Review Board, in case any of these paths end up changing.
+# --------------------------------------------------------------------- 
+#
+# The docs for the Web API can be found here:
+#
+# http://www.reviewboard.org/docs/manual/dev/webapi/2.0/
+#
 # Copyright (C) 2013 F5 Networks, Inc.
 #
 # This script is free software; you can redistribute it and/or modify
@@ -1710,26 +1730,24 @@ sub do_rr_edit {
 
         if ($opt_shelve) {
             p4_update_shelve( $rid, $rr{'changenum'} );
+            rb_review_request_add_shelve_comment( $rid, $rr{'changenum'} );
         }
         rb_upload_diff( $rid, $p4info{'Server address'}, $diff_content );
 
         $changed = 1;
     }
 
-    if ($opt_shelve) {
-        rb_review_request_add_shelve_comment( $rid, $rr{'changenum'} );
+    if ($changed) {
+        my $review_url = rb_uri("r/$rid/");
+        if ($opt_publish) {
+            rb_review_request_publish($rid);
+            print "Review request $rid published ($review_url)\n";
+        }
+        else {
+            print "Review request $rid is ready ($review_url).\n";
+            print "Be sure to publish when finished.\n";
+        }
     }
-
-    my $review_url = rb_uri("r/$rid/");
-    if ($opt_publish) {
-        rb_review_request_publish($rid);
-        print "Review request $rid published ($review_url)\n";
-    }
-    else {
-        print "Review request $rid is ready ($review_url).\n";
-        print "Be sure to publish when finished.\n";
-    }
-
 }
 
 sub do_rr_submit {
