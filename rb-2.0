@@ -2,22 +2,6 @@
 #
 # Perl replacement for Review Board's post-review script for use with perforce only.
 #
-#
-# Here's a summary from the Review Board docs for the REST API:
-#
-# ---------------------------------------------------------------------
-# Resource URLs
-#
-# Resources are arranged in consistent, clean URLs underneath
-# /api/. The top-level “root” resource is at /api/ and is used as a
-# starting point for finding other resources.
-#
-# It's highly recommended that clients browse through the resources by
-# following their links, rather than hard-coding the paths. This will
-# help keep your client forward-compatible with future versions of
-# Review Board, in case any of these paths end up changing.
-# --------------------------------------------------------------------- 
-#
 # The docs for the Web API can be found here:
 #
 # http://www.reviewboard.org/docs/manual/dev/webapi/2.0/
