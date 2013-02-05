@@ -681,6 +681,9 @@ def parse_options(parser):
     options, args = parser.parse_args()
     if args[0] == "rr" or args[0] == "reviewrequest":
         print "Use of 'rr' or 'reviewrequest' is no longer required."
+        if len(args) == 1:
+            print "Need a commmand - either create, edit or submit."
+            sys.exit(1)
         args = args[1:]
     action = args[0]
     args = args[1:]
