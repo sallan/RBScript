@@ -607,13 +607,13 @@ Create, update and submit review requests.
 
 This script is a wrapper to the post-review script that comes with Review Board.
 It can only be used with perforce and provides some additional functionality related
-to perforce.  The work flow is create/update/submit. The options for each are described
+to perforce.  The work flow is create/edit/submit. The options for each are described
 below.
 
 """
 
     parser = optparse.OptionParser(
-        usage="%prog [OPTIONS] create|update|submit [changenum]",
+        usage="%prog [OPTIONS] create|edit|submit [changenum]",
         description=description
     )
     parser.add_option("-d", "--debug",
@@ -631,7 +631,7 @@ below.
         dest="edit", action="store_true", default=False,
         help="Edit the change list before submitting.")
 
-    edit_group = optparse.OptionGroup(parser, "Create and Update Options")
+    edit_group = optparse.OptionGroup(parser, "Create and Edit Options")
     edit_group.add_option("-p", "--publish",
         dest="publish", action="store_true", default=False,
         help="Publish the review.")
@@ -799,6 +799,8 @@ def main():
 
     actions = {
         "create": lambda: create_review(review, p4),
+        "new": lambda: create_review(review, p4),
+        "edit": lambda: update_review(review, p4),
         "update": lambda: update_review(review, p4),
         "submit": lambda: submit_review(review, p4),
     }
