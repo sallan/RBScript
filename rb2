@@ -1414,9 +1414,6 @@ sub do_reviewrequest {
     if ( defined( $sub_abbr{$cmd} ) ) {
         $cmd = $sub_abbr{$cmd};
     }
-    else {
-        usage();
-    }
     if ( defined( $sub_cmds{$cmd} ) ) {
         eval("do_rr_$cmd");
         die($@) if $@;
