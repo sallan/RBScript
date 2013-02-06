@@ -1261,8 +1261,7 @@ my %sub_cmds = (
 # TODO: do we want these? Do they even work?
 my %sub_abbr = (
     'new' => 'create',
-    'updat' => 'edit',
-    'del' => 'delete'
+    'update' => 'edit',
 );
 
 my %top_cmds = (
@@ -1414,6 +1413,9 @@ sub do_reviewrequest {
     my $cmd = shift(@ARGV);
     if ( defined( $sub_abbr{$cmd} ) ) {
         $cmd = $sub_abbr{$cmd};
+    }
+    else {
+        usage();
     }
     if ( defined( $sub_cmds{$cmd} ) ) {
         eval("do_rr_$cmd");
