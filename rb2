@@ -66,7 +66,7 @@ my %custom_error_messages = (
 # versions.
 my $ua;
 if ( new_lwp($LWP::UserAgent::VERSION) ) {
-    $ua = LWP::UserAgent->new( ssl_opts => { verify_hostname => 0 } );
+    $ua = LWP::UserAgent->new( ssl_opts => { verify_hostname => 0, SSL_verify_mode => 0x00 } );
 }
 else {
     $ua = LWP::UserAgent->new();
@@ -1359,9 +1359,21 @@ updated to work with the new Review Board Web API. The functionality has been
 distilled to the common workflow of creating, editing and submitting reviews.
 It only works with Perforce and is support on Linux and Mac.
 
-DEPRECATION WARNING
+Deprecation Warning:
 
-<INSERT SOMETHING PITHY HERE>
+If you're on a shared dev system or a system with Python 2.5 or greater,
+it is highly recommended you use either post, or post-review.
+For more information, see:
+
+/build/cm/bin/post --help
+
+http://www.reviewboard.org/docs/manual/1.6/users/tools/post-review/#post-review
+
+
+Commands:
+  create
+  edit
+  submit
 
 Options:
   -h, --help            show this help message and exit
@@ -1380,10 +1392,9 @@ Options:
     --changeset=<num>   Create or update using this perforce changeset number.
     --shelve            Create or update p4 shelve for the files in the
                         review.
-    --diff-only         Uploads a new diff, but does not update information
+    --update-diff       Uploads a new diff, but does not update information
                         from change list.
-    --change-only       Updates info from change list, but does not upload
-                        diff.
+    --update-all        Updates diff and all information in change list.
     --testing-done=<string>
                         Description of testing done.
     --testing-done-file=<filename>
@@ -1394,6 +1405,8 @@ Options:
                         requirements.
     -e, --edit-changelist
                         Edit the change list before submitting.
+
+
 
 EOH
 
@@ -1484,6 +1497,9 @@ sub do_reviewrequest {
     if ( defined( $sub_cmds{$cmd} ) ) {
         eval("do_rr_$cmd");
         die($@) if $@;
+    }
+    else {
+        usage();
     }
 }
 
