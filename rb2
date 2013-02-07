@@ -617,9 +617,34 @@ sub rb_review_request_add_shelve_comment {
     return rb_exec_request($request);
 }
 
+sub rb_use_old_api {
+    my $old_api = 1;
+    my $version = rb_get_version();
+    my @version = split( /\./, $version, 3 );
+    if ( @version < 2 ) {
+        die "ERROR: Unexpected RB version error: ", $version, "\n";
+    }
+    my ( $major, $minor ) = @version[ 0, 1 ];
+    if ( $major > 1 ) {
+        $old_api = 0;
+    }
+    else {
+        if ( $minor > 5 ) {
+            $old_api = 0;
+        }
+    }
+    return $old_api;
+}
+
 sub rb_review_request_set_changelist {
     my ( $rid, $changelist ) = @_;
-    my $uri     = rb_uri("api/review-requests/$rid/");
+    my $uri;
+    if ( rb_use_old_api() ) {
+        return;
+    }
+    else {
+        $uri = rb_uri("api/review-requests/$rid/");
+    }
     my $request = HTTP::Request::Common::PUT( $uri,
         Content => "changenum=$changelist" );
     return rb_exec_request($request);
@@ -627,10 +652,34 @@ sub rb_review_request_set_changelist {
 
 sub rb_review_request_set_status {
     my ( $rid, $status ) = @_;
-    my $uri = rb_uri("api/review-requests/$rid/");
-    my $request
-        = HTTP::Request::Common::PUT( $uri, Content => "status=$status" );
-    return rb_exec_request($request);
+    my $uri;
+    if ( rb_use_old_api() ) {
+        my $uri = rb_uri("api/json/reviewrequests/$rid/$status/");
+        if ( "$status" eq "submitted" or "$status" eq "discarded" ) {
+            $uri = rb_uri("api/json/reviewrequests/$rid/close/$status/");
+        }
+
+        my $request = HTTP::Request::Common::POST(
+            $uri,
+            Content_Type => 'form-data',
+            Content      => [ 'id' => $rid ]
+        );
+
+      # This is unfortunate: $status returns HTTP code 302 with no content, so
+      # we cannot use rb_exec_request()
+        my $response = http_transaction($request);
+        if ( !$response->is_success() && !$response->is_redirect() ) {
+            my $errcode = $response->code();
+            my $errmsg  = $response->message();
+            die("Error: server returned error $errcode ($errmsg)\n");
+        }
+    }
+    else {
+        $uri = rb_uri("api/review-requests/$rid/");
+        my $request
+            = HTTP::Request::Common::PUT( $uri, Content => "status=$status" );
+        return rb_exec_request($request);
+    }
 }
 
 sub rb_review_request_draft_set_field {
@@ -672,7 +721,7 @@ sub rb_review_request_review_get_ship_its {
     for my $review (@reviews) {
         if ( $review->{'ship_it'} eq 'true' ) {
             my $reviewer_name = rb_review_get_reviewer_name($review);
-            $reviewers{ $reviewer_name } = 1;
+            $reviewers{$reviewer_name} = 1;
         }
     }
     return keys(%reviewers);
@@ -680,9 +729,9 @@ sub rb_review_request_review_get_ship_its {
 
 sub rb_review_get_reviewer_name {
     my ($review) = @_;
-    my $uri = $review->{'links'}->{'user'}->{'href'};
-    my $request = HTTP::Request::Common::GET($uri);
-    my $user = (rb_exec_request($request))[1];
+    my $uri      = $review->{'links'}->{'user'}->{'href'};
+    my $request  = HTTP::Request::Common::GET($uri);
+    my $user     = ( rb_exec_request($request) )[1];
     return $user->{'fullname'};
 }
 
@@ -723,6 +772,26 @@ sub rb_diff_header {
     push( @dh, "--- $depot_file\t$depot_file#$depot_rev\n" );
     push( @dh, "+++ $depot_file\t$ts\n" );
     return @dh;
+}
+
+sub rb_get_version {
+    my $rb_info = rb_get_api_info();
+    return $rb_info->{'product'}->{'version'};
+}
+
+sub rb_get_api {
+    my $api_uri = rb_uri('api/');
+    my $request = HTTP::Request::Common::GET($api_uri);
+    my %result  = rb_exec_request($request);
+    return $result{'links'};
+}
+
+sub rb_get_api_info {
+    my $api     = rb_get_api();
+    my $uri     = $api->{'info'}->{'href'};
+    my $request = HTTP::Request::Common::GET($uri);
+    my %result  = rb_exec_request($request);
+    return $result{'info'};
 }
 
 ###
@@ -1260,12 +1329,12 @@ my %sub_cmds = (
 
 # TODO: do we want these? Do they even work?
 my %sub_abbr = (
-    'new' => 'create',
+    'new'    => 'create',
     'update' => 'edit',
 );
 
 my %top_cmds = (
-    'help' => "\n" . "This text\n",
+    'help'          => "\n" . "This text\n",
     'reviewrequest' => "[subcommand] [args]\n"
         . "Manipulate reviewrequest object.\n"
         . "Subcommands:\n\t"
@@ -1274,9 +1343,7 @@ my %top_cmds = (
 );
 
 # TODO: We can probably get rid of this.
-my %top_abbr = (
-    'rr'      => 'reviewrequest',
-);
+my %top_abbr = ( 'rr' => 'reviewrequest', );
 
 sub usage {
     use File::Basename;
@@ -1810,11 +1877,13 @@ sub do_rr_submit {
             }
         }
         my $submitted_change = p4_submit_cset( $cset_id, $opt_edit );
+
         if ( defined $submitted_change ) {
             rb_review_request_set_changelist( $rid, $submitted_change );
             print "Change $submitted_change submitted.\n";
         }
     }
+
     rb_review_request_set_status( $rid, 'submitted' );
     print "Review $rid closed.\n";
 }
@@ -1846,6 +1915,7 @@ while ( scalar(@ARGV) > 0 ) {
         ++$verbose_level;
     }
     elsif ( $ARGV[0] eq '-d' || $ARGV[0] eq '--debug' ) {
+
         # This causes all HTTP request objects to get dumped to the screen.
         # Occasionally useful, but -v -v is usally more what you want.
         shift(@ARGV);
