@@ -1331,24 +1331,6 @@ my %sub_cmds = (
         . "Submit given reviewrequest. \n\t--asis   Don't check for or add reviewers names.\n\t--force  Submit even if not reviewed.\n\t--edit   Edit changelist first.\n",
 );
 
-# TODO: do we want these? Do they even work?
-my %sub_abbr = (
-    'new'    => 'create',
-    'update' => 'edit',
-);
-
-my %top_cmds = (
-    'help'          => "\n" . "This text\n",
-    'reviewrequest' => "[subcommand] [args]\n"
-        . "Manipulate reviewrequest object.\n"
-        . "Subcommands:\n\t"
-        . join( "\n\t", keys(%sub_cmds) ) . "\n"
-        . "For help on a specific subcommand, try \"$0 help reviewrequest <subcommand>\"\n",
-);
-
-# TODO: We can probably get rid of this.
-my %top_abbr = ( 'rr' => 'reviewrequest', );
-
 sub do_login {
 
     #   my $opt_ssl      = undef;
@@ -1379,39 +1361,6 @@ sub do_login {
     system("stty echo");
     die "Empty password!\n" unless $password;
     return ( $username, $password );
-}
-
-sub do_reviewrequest {
-    if ( scalar(@ARGV) == 0 ) {
-        usage();
-    }
-    my $cmd = shift(@ARGV);
-    if ( defined( $sub_abbr{$cmd} ) ) {
-        $cmd = $sub_abbr{$cmd};
-    }
-    if ( defined( $sub_cmds{$cmd} ) ) {
-        eval("do_rr_$cmd");
-        die($@) if $@;
-    }
-    else {
-        usage();
-    }
-}
-
-sub do_rr_help {
-    if ( scalar(@ARGV) == 0 ) {
-        usage();
-    }
-    my $cmd = shift(@ARGV);
-    if ( defined( $sub_abbr{$cmd} ) ) {
-        $cmd = $sub_abbr{$cmd};
-    }
-    if ( defined( $sub_cmds{$cmd} ) ) {
-        print STDERR "$0 reviewrequest $cmd " . $sub_cmds{$cmd};
-    }
-    else {
-        usage();
-    }
 }
 
 sub do_rr_create {
@@ -1756,26 +1705,6 @@ EOH
     exit();
 }
 
-sub do_help {
-    if ( scalar(@ARGV) == 0 ) {
-        usage();
-    }
-    my $cmd = shift(@ARGV);
-    if ( defined( $top_abbr{$cmd} ) ) {
-        $cmd = $top_abbr{$cmd};
-    }
-    if ( $cmd eq 'reviewrequest' && scalar(@ARGV) > 0 ) {
-        do_rr_help();
-        return;
-    }
-    if ( defined( $top_cmds{$cmd} ) ) {
-        print STDERR "$0 $cmd " . $top_cmds{$cmd};
-    }
-    else {
-        usage();
-    }
-}
-
 ########################################
 ### Main
 ########################################
@@ -1836,7 +1765,10 @@ if (@ARGV) {
 }
 
 # TODO: sanity check and process the change number here
+# DO STUFF HERE
+# END TODO
 
+# A user P4DIFF could interfere with our diff
 delete $ENV{'P4DIFF'};
 
 # Process preferences
@@ -1858,21 +1790,10 @@ $ua->cookie_jar(
 $ua->timeout( $prefs{'timeout'} );
 
 # call command
+# TODO: Remove this print after testing
 print "EXECUTING $cmd\n";
 $actions{$cmd}->($opt_cset, $opts);
 exit;
-
-if ( defined( $top_abbr{$cmd} ) ) {
-    $cmd = $top_abbr{$cmd};
-}
-if ( defined( $top_cmds{$cmd} ) ) {
-    eval("do_$cmd");
-    die($@) if $@;
-}
-else {
-    unshift( @ARGV, $cmd );
-    do_reviewrequest();
-}
 
 __END__
 
