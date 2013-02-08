@@ -24,6 +24,9 @@ use HTTP::Request::Common;
 use HTTP::Response;
 use LWP::UserAgent;
 
+# Don't buffer stdout
+$|++;
+
 # Globals
 my $home = $ENV{'HOME'};
 my %prefs;
@@ -66,7 +69,8 @@ my %custom_error_messages = (
 # versions.
 my $ua;
 if ( new_lwp($LWP::UserAgent::VERSION) ) {
-    $ua = LWP::UserAgent->new( ssl_opts => { verify_hostname => 0, SSL_verify_mode => 0x00 } );
+    $ua = LWP::UserAgent->new(
+        ssl_opts => { verify_hostname => 0, SSL_verify_mode => 0x00 } );
 }
 else {
     $ua = LWP::UserAgent->new();
@@ -1345,6 +1349,344 @@ my %top_cmds = (
 # TODO: We can probably get rid of this.
 my %top_abbr = ( 'rr' => 'reviewrequest', );
 
+sub do_login {
+
+    #   my $opt_ssl      = undef;
+    #   my $opt_server   = '';
+    my $opt_username = '';
+    my $opt_password = '';
+
+    # If no user name in prefs, try to find a default.
+    if ( !defined( $prefs{'username'} ) ) {
+        if ( defined( $ENV{'P4USER'} ) ) {
+            $prefs{'username'} = $ENV{'P4USER'};
+        }
+        else {
+            $prefs{'username'} = $ENV{'USER'};
+        }
+        prefs_save();
+    }
+    my $username = $prefs{'username'};
+    die "Need a Review Board username.\n" unless $username;
+
+    # Prompt user for password
+    my $password = '';
+    system("stty -echo");
+    print "Password required for $username\n";
+    print "Password: ";
+    chomp( $password = <> );
+    print "\n";
+    system("stty echo");
+    die "Empty password!\n" unless $password;
+    return ( $username, $password );
+}
+
+sub do_reviewrequest {
+    if ( scalar(@ARGV) == 0 ) {
+        usage();
+    }
+    my $cmd = shift(@ARGV);
+    if ( defined( $sub_abbr{$cmd} ) ) {
+        $cmd = $sub_abbr{$cmd};
+    }
+    if ( defined( $sub_cmds{$cmd} ) ) {
+        eval("do_rr_$cmd");
+        die($@) if $@;
+    }
+    else {
+        usage();
+    }
+}
+
+sub do_rr_help {
+    if ( scalar(@ARGV) == 0 ) {
+        usage();
+    }
+    my $cmd = shift(@ARGV);
+    if ( defined( $sub_abbr{$cmd} ) ) {
+        $cmd = $sub_abbr{$cmd};
+    }
+    if ( defined( $sub_cmds{$cmd} ) ) {
+        print STDERR "$0 reviewrequest $cmd " . $sub_cmds{$cmd};
+    }
+    else {
+        usage();
+    }
+}
+
+sub do_rr_create {
+    my ( $change_list, $opts ) = @_;
+    my %p4info = p4_info();
+
+    # If no changeset is given, create one.
+    if ( not $change_list ) {
+
+        # We want to launch the user's editor via "p4 change" and extract the
+        # changeset number from stdout.  Unfortunately, we can't do both with
+        # a single command: backticks redirect stdio so that the editor cannot
+        # be used and system() does not capture output.  So we use a tempfile.
+        use File::Temp qw/:mktemp/;
+        my $tmpfile = mktemp("rbtmp.XXXXXX");
+        my $editor = $ENV{'P4EDITOR'} || $ENV{'EDITOR'} || 'vi';
+        system("p4 change -o > $tmpfile");
+        if ( $? != 0 || !-f $tmpfile ) {
+            unlink($tmpfile);
+            die("Cannot create new changeset\n");
+        }
+        my @st1 = stat($tmpfile);
+        system("$editor $tmpfile");
+        if ( $? != 0 || !-f $tmpfile ) {
+            unlink($tmpfile);
+            die("Edit failed for $tmpfile\n");
+        }
+        my @st2 = stat($tmpfile);
+        if (   $st1[7] == $st2[7]
+            && $st1[9] == $st2[9] )
+        {
+            die("No change, not creating review request\n");
+        }
+        my $change_cmd = ( $$opts->{'shelve'} ? 'shelve' : 'change' );
+        my @change_lines = `p4 $change_cmd -i < $tmpfile`;
+        if ( $? != 0 ) {
+            unlink($tmpfile);
+            die("Cannot save changeset from $tmpfile\n");
+        }
+        chop(@change_lines);
+        unlink($tmpfile);
+        if ( $change_lines[0] !~ /Change (\d+) created/ ) {
+            die("Cannot find changeset number.\n");
+        }
+        $change_list = $1;
+    }
+    else {
+        # Make sure we own the changelist
+        my $p4_user    = $p4info{'User name'};
+        my $cset_owner = p4_cset_owner($change_list);
+        unless ( $cset_owner eq $p4_user ) {
+            die
+                "ERROR: Perforce change $change_list is owned by $cset_owner - you are running as $p4_user.\n";
+        }
+    }
+
+    # TODO: clean up this mess - how do we get bugs into review?
+
+#   my @jobs = ();
+#   my %cset = p4_cset_get($change_list);
+#   if ( $cset{'Jobs'} ) {
+#
+#       # Note that Perforce requires multi line format for Jobs.  It
+#       # will ensure that there is exactly one job name per line, that
+#       # all job names exist, and that there is whitespace between the
+#       # job names and trailing octothorpe.  So all we need to do is
+#       # save the first word from each line in the Jobs field.
+#       foreach ( @{ $cset{'Jobs'} } ) {
+#           if (m/^\s*(\d+)/) {
+#               push( @jobs, $1 );
+#           }
+#           else {
+#               warn "WARN: Ignoring unrecognized bug number '$_'\n";
+#           }
+#       }
+#   }
+
+    my @diff_lines   = p4_diff_cset($change_list);
+    my $diff_content = '';
+    foreach (@diff_lines) {
+        $diff_content .= $_;
+    }
+    if ( !$diff_content ) {
+        die("Diff is empty.\n");
+    }
+
+    my %data
+        = rb_review_request_create( $p4info{'Server address'}, $change_list );
+    my %rr  = %{ $data{'review_request'} };
+    my $rid = $rr{'id'};
+    rb_upload_diff( $rid, $p4info{'Server address'}, $diff_content );
+
+    # Call do_rr_edit to do the heavy lifting.
+    #   @ARGV = @args;
+    #   push( @ARGV, $rid );
+    do_rr_edit( $rid, $opts );
+
+    if ($opts->{'shelve'}) {
+        rb_review_request_add_shelve_comment( $rid, $change_list );
+    }
+
+    my $review_url = rb_uri("r/$rid/");
+    if ( $opts->{'publish'} ) {
+        rb_review_request_publish($rid);
+        print "Review request $rid published ($review_url)\n";
+    }
+    else {
+        print "Review request $rid is ready ($review_url).\n";
+        print "Be sure to publish when finished.\n";
+    }
+}
+
+sub do_rr_edit {
+    my ( $rid, $opts ) = @_;
+
+    my %data = rb_review_request_get($rid);
+    my %rr   = %{ $data{'review_request'} };
+
+    # If we're updating status, just do that and exit.
+    if ($opt_status) {
+        if (   $opt_status ne 'submitted'
+            && $opt_status ne 'discarded'
+            && $opt_status ne 'pending'
+            && $opt_status ne 'reopen' )
+        {
+            usage();
+        }
+        else {
+            # What we think of as reopen, RB calls pending.
+            my $status = $opt_status eq 'reopen' ? 'pending' : $opt_status;
+            rb_review_request_set_status( $rid, $status );
+            print "Status changed to: $opt_status\n";
+            exit;
+        }
+    }
+
+    my $changed = 0;
+    if ($opt_cset) {
+        rb_review_request_draft_set_field( $rid, 'changenum', $opt_cset );
+        $rr{'changenum'} = $opt_cset;
+        $changed = 1;
+    }
+    my %cset = p4_cset_get( $rr{'changenum'} );
+    if ( $opts->{'groups'} ) {
+        my $opt_gropus = $opts->{'tg'};
+        rb_review_request_draft_set_field( $rid, 'target_groups',
+            $opt_groups );
+        $rr{'target_groups'} = $opt_groups;
+        $changed = 1;
+    }
+    if ($opts->{'tp'}) {
+        my $opt_people = $opts->{'tp'};
+        rb_review_request_draft_set_field( $rid, 'target_people',
+            $opt_people );
+        $rr{'target_people'} = $opt_people;
+        $changed = 1;
+    }
+
+    if ( $opts->{'update-all'} ) {
+        my $description = join( "\n", @{ $cset{'Description'} } );
+        rb_review_request_draft_set_field( $rid, 'description',
+            $description );
+        $rr{'description'} = join( '\n', @{ $cset{'Description'} } );
+
+        my $summary = ${ $cset{'Description'} }[0];
+        rb_review_request_draft_set_field( $rid, 'summary', $summary );
+        $rr{'summary'} = ${ $cset{'Description'} }[0];
+
+        my @jobs;
+        foreach ( @{ $cset{'Jobs'} } ) {
+            m/^\s*(\S+)/;
+            push( @jobs, $1 );
+        }
+        my $bugs = join( ',', @jobs );
+        rb_review_request_draft_set_field( $rid, 'bugs_closed', $bugs );
+        $rr{'bugs_closed'} = $bugs;
+        $changed = 1;
+    }
+
+    if ( $opts->{'update-diff'} or $opts->{'update-all'} ) {
+        my %p4info       = p4_info();
+        my @diff_lines   = p4_diff_cset( $rr{'changenum'} );
+        my $diff_content = '';
+        foreach (@diff_lines) {
+            $diff_content .= $_;
+        }
+        if ( !$diff_content ) {
+            die("Diff is empty.\n");
+        }
+
+        if ($opts->{'shelve'}) {
+            p4_update_shelve( $rid, $rr{'changenum'} );
+            rb_review_request_add_shelve_comment( $rid, $rr{'changenum'} );
+        }
+        rb_upload_diff( $rid, $p4info{'Server address'}, $diff_content );
+        $changed = 1;
+    }
+
+    if ($changed) {
+        my $review_url = rb_uri("r/$rid/");
+        if ( $opts->{'publish'} ) {
+            rb_review_request_publish($rid);
+            print "Review request $rid published ($review_url)\n";
+        }
+        else {
+            print "Review request $rid is ready ($review_url).\n";
+            print "Be sure to publish when finished.\n";
+        }
+    }
+}
+
+sub do_rr_submit {
+    my ( $rid, $opts ) = @_;
+
+    unless ($rid) {
+        die "Need the change list number for this review.\n";
+    }
+
+    my %data    = rb_review_request_get($rid);
+    my %rr      = %{ $data{'review_request'} };
+    my $cset_id = $rr{'changenum'};
+    if ( !$cset_id ) {
+        die("Cannot find changeset in review request.\n");
+    }
+    if ( $rr{'status'} ne 'pending' ) {
+        die("Review request is not pending\n");
+    }
+
+    my %cset = p4_cset_get($cset_id);
+    if ( $cset{'Status'} ne 'pending' ) {
+        unless ( $opts->{'force'} ) {
+            die("Changeset is not pending\n");
+        }
+    }
+
+    if ( $cset{'Status'} eq 'pending' ) {
+        my @reviewers = rb_review_request_review_get_ship_its($rid);
+        if (@reviewers) {
+            p4_cset_set_meta( %cset, 'Reviewed by',
+                join( ', ', @reviewers ) );
+        }
+        else {
+            unless ( $opts->{'force'} ) {
+                die("No reviews marked Ship It. You may use --force to submit anyway.\n"
+                );
+            }
+        }
+
+        p4_cset_set_meta( %cset, 'Reviewboard', $rid );
+        p4_cset_put(%cset);
+        if ( p4_change_is_shelved($cset_id) ) {
+            if ( $opts->{'force'} ) {
+                p4_delete_shelve($cset_id);
+            }
+            else {
+                die "Error: Cannot submit a shelved change ($cset_id).\n"
+                    . "       You may use --force to delete the shelved change\n"
+                    . "       automatically prior to submit.\n";
+            }
+        }
+        my $submitted_change = p4_submit_cset( $cset_id, $opts->{'edit'} );
+
+        if ( defined $submitted_change ) {
+            rb_review_request_set_changelist( $rid, $submitted_change );
+            print "Change $submitted_change submitted.\n";
+        }
+    }
+
+    rb_review_request_set_status( $rid, 'submitted' );
+    print "Review $rid closed.\n";
+}
+
+####
+#### Usage and Help
+####
 sub usage {
     use File::Basename;
     my $prog = basename $0;
@@ -1434,485 +1776,78 @@ sub do_help {
     }
 }
 
-sub do_login {
-    my $opt_ssl      = undef;
-    my $opt_server   = '';
-    my $opt_username = '';
-    my $opt_password = '';
-
-    if (!GetOptions(
-            'ssl!'       => \$opt_ssl,
-            'server=s'   => \$opt_server,
-            'username=s' => \$opt_username,
-        )
-        )
-    {
-        usage();
-    }
-
-    # Put any options we received into the prefs file.
-    if ( defined($opt_ssl) ) {
-        $prefs{'use_ssl'} = $opt_ssl;
-    }
-    if ($opt_server) {
-        $prefs{'server'} = $opt_server;
-    }
-
-    if ($opt_username) {
-        $prefs{'username'} = $opt_username;
-    }
-
-    # If no user name in prefs, try to find a default.
-    if ( !defined( $prefs{'username'} ) ) {
-        if ( defined( $ENV{'P4USER'} ) ) {
-            $prefs{'username'} = $ENV{'P4USER'};
-        }
-        else {
-            $prefs{'username'} = $ENV{'USER'};
-        }
-    }
-    prefs_save();
-    my $username = $prefs{'username'};
-    die "Need a Review Board username.\n" unless $username;
-
-    # Prompt user for password
-    my $password = '';
-    system("stty -echo");
-    print "Password required for $username\n";
-    print "Password: ";
-    chomp( $password = <> );
-    print "\n";
-    system("stty echo");
-    die "Empty password!\n" unless $password;
-    return ( $username, $password );
-}
-
-sub do_reviewrequest {
-    if ( scalar(@ARGV) == 0 ) {
-        usage();
-    }
-    my $cmd = shift(@ARGV);
-    if ( defined( $sub_abbr{$cmd} ) ) {
-        $cmd = $sub_abbr{$cmd};
-    }
-    if ( defined( $sub_cmds{$cmd} ) ) {
-        eval("do_rr_$cmd");
-        die($@) if $@;
-    }
-    else {
-        usage();
-    }
-}
-
-sub do_rr_help {
-    if ( scalar(@ARGV) == 0 ) {
-        usage();
-    }
-    my $cmd = shift(@ARGV);
-    if ( defined( $sub_abbr{$cmd} ) ) {
-        $cmd = $sub_abbr{$cmd};
-    }
-    if ( defined( $sub_cmds{$cmd} ) ) {
-        print STDERR "$0 reviewrequest $cmd " . $sub_cmds{$cmd};
-    }
-    else {
-        usage();
-    }
-}
-
-sub do_rr_create {
-    my $opt_cset        = '';
-    my $opt_bugs        = '';
-    my $opt_groups      = '';
-    my $opt_people      = '';
-    my $opt_summary     = '';
-    my $opt_description = '';
-    my $opt_status      = '';
-    my $opt_submit_as   = '';
-    my $opt_publish     = 0;
-    my $opt_shelve      = 0;
-
-    my @args = @ARGV;
-
-    my %p4info = p4_info();
-
-    if (!GetOptions(
-            'changeset|cset=s'   => \$opt_cset,
-            'bugs|cr=s'          => \$opt_bugs,
-            'target-groups|tg=s' => \$opt_groups,
-            'target-people|tp=s' => \$opt_people,
-            'summary=s'          => \$opt_summary,
-            'description=s'      => \$opt_description,
-            'status=s'           => \$opt_status,
-            'publish'            => \$opt_publish,
-            'shelve'             => \$opt_shelve,
-            'submit-as=s'        => \$opt_submit_as
-        )
-        )
-    {
-        usage();
-    }
-    if ( scalar(@ARGV) != 0 ) {
-        usage();
-    }
-
-    # If no changeset is given, create one.
-    if ( !$opt_cset ) {
-
-        # We want to launch the user's editor via "p4 change" and extract the
-        # changeset number from stdout.  Unfortunately, we can't do both with
-        # a single command: backticks redirect stdio so that the editor cannot
-        # be used and system() does not capture output.  So we use a tempfile.
-        use File::Temp qw/:mktemp/;
-        my $tmpfile = mktemp("rbtmp.XXXXXX");
-        my $editor = $ENV{'P4EDITOR'} || $ENV{'EDITOR'} || 'vi';
-        system("p4 change -o > $tmpfile");
-        if ( $? != 0 || !-f $tmpfile ) {
-            unlink($tmpfile);
-            die("Cannot create new changeset\n");
-        }
-        my @st1 = stat($tmpfile);
-        system("$editor $tmpfile");
-        if ( $? != 0 || !-f $tmpfile ) {
-            unlink($tmpfile);
-            die("Edit failed for $tmpfile\n");
-        }
-        my @st2 = stat($tmpfile);
-        if (   $st1[7] == $st2[7]
-            && $st1[9] == $st2[9] )
-        {
-            die("No change, not creating review request\n");
-        }
-        my $change_cmd = ( $opt_shelve ? 'shelve' : 'change' );
-        my @change_lines = `p4 $change_cmd -i < $tmpfile`;
-        if ( $? != 0 ) {
-            unlink($tmpfile);
-            die("Cannot save changeset from $tmpfile\n");
-        }
-        chop(@change_lines);
-        unlink($tmpfile);
-        if ( $change_lines[0] !~ /Change (\d+) created/ ) {
-            die("Cannot find changeset number.\n");
-        }
-        $opt_cset = $1;
-    }
-    else {
-        # Make sure we own the changelist
-        my $p4_user    = $p4info{'User name'};
-        my $cset_owner = p4_cset_owner($opt_cset);
-        unless ( $cset_owner eq $p4_user ) {
-            die
-                "ERROR: Perforce change $opt_cset is owned by $cset_owner - you are running as $p4_user.\n";
-        }
-    }
-
-    if ( !$opt_bugs ) {
-        my %cset = p4_cset_get($opt_cset);
-        if ( $cset{'Jobs'} ) {
-
-            # Note that Perforce requires multi line format for Jobs.  It
-            # will ensure that there is exactly one job name per line, that
-            # all job names exist, and that there is whitespace between the
-            # job names and trailing octothorpe.  So all we need to do is
-            # save the first word from each line in the Jobs field.
-            my @jobs;
-            foreach ( @{ $cset{'Jobs'} } ) {
-                if (m/^\s*(\d+)/) {
-                    push( @jobs, $1 );
-                }
-                else {
-                    warn "WARN: Ignoring unrecognized bug number '$_'\n";
-                }
-            }
-            $opt_bugs = join( ',', @jobs );
-        }
-        else {
-            my $crtext = p4_cset_get_meta( %cset, 'CR' );
-            if ( $crtext !~ /^\s*([\d,]*)\s*$/ ) {
-                die("Invalid CR text \"$crtext\"\n");
-            }
-            $opt_bugs = $crtext;
-        }
-        if ($opt_bugs) {
-            push( @args, "--bugs=$opt_bugs" );
-        }
-    }
-
-    my @diff_lines   = p4_diff_cset($opt_cset);
-    my $diff_content = '';
-    foreach (@diff_lines) {
-        $diff_content .= $_;
-    }
-    if ( !$diff_content ) {
-        die("Diff is empty.\n");
-    }
-
-    my %data = rb_review_request_create( $p4info{'Server address'},
-        $opt_cset, $opt_submit_as );
-    my %rr  = %{ $data{'review_request'} };
-    my $rid = $rr{'id'};
-    rb_upload_diff( $rid, $p4info{'Server address'}, $diff_content );
-
-    # Call do_rr_edit to do the heavy lifting.
-    @ARGV = @args;
-    push( @ARGV, $rid );
-    do_rr_edit();
-
-    if ($opt_shelve) {
-        rb_review_request_add_shelve_comment( $rid, $opt_cset );
-    }
-
-    my $review_url = rb_uri("r/$rid/");
-    if ($opt_publish) {
-        rb_review_request_publish($rid);
-        print "Review request $rid published ($review_url)\n";
-    }
-    else {
-        print "Review request $rid is ready ($review_url).\n";
-        print "Be sure to publish when finished.\n";
-    }
-}
-
-sub do_rr_edit {
-    my $opt_cset               = '';
-    my $opt_bugs               = '';
-    my $opt_groups             = '';
-    my $opt_people             = '';
-    my $opt_summary            = '';
-    my $opt_description        = '';
-    my $opt_status             = '';
-    my $opt_submit_as          = '';
-    my $opt_update_description = 0;
-    my $opt_update_summary     = 0;
-    my $opt_update_bugs        = 0;
-    my $opt_update_diff        = 0;
-    my $opt_update_all         = 0;
-    my $opt_shelve             = 0;
-    my $opt_publish            = 0;
-
-    if (!GetOptions(
-            'changeset|cset=s'   => \$opt_cset,
-            'bugs|cr=s'          => \$opt_bugs,
-            'target-groups|tg=s' => \$opt_groups,
-            'target-people|tp=s' => \$opt_people,
-            'summary=s'          => \$opt_summary,
-            'description=s'      => \$opt_description,
-            'status=s'           => \$opt_status,
-            'publish'            => \$opt_publish,
-            'submit-as=s'        => \$opt_submit_as,
-            'shelve'             => \$opt_shelve,
-            'update-description' => \$opt_update_description,
-            'update-summary'     => \$opt_update_summary,
-            'update-bugs'        => \$opt_update_bugs,
-            'update-diff'        => \$opt_update_diff,
-            'update-all'         => \$opt_update_all
-        )
-        )
-    {
-        usage();
-    }
-    if ( scalar(@ARGV) != 1 ) {
-        usage();
-    }
-    my $rid  = shift @ARGV;
-    my %data = rb_review_request_get($rid);
-    my %rr   = %{ $data{'review_request'} };
-
-    # If we're updating status, just do that and exit.
-    if ($opt_status) {
-        if (   $opt_status ne 'submitted'
-            && $opt_status ne 'discarded'
-            && $opt_status ne 'pending'
-            && $opt_status ne 'reopen' )
-        {
-            usage();
-        }
-        else {
-            # What we think of as reopen, RB calls pending.
-            my $status = $opt_status eq 'reopen' ? 'pending' : $opt_status;
-            rb_review_request_set_status( $rid, $status );
-            print "Status changed to: $opt_status\n";
-            exit;
-        }
-    }
-
-    my $changed = 0;
-    if ($opt_cset) {
-        rb_review_request_draft_set_field( $rid, 'changenum', $opt_cset );
-        $rr{'changenum'} = $opt_cset;
-        $changed = 1;
-    }
-    my %cset = p4_cset_get( $rr{'changenum'} );
-    if ($opt_groups) {
-        rb_review_request_draft_set_field( $rid, 'target_groups',
-            $opt_groups );
-        $rr{'target_groups'} = $opt_groups;
-        $changed = 1;
-    }
-    if ($opt_people) {
-        rb_review_request_draft_set_field( $rid, 'target_people',
-            $opt_people );
-        $rr{'target_people'} = $opt_people;
-        $changed = 1;
-    }
-
-    # TODO: Consider limiting this to 2 choices like post-review does.
-    if ( $opt_update_description || $opt_update_all ) {
-        my $description = join( "\n", @{ $cset{'Description'} } );
-        rb_review_request_draft_set_field( $rid, 'description',
-            $description );
-        $rr{'description'} = join( '\n', @{ $cset{'Description'} } );
-        $changed = 1;
-    }
-    if ( $opt_update_summary || $opt_update_all ) {
-        my $summary = ${ $cset{'Description'} }[0];
-        rb_review_request_draft_set_field( $rid, 'summary', $summary );
-        $rr{'summary'} = ${ $cset{'Description'} }[0];
-        $changed = 1;
-    }
-    if ($opt_update_all) {
-        my @jobs;
-        foreach ( @{ $cset{'Jobs'} } ) {
-            m/^\s*(\S+)/;
-            push( @jobs, $1 );
-        }
-        my $bugs = join( ',', @jobs );
-        rb_review_request_draft_set_field( $rid, 'bugs_closed', $bugs );
-        $rr{'bugs_closed'} = $bugs;
-        $changed = 1;
-    }
-    if ($opt_summary) {
-        rb_review_request_draft_set_field( $rid, 'summary', $opt_summary );
-        $rr{'summary'} = $opt_summary;
-        $changed = 1;
-    }
-    if ($opt_description) {
-        rb_review_request_draft_set_field( $rid, 'description',
-            $opt_description );
-        $rr{'description'} = $opt_description;
-        $changed = 1;
-    }
-    if ($opt_submit_as) {
-        rb_review_request_draft_set_field( $rid, 'submit_as',
-            $opt_submit_as );
-        $rr{'submit_as'} = $opt_submit_as;
-        $changed = 1;
-    }
-    if ( $opt_update_diff || $opt_update_all ) {
-        my %p4info       = p4_info();
-        my @diff_lines   = p4_diff_cset( $rr{'changenum'} );
-        my $diff_content = '';
-        foreach (@diff_lines) {
-            $diff_content .= $_;
-        }
-        if ( !$diff_content ) {
-            die("Diff is empty.\n");
-        }
-
-        if ($opt_shelve) {
-            p4_update_shelve( $rid, $rr{'changenum'} );
-            rb_review_request_add_shelve_comment( $rid, $rr{'changenum'} );
-        }
-        rb_upload_diff( $rid, $p4info{'Server address'}, $diff_content );
-
-        $changed = 1;
-    }
-
-    if ($changed) {
-        my $review_url = rb_uri("r/$rid/");
-        if ($opt_publish) {
-            rb_review_request_publish($rid);
-            print "Review request $rid published ($review_url)\n";
-        }
-        else {
-            print "Review request $rid is ready ($review_url).\n";
-            print "Be sure to publish when finished.\n";
-        }
-    }
-}
-
-sub do_rr_submit {
-    my $opt_asis  = '';
-    my $opt_force = 0;
-    my $opt_edit  = 0;
-
-    if (!GetOptions(
-            'asis'  => \$opt_asis,
-            'force' => \$opt_force,
-            'edit'  => \$opt_edit
-        )
-        )
-    {
-        usage();
-    }
-    if ( scalar(@ARGV) != 1 ) {
-        usage();
-    }
-    my $rid     = $ARGV[0];
-    my %data    = rb_review_request_get($rid);
-    my %rr      = %{ $data{'review_request'} };
-    my $cset_id = $rr{'changenum'};
-    if ( !$cset_id ) {
-        die("Cannot find changeset in review request.\n");
-    }
-    if ( $rr{'status'} ne 'pending' ) {
-        die("Review request is not pending\n");
-    }
-
-    my %cset = p4_cset_get($cset_id);
-    if ( $cset{'Status'} ne 'pending' ) {
-        if ( !$opt_force ) {
-            die("Changeset is not pending\n");
-        }
-    }
-
-    if ( $cset{'Status'} eq 'pending' ) {
-        if ( !$opt_asis ) {
-            my @reviewers = rb_review_request_review_get_ship_its($rid);
-            if (@reviewers) {
-                p4_cset_set_meta( %cset, 'Reviewed by',
-                    join( ', ', @reviewers ) );
-            }
-            else {
-                if ( !$opt_force ) {
-                    die("No reviews marked Ship It. You may use --force to submit anyway.\n"
-                    );
-                }
-            }
-
-            p4_cset_set_meta( %cset, 'Reviewboard', $rid );
-            p4_cset_put(%cset);
-        }
-        if ( p4_change_is_shelved($cset_id) ) {
-            if ($opt_force) {
-                p4_delete_shelve($cset_id);
-            }
-            else {
-                die "Error: Cannot submit a shelved change ($cset_id).\n"
-                    . "       You may use --force to delete the shelved change\n"
-                    . "       automatically prior to submit.\n";
-            }
-        }
-        my $submitted_change = p4_submit_cset( $cset_id, $opt_edit );
-
-        if ( defined $submitted_change ) {
-            rb_review_request_set_changelist( $rid, $submitted_change );
-            print "Change $submitted_change submitted.\n";
-        }
-    }
-
-    rb_review_request_set_status( $rid, 'submitted' );
-    print "Review $rid closed.\n";
-}
-
 ########################################
-### Main begin
+### Main
+########################################
+my $opts = {};
+GetOptions(
+    $opts,            # Hash to hold options
+    'debug',          # Print debug information
+    'verbose+',       # Increate verbosity level
+    'server=s',       # specify server name
+    'publish',        # publish the review
+    'tg=s',           # Assign review to list of groups
+    'tp=s',           # Assign review to list of users
+    'shelve',         # Shelve the files
+    'update-diff',    # Update the diff only
+    'update-all',     # Update diff and info in change list
+    'force',          # Force the submit
+    'edit',           # Edit the change before submit
+    'help',
+) or usage();
+
+if ( $opts->{'help'} or not @ARGV ) {
+    usage();
+}
+
+my $cmd = shift @ARGV;
+if ( $cmd eq 'rr' or $cmd eq 'reviewrequest' ) {
+    print "Use of 'rr' or 'reviewrequest' is no longer required.\n";
+    $cmd = shift @ARGV;
+}
+
+my %actions = (
+    'create' => \&do_rr_create,
+    'new'    => \&do_rr_create,
+    'edit'   => \&do_rr_edit,
+    'update' => \&do_rr_edit,
+    'submit' => \&do_rr_submit,
+);
+
+unless ($cmd) {
+    usage();
+}
+
+unless ( defined $actions{$cmd} ) {
+    die "Unrecognized command: $cmd\n";
+}
+
+# TODO: consider if you really want this and if so should it look more like verbose
+if ( $opts->{'debug'} ) {
+    $DEBUG = 1;
+}
+
+# Look for a possible change list number
+my $opt_cset;
+if (@ARGV) {
+
+    # TODO: Change this variable name
+    $opt_cset = shift @ARGV;
+}
+
+# TODO: sanity check and process the change number here
 
 delete $ENV{'P4DIFF'};
 
+# Process preferences
 prefs_load();
+if ($opt_server) {
+    $prefs{'server'} = $opt_server;
+    prefs_save();
+}
 p4_config_load();
 
+# Set up user agent
 $ua->cookie_jar(
     HTTP::Cookies->new(
         file         => $prefs{'cookiefile'},
@@ -1922,33 +1857,11 @@ $ua->cookie_jar(
 );
 $ua->timeout( $prefs{'timeout'} );
 
-while ( scalar(@ARGV) > 0 ) {
-    if ( $ARGV[0] eq '-q' || $ARGV[0] eq '--quiet' ) {
-        shift(@ARGV);
-        $verbose_level = 0;
-    }
-    elsif ( $ARGV[0] eq '-v' || $ARGV[0] eq '--verbose' ) {
-        shift(@ARGV);
-        ++$verbose_level;
-    }
-    elsif ( $ARGV[0] eq '-d' || $ARGV[0] eq '--debug' ) {
+# call command
+print "EXECUTING $cmd\n";
+$actions{$cmd}->($opt_cset, $opts);
+exit;
 
-        # This causes all HTTP request objects to get dumped to the screen.
-        # Occasionally useful, but -v -v is usally more what you want.
-        shift(@ARGV);
-        $DEBUG = 1;
-    }
-    elsif ( $ARGV[0] eq '-h' || $ARGV[0] eq '--help' ) {
-        usage();
-    }
-    else {
-        last;
-    }
-}
-if ( scalar(@ARGV) == 0 ) {
-    usage();
-}
-my $cmd = shift(@ARGV);
 if ( defined( $top_abbr{$cmd} ) ) {
     $cmd = $top_abbr{$cmd};
 }
