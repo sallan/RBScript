@@ -1357,7 +1357,7 @@ Create, edit and submit review requests.
 This script is a greatly-reduced version of the old rb script that has  been
 updated to work with the new Review Board Web API. The functionality has been
 distilled to the common workflow of creating, editing and submitting reviews.
-It only works with Perforce and is support on Linux and Mac.
+It only works with Perforce and is supported on Linux and Mac.
 
 Deprecation Warning:
 
@@ -1371,9 +1371,9 @@ http://www.reviewboard.org/docs/manual/1.6/users/tools/post-review/#post-review
 
 
 Commands:
-  create
-  edit
-  submit
+  create                Create from default change or numbered change.
+  edit   RID            Edit the review with specified Review Board ID number.
+  submit RID            Submit the review with specified Review Board ID number.
 
 Options:
   -h, --help            show this help message and exit
