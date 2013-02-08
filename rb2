@@ -1350,19 +1350,21 @@ sub usage {
     my $prog = basename $0;
 
     print <<EOH;
-Usage: $prog [OPTIONS] create|edit|submit [RID]
+Usage: $prog [OPTIONS] create|edit|submit [changenum]
 
 Create, edit and submit review requests. 
 
-This script is a greatly-reduced version of the old rb script that has  been
-updated to work with the new Review Board Web API. The functionality has been
-distilled to the common workflow of creating, editing and submitting reviews.
-It only works with Perforce and is supported on Linux and Mac.
+This script is a light version of the old rb script,updated to work with the
+new Review Board Web API. The functionality has been distilled to the common
+workflow of creating, editing and submitting reviews.
 
 Deprecation Warning:
 
-If you're on a shared dev system or a system with Python 2.5 or greater,
-it is highly recommended you use either post, or post-review.
+This script is deprecated and will have limited support. If you're on a shared
+development system or a system with Python 2.5 or greater, it is highly
+recommended you use either post, or post-review. If you're on Windows, only
+post-review is supported.
+
 For more information, see:
 
 /build/cm/bin/post --help
@@ -1371,9 +1373,9 @@ http://www.reviewboard.org/docs/manual/1.6/users/tools/post-review/#post-review
 
 
 Commands:
-  create                Create from default change or numbered change.
-  edit   RID            Edit the review with specified Review Board ID number.
-  submit RID            Submit the review with specified Review Board ID number.
+  create [changenum]    Create from default change or specified change list.
+    edit  changenum     Edit the review associated with specified change list.
+  submit  changenum     Submit the review associated with specified change list.
 
 Options:
   -h, --help            show this help message and exit
@@ -1389,7 +1391,6 @@ Options:
                         Assign or replace ReviewBoard groups for this review.
     -u <user [,users]>, --target-people=<user [,users]>
                         Assign or replace reviewers for this review.
-    --changeset=<num>   Create or update using this perforce changeset number.
     --shelve            Create or update p4 shelve for the files in the
                         review.
     --update-diff       Uploads a new diff, but does not update information
