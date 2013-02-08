@@ -1364,7 +1364,7 @@ sub do_login {
 }
 
 sub do_rr_create {
-    my ( $change_list, $opts ) = @_;
+    my ( $change_list, $opt ) = @_;
     my %p4info = p4_info();
 
     # If no changeset is given, create one.
@@ -1394,7 +1394,7 @@ sub do_rr_create {
         {
             die("No change, not creating review request\n");
         }
-        my $change_cmd = ( $$opts->{'shelve'} ? 'shelve' : 'change' );
+        my $change_cmd = ( $$opt->{'shelve'} ? 'shelve' : 'change' );
         my @change_lines = `p4 $change_cmd -i < $tmpfile`;
         if ( $? != 0 ) {
             unlink($tmpfile);
@@ -1417,27 +1417,6 @@ sub do_rr_create {
         }
     }
 
-    # TODO: clean up this mess - how do we get bugs into review?
-
-#   my @jobs = ();
-#   my %cset = p4_cset_get($change_list);
-#   if ( $cset{'Jobs'} ) {
-#
-#       # Note that Perforce requires multi line format for Jobs.  It
-#       # will ensure that there is exactly one job name per line, that
-#       # all job names exist, and that there is whitespace between the
-#       # job names and trailing octothorpe.  So all we need to do is
-#       # save the first word from each line in the Jobs field.
-#       foreach ( @{ $cset{'Jobs'} } ) {
-#           if (m/^\s*(\d+)/) {
-#               push( @jobs, $1 );
-#           }
-#           else {
-#               warn "WARN: Ignoring unrecognized bug number '$_'\n";
-#           }
-#       }
-#   }
-
     my @diff_lines   = p4_diff_cset($change_list);
     my $diff_content = '';
     foreach (@diff_lines) {
@@ -1453,17 +1432,15 @@ sub do_rr_create {
     my $rid = $rr{'id'};
     rb_upload_diff( $rid, $p4info{'Server address'}, $diff_content );
 
-    # Call do_rr_edit to do the heavy lifting.
-    #   @ARGV = @args;
-    #   push( @ARGV, $rid );
-    do_rr_edit( $rid, $opts );
+    # Call do_rr_edit to create the review.
+    do_rr_edit( $rid, $opt );
 
-    if ($opts->{'shelve'}) {
+    if ($opt->{'shelve'}) {
         rb_review_request_add_shelve_comment( $rid, $change_list );
     }
 
     my $review_url = rb_uri("r/$rid/");
-    if ( $opts->{'publish'} ) {
+    if ( $opt->{'publish'} ) {
         rb_review_request_publish($rid);
         print "Review request $rid published ($review_url)\n";
     }
@@ -1474,7 +1451,7 @@ sub do_rr_create {
 }
 
 sub do_rr_edit {
-    my ( $rid, $opts ) = @_;
+    my ( $rid, $opt ) = @_;
 
     my %data = rb_review_request_get($rid);
     my %rr   = %{ $data{'review_request'} };
@@ -1504,22 +1481,24 @@ sub do_rr_edit {
         $changed = 1;
     }
     my %cset = p4_cset_get( $rr{'changenum'} );
-    if ( $opts->{'groups'} ) {
-        my $opt_gropus = $opts->{'tg'};
+
+    # TODO: Fix the option names for tg and tp
+    if ( $opt->{'tg'} ) {
+        my $opt_gropus = $opt->{'tg'};
         rb_review_request_draft_set_field( $rid, 'target_groups',
             $opt_groups );
         $rr{'target_groups'} = $opt_groups;
         $changed = 1;
     }
-    if ($opts->{'tp'}) {
-        my $opt_people = $opts->{'tp'};
+    if ($opt->{'tp'}) {
+        my $opt_people = $opt->{'tp'};
         rb_review_request_draft_set_field( $rid, 'target_people',
             $opt_people );
         $rr{'target_people'} = $opt_people;
         $changed = 1;
     }
 
-    if ( $opts->{'update-all'} ) {
+    if ( $opt->{'update-all'} ) {
         my $description = join( "\n", @{ $cset{'Description'} } );
         rb_review_request_draft_set_field( $rid, 'description',
             $description );
@@ -1540,7 +1519,7 @@ sub do_rr_edit {
         $changed = 1;
     }
 
-    if ( $opts->{'update-diff'} or $opts->{'update-all'} ) {
+    if ( $opt->{'update-diff'} or $opt->{'update-all'} ) {
         my %p4info       = p4_info();
         my @diff_lines   = p4_diff_cset( $rr{'changenum'} );
         my $diff_content = '';
@@ -1551,7 +1530,7 @@ sub do_rr_edit {
             die("Diff is empty.\n");
         }
 
-        if ($opts->{'shelve'}) {
+        if ($opt->{'shelve'}) {
             p4_update_shelve( $rid, $rr{'changenum'} );
             rb_review_request_add_shelve_comment( $rid, $rr{'changenum'} );
         }
@@ -1561,7 +1540,7 @@ sub do_rr_edit {
 
     if ($changed) {
         my $review_url = rb_uri("r/$rid/");
-        if ( $opts->{'publish'} ) {
+        if ( $opt->{'publish'} ) {
             rb_review_request_publish($rid);
             print "Review request $rid published ($review_url)\n";
         }
@@ -1573,7 +1552,7 @@ sub do_rr_edit {
 }
 
 sub do_rr_submit {
-    my ( $rid, $opts ) = @_;
+    my ( $rid, $opt ) = @_;
 
     unless ($rid) {
         die "Need the change list number for this review.\n";
@@ -1591,7 +1570,7 @@ sub do_rr_submit {
 
     my %cset = p4_cset_get($cset_id);
     if ( $cset{'Status'} ne 'pending' ) {
-        unless ( $opts->{'force'} ) {
+        unless ( $opt->{'force'} ) {
             die("Changeset is not pending\n");
         }
     }
@@ -1603,7 +1582,7 @@ sub do_rr_submit {
                 join( ', ', @reviewers ) );
         }
         else {
-            unless ( $opts->{'force'} ) {
+            unless ( $opt->{'force'} ) {
                 die("No reviews marked Ship It. You may use --force to submit anyway.\n"
                 );
             }
@@ -1612,7 +1591,7 @@ sub do_rr_submit {
         p4_cset_set_meta( %cset, 'Reviewboard', $rid );
         p4_cset_put(%cset);
         if ( p4_change_is_shelved($cset_id) ) {
-            if ( $opts->{'force'} ) {
+            if ( $opt->{'force'} ) {
                 p4_delete_shelve($cset_id);
             }
             else {
@@ -1621,7 +1600,7 @@ sub do_rr_submit {
                     . "       automatically prior to submit.\n";
             }
         }
-        my $submitted_change = p4_submit_cset( $cset_id, $opts->{'edit'} );
+        my $submitted_change = p4_submit_cset( $cset_id, $opt->{'edit'} );
 
         if ( defined $submitted_change ) {
             rb_review_request_set_changelist( $rid, $submitted_change );
@@ -1708,9 +1687,9 @@ EOH
 ########################################
 ### Main
 ########################################
-my $opts = {};
+my $opt = {};
 GetOptions(
-    $opts,            # Hash to hold options
+    $opt,            # Hash to hold options
     'debug',          # Print debug information
     'verbose+',       # Increate verbosity level
     'server=s',       # specify server name
@@ -1725,7 +1704,7 @@ GetOptions(
     'help',
 ) or usage();
 
-if ( $opts->{'help'} or not @ARGV ) {
+if ( $opt->{'help'} or not @ARGV ) {
     usage();
 }
 
@@ -1752,7 +1731,7 @@ unless ( defined $actions{$cmd} ) {
 }
 
 # TODO: consider if you really want this and if so should it look more like verbose
-if ( $opts->{'debug'} ) {
+if ( $opt->{'debug'} ) {
     $DEBUG = 1;
 }
 
@@ -1792,7 +1771,7 @@ $ua->timeout( $prefs{'timeout'} );
 # call command
 # TODO: Remove this print after testing
 print "EXECUTING $cmd\n";
-$actions{$cmd}->($opt_cset, $opts);
+$actions{$cmd}->($opt_cset, $opt);
 exit;
 
 __END__
