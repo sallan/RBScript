@@ -1689,7 +1689,7 @@ EOH
 ########################################
 my $opt = {};
 GetOptions(
-    $opt,            # Hash to hold options
+    $opt,             # Hash to hold options
     'debug',          # Print debug information
     'verbose+',       # Increate verbosity level
     'server=s',       # specify server name
@@ -1723,9 +1723,8 @@ my %actions = (
 );
 
 unless ($cmd) {
-    usage();
+    die "Need a command - either create, edit or submit. Try -h for usage.\n";
 }
-
 unless ( defined $actions{$cmd} ) {
     die "Unrecognized command: $cmd\n";
 }
