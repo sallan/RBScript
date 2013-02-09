@@ -1751,8 +1751,8 @@ delete $ENV{'P4DIFF'};
 
 # Process preferences
 prefs_load();
-if ($opt_server) {
-    $prefs{'server'} = $opt_server;
+if ($opt->{'server'}) {
+    $prefs{'server'} = $opt->{'server'};
     prefs_save();
 }
 p4_config_load();
