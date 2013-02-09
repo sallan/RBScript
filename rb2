@@ -1394,7 +1394,7 @@ sub do_rr_create {
         {
             die("No change, not creating review request\n");
         }
-        my $change_cmd = ( $$opt->{'shelve'} ? 'shelve' : 'change' );
+        my $change_cmd = ( $opt->{'shelve'} ? 'shelve' : 'change' );
         my @change_lines = `p4 $change_cmd -i < $tmpfile`;
         if ( $? != 0 ) {
             unlink($tmpfile);
