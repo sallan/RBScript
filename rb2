@@ -739,6 +739,19 @@ sub rb_review_get_reviewer_name {
     return $user->{'fullname'};
 }
 
+sub rb_get_review_id_from_changelist {
+    my ($changelist) = @_;
+    my $uri = rb_uri("api/review-requests?changenum=$changelist");
+    my $request = HTTP::Request::Common::GET($uri);
+    my %stuff = rb_exec_request($request);
+    my $review_requests = $stuff{'review_requests'};
+    my $rid;
+    if (@$review_requests) {
+        $rid = $review_requests->[0]->{'id'};
+    }
+    return $rid;
+}
+
 sub rb_upload_diff {
     my ( $rid, $basedir, $diff_text ) = @_;
 
@@ -1296,41 +1309,6 @@ sub p4_diff_opened {
     return @diff_lines;
 }
 
-########################################
-### Main helpers
-
-my $rr_editargs_help
-    = "editargs:\n"
-    . "\t--changeset=NUMBER\n"
-    . "\t--bugs=STRING (or --cr)\n"
-    . "\t--target-groups=STRING (or --tg)\n"
-    . "\t--target-people=STRING (or --tp)\n"
-    . "\t--summary=STRING\n"
-    . "\t--description=STRING\n"
-    . "\t--status=<submitted|discarded|reopen>\n"
-    . "\t--submit-as=STRING\n"
-    . "\t--publish\n"
-    . "\t--shelve\n"
-    . "\t(Note: Perforce changeset description is used by default)\n"
-    . "\t--update-description\n"
-    . "\t--update-bugs\n"
-    . "\t--update-summary\n"
-    . "\t--update-diff\n"
-    . "\t--update-all\n"
-    . "\t(This would update description, summary, bugs, and diff\n"
-    . "\t from perforce changeset)\n";
-
-my %sub_cmds = (
-    'create' => "[editargs...]\n"
-        . "Create a new reviewrequest\n"
-        . $rr_editargs_help,
-    'edit' => "[editargs...] ID\n"
-        . "Edit an existing reviewrequest\n"
-        . $rr_editargs_help,
-    'submit' => "[--asis] [--force] [--edit] ID\n"
-        . "Submit given reviewrequest. \n\t--asis   Don't check for or add reviewers names.\n\t--force  Submit even if not reviewed.\n\t--edit   Edit changelist first.\n",
-);
-
 sub do_login {
 
     #   my $opt_ssl      = undef;
@@ -1653,6 +1631,7 @@ Options:
   --server=<host>       Use specified server. Default is the 'server' entry in
                         your \$HOME/.rbrc file.  You will be prompted for login 
                         if necessary and the server name will be saved.
+  --ssl                 If specify a server, use this option if https is required.
 
   Create and Update Options:
     -p, --publish       Publish the review.
@@ -1692,7 +1671,8 @@ GetOptions(
     $opt,             # Hash to hold options
     'debug',          # Print debug information
     'verbose+',       # Increate verbosity level
-    'server=s',       # specify server name
+    'server=s',       # Specify server name
+    'ssl',            # Use https
     'publish',        # publish the review
     'tg=s',           # Assign review to list of groups
     'tp=s',           # Assign review to list of users
@@ -1753,6 +1733,10 @@ delete $ENV{'P4DIFF'};
 prefs_load();
 if ($opt->{'server'}) {
     $prefs{'server'} = $opt->{'server'};
+    prefs_save();
+}
+if ($opt->{'ssl'}) {
+    $prefs{'use_ssl'} = $opt->{'ssl'};
     prefs_save();
 }
 p4_config_load();
