@@ -1609,7 +1609,7 @@ Options:
   --server=<host>       Use specified server. Default is the 'server' entry in
                         your \$HOME/.rbrc file.  You will be prompted for login 
                         if necessary and the server name will be saved.
-  --ssl                 If specify a server, use this option if https is required.
+  --ssl                 When specifying a server, use this option if https is required.
 
   Create and Update Options:
     -p, --publish       Publish the review.
@@ -1625,9 +1625,6 @@ Options:
     --update-all        Updates diff and all information in change list.
     --testing-done=<string>
                         Description of testing done.
-    --testing-done-file=<filename>
-                        Text file containing description of testing done.
-
   Submit Options:
     -f, --force         Submit even if the review doesn't meet all
                         requirements.
