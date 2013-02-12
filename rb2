@@ -1408,6 +1408,7 @@ sub do_rr_edit {
     my %rr   = %{ $data{'review_request'} };
 
     # If we're updating status, just do that and exit.
+    # TODO: Decide whether or not to suppor this. Currently disabled.
     if ($opt_status) {
         if (   $opt_status ne 'submitted'
             && $opt_status ne 'discarded'
@@ -1434,15 +1435,15 @@ sub do_rr_edit {
     my %cset = p4_cset_get( $rr{'changenum'} );
 
     # TODO: Fix the option names for tg and tp
-    if ( $opt->{'tg'} ) {
-        my $opt_gropus = $opt->{'tg'};
+    if ( $opt->{'target-groups'} ) {
+        my $opt_gropus = $opt->{'target-groups'};
         rb_review_request_draft_set_field( $rid, 'target_groups',
             $opt_groups );
         $rr{'target_groups'} = $opt_groups;
         $changed = 1;
     }
-    if ( $opt->{'tp'} ) {
-        my $opt_people = $opt->{'tp'};
+    if ( $opt->{'target-people'} ) {
+        my $opt_people = $opt->{'target-people'};
         rb_review_request_draft_set_field( $rid, 'target_people',
             $opt_people );
         $rr{'target_people'} = $opt_people;
@@ -1614,9 +1615,9 @@ Options:
   Create and Update Options:
     -p, --publish       Publish the review.
     -n, --output-diff   Output diff to console and exit. Do not post.
-    -g <group [,groups]>, --target-groups=<group [,groups]>
+    --target-groups=<group [,groups]>
                         Assign or replace ReviewBoard groups for this review.
-    -u <user [,users]>, --target-people=<user [,users]>
+    --target-people=<user [,users]>
                         Assign or replace reviewers for this review.
     --shelve            Create or update p4 shelve for the files in the
                         review.
@@ -1649,9 +1650,11 @@ GetOptions(
     'server=s',       # Specify server name
     'ssl',            # Use https
     'publish',        # publish the review
-    'tg=s',           # Assign review to list of groups
-    'tp=s',           # Assign review to list of users
+    'n', 'output-diff', # Print diff only
+    'target-groups=s', # Assign review to list of groups
+    'target-people=s', # Assign review to list of users
     'shelve',         # Shelve the files
+    'testing-done',   # String describing testing done
     'update-diff',    # Update the diff only
     'update-all',     # Update diff and info in change list
     'force',          # Force the submit
