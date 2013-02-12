@@ -1342,11 +1342,11 @@ sub do_login {
 }
 
 sub do_rr_create {
-    my ( $change_list, $opt ) = @_;
+    my ( $changenum, $opt ) = @_;
     my %p4info = p4_info();
 
     # If no changeset is given, create one.
-    if ( not $change_list ) {
+    if ( not $changenum ) {
 
         # We want to launch the user's editor via "p4 change" and extract the
         # changeset number from stdout.  Unfortunately, we can't do both with
@@ -1383,19 +1383,19 @@ sub do_rr_create {
         if ( $change_lines[0] !~ /Change (\d+) created/ ) {
             die("Cannot find changeset number.\n");
         }
-        $change_list = $1;
+        $changenum = $1;
     }
     else {
         # Make sure we own the changelist
         my $p4_user    = $p4info{'User name'};
-        my $cset_owner = p4_cset_owner($change_list);
+        my $cset_owner = p4_cset_owner($changenum);
         unless ( $cset_owner eq $p4_user ) {
             die
-                "ERROR: Perforce change $change_list is owned by $cset_owner - you are running as $p4_user.\n";
+                "ERROR: Perforce change $changenum is owned by $cset_owner - you are running as $p4_user.\n";
         }
     }
 
-    my @diff_lines   = p4_diff_cset($change_list);
+    my @diff_lines   = p4_diff_cset($changenum);
     my $diff_content = '';
     foreach (@diff_lines) {
         $diff_content .= $_;
@@ -1405,7 +1405,7 @@ sub do_rr_create {
     }
 
     my %data
-        = rb_review_request_create( $p4info{'Server address'}, $change_list );
+        = rb_review_request_create( $p4info{'Server address'}, $changenum );
     my %rr  = %{ $data{'review_request'} };
     my $rid = $rr{'id'};
     rb_upload_diff( $rid, $p4info{'Server address'}, $diff_content );
@@ -1414,7 +1414,7 @@ sub do_rr_create {
     do_rr_edit( $rid, $opt );
 
     if ($opt->{'shelve'}) {
-        rb_review_request_add_shelve_comment( $rid, $change_list );
+        rb_review_request_add_shelve_comment( $rid, $changenum );
     }
 
     my $review_url = rb_uri("r/$rid/");
@@ -1429,7 +1429,16 @@ sub do_rr_create {
 }
 
 sub do_rr_edit {
-    my ( $rid, $opt ) = @_;
+    my ( $changenum, $opt ) = @_;
+
+    unless ($changenum) {
+        die "Need the changelist number for this review.\n";
+    }
+
+    my $rid = rb_get_review_id_from_changelist($changenum);
+    unless ($rid) {
+        die "Can't find an open review for change list: $changenum\n";
+    }
 
     my %data = rb_review_request_get($rid);
     my %rr   = %{ $data{'review_request'} };
@@ -1530,12 +1539,18 @@ sub do_rr_edit {
 }
 
 sub do_rr_submit {
-    my ( $rid, $opt ) = @_;
+    my ( $changenum, $opt ) = @_;
 
-    unless ($rid) {
-        die "Need the change list number for this review.\n";
+
+    unless ($changenum) {
+        die "Need the changelist number for this review.\n";
     }
 
+    my $rid = rb_get_review_id_from_changelist($changenum);
+    unless ($rid) {
+        die "Can't find an open review for change list: $changenum\n";
+    }
+    
     my %data    = rb_review_request_get($rid);
     my %rr      = %{ $data{'review_request'} };
     my $cset_id = $rr{'changenum'};
@@ -1714,17 +1729,11 @@ if ( $opt->{'debug'} ) {
     $DEBUG = 1;
 }
 
-# Look for a possible change list number
-my $opt_cset;
+# Look for a possible change list number. We'll let the subroutines sanity check it.
+my $changenum;
 if (@ARGV) {
-
-    # TODO: Change this variable name
-    $opt_cset = shift @ARGV;
+    $changenum = shift @ARGV;
 }
-
-# TODO: sanity check and process the change number here
-# DO STUFF HERE
-# END TODO
 
 # A user P4DIFF could interfere with our diff
 delete $ENV{'P4DIFF'};
@@ -1735,6 +1744,8 @@ if ($opt->{'server'}) {
     $prefs{'server'} = $opt->{'server'};
     prefs_save();
 }
+
+# TODO: I think this will be going away. I changed my mind on using it.
 if ($opt->{'ssl'}) {
     $prefs{'use_ssl'} = $opt->{'ssl'};
     prefs_save();
@@ -1754,7 +1765,7 @@ $ua->timeout( $prefs{'timeout'} );
 # call command
 # TODO: Remove this print after testing
 print "EXECUTING $cmd\n";
-$actions{$cmd}->($opt_cset, $opt);
+$actions{$cmd}->($changenum, $opt);
 exit;
 
 __END__
