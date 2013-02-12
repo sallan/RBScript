@@ -710,8 +710,8 @@ sub rb_get_review_id_from_changelist {
     my ($changelist)    = @_;
     my $uri             = rb_uri("api/review-requests?changenum=$changelist");
     my $request         = HTTP::Request::Common::GET($uri);
-    my %stuff           = rb_exec_request($request);
-    my $review_requests = $stuff{'review_requests'};
+    my %response           = rb_exec_request($request);
+    my $review_requests = $response{'review_requests'};
     my $rid;
     if (@$review_requests) {
         $rid = $review_requests->[0]->{'id'};
