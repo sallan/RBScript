@@ -1411,7 +1411,7 @@ sub do_rr_create {
     rb_upload_diff( $rid, $p4info{'Server address'}, $diff_content );
 
     # Call do_rr_edit to create the review.
-    do_rr_edit( $rid, $opt );
+    do_rr_edit( $changenum, $opt );
 
     if ($opt->{'shelve'}) {
         rb_review_request_add_shelve_comment( $rid, $changenum );
@@ -1744,8 +1744,6 @@ if ($opt->{'server'}) {
     $prefs{'server'} = $opt->{'server'};
     prefs_save();
 }
-
-# TODO: I think this will be going away. I changed my mind on using it.
 if ($opt->{'ssl'}) {
     $prefs{'use_ssl'} = $opt->{'ssl'};
     prefs_save();
@@ -1762,9 +1760,7 @@ $ua->cookie_jar(
 );
 $ua->timeout( $prefs{'timeout'} );
 
-# call command
-# TODO: Remove this print after testing
-print "EXECUTING $cmd\n";
+# call command and we're done.
 $actions{$cmd}->($changenum, $opt);
 exit;
 
