@@ -707,10 +707,10 @@ sub rb_review_get_reviewer_name {
 }
 
 sub rb_get_review_id_from_changelist {
-    my ($changelist) = @_;
-    my $uri = rb_uri("api/review-requests?changenum=$changelist");
-    my $request = HTTP::Request::Common::GET($uri);
-    my %stuff = rb_exec_request($request);
+    my ($changelist)    = @_;
+    my $uri             = rb_uri("api/review-requests?changenum=$changelist");
+    my $request         = HTTP::Request::Common::GET($uri);
+    my %stuff           = rb_exec_request($request);
     my $review_requests = $stuff{'review_requests'};
     my $rid;
     if (@$review_requests) {
@@ -1377,7 +1377,7 @@ sub do_rr_create {
     # Call do_rr_edit to create the review.
     do_rr_edit( $changenum, $opt );
 
-    if ($opt->{'shelve'}) {
+    if ( $opt->{'shelve'} ) {
         rb_review_request_add_shelve_comment( $rid, $changenum );
     }
 
@@ -1441,7 +1441,7 @@ sub do_rr_edit {
         $rr{'target_groups'} = $opt_groups;
         $changed = 1;
     }
-    if ($opt->{'tp'}) {
+    if ( $opt->{'tp'} ) {
         my $opt_people = $opt->{'tp'};
         rb_review_request_draft_set_field( $rid, 'target_people',
             $opt_people );
@@ -1481,7 +1481,7 @@ sub do_rr_edit {
             die("Diff is empty.\n");
         }
 
-        if ($opt->{'shelve'}) {
+        if ( $opt->{'shelve'} ) {
             p4_update_shelve( $rid, $rr{'changenum'} );
             rb_review_request_add_shelve_comment( $rid, $rr{'changenum'} );
         }
@@ -1505,7 +1505,6 @@ sub do_rr_edit {
 sub do_rr_submit {
     my ( $changenum, $opt ) = @_;
 
-
     unless ($changenum) {
         die "Need the changelist number for this review.\n";
     }
@@ -1514,7 +1513,7 @@ sub do_rr_submit {
     unless ($rid) {
         die "Can't find an open review for change list: $changenum\n";
     }
-    
+
     my %data    = rb_review_request_get($rid);
     my %rr      = %{ $data{'review_request'} };
     my $cset_id = $rr{'changenum'};
@@ -1668,7 +1667,7 @@ if ( $opt->{'help'} or not @ARGV ) {
 }
 
 # Set the legacy verbose_level
-if ($opt->{'verbose'}) {
+if ( $opt->{'verbose'} ) {
     $verbose_level += $opt->{'verbose'};
 }
 
@@ -1709,11 +1708,11 @@ delete $ENV{'P4DIFF'};
 
 # Process preferences
 prefs_load();
-if ($opt->{'server'}) {
+if ( $opt->{'server'} ) {
     $prefs{'server'} = $opt->{'server'};
     prefs_save();
 }
-if ($opt->{'ssl'}) {
+if ( $opt->{'ssl'} ) {
     $prefs{'use_ssl'} = $opt->{'ssl'};
     prefs_save();
 }
@@ -1730,7 +1729,7 @@ $ua->cookie_jar(
 $ua->timeout( $prefs{'timeout'} );
 
 # call command and we're done.
-$actions{$cmd}->($changenum, $opt);
+$actions{$cmd}->( $changenum, $opt );
 exit;
 
 __END__
