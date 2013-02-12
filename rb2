@@ -105,39 +105,6 @@ sub stripws {
     }
 }
 
-#sub is_numeric($) {
-#    my $val = shift;
-#    if ( $val =~ /^-?\d+(\.\d+)?$/ ) {
-#        return 1;
-#    }
-#    return 0;
-#}
-
-#sub string_to_bool($) {
-#    my $val = shift;
-#    if ( $val =~ /^yes$/i || $val =~ /^true/i ) {
-#        return 1;
-#    }
-#    if ( $val =~ /^no$/i || $val =~ /^false/i ) {
-#        return 0;
-#    }
-#    if ( is_numeric($val) ) {
-#        return ( $val == 0 ? 0 : 1 );
-#    }
-#    warn("to_bool: assume false for $val\n");
-#    return 0;
-#}
-
-#sub bool_to_yn($) {
-#    my $val = shift;
-#    return ( $val ? 'Yes' : 'No' );
-#}
-
-#sub bool_to_tf($) {
-#    my $val = shift;
-#    return ( $val ? 'True' : 'False' );
-#}
-
 sub prompt_y_or_n {
     my ( $query, $default ) = @_;
     if ( $default eq 'y' ) {
@@ -1310,9 +1277,6 @@ sub p4_diff_opened {
 }
 
 sub do_login {
-
-    #   my $opt_ssl      = undef;
-    #   my $opt_server   = '';
     my $opt_username = '';
     my $opt_password = '';
 
