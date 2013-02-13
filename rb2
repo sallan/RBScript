@@ -1476,7 +1476,7 @@ sub do_rr_edit {
         $changed = 1;
     }
 
-    if ( $opt->{'output-diff'} or $opt->{'update-diff'} or $opt->{'update-all'} ) {
+    if ( $opt->{'output-diff'} or $opt->{'update-diff'} or $opt->{'update-all'} or $opt->{'shelve'}) {
         my %p4info       = p4_info();
         my @diff_lines   = p4_diff_cset( $rr{'changenum'} );
         my $diff_content = '';
