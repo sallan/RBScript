@@ -1368,6 +1368,11 @@ sub do_rr_create {
         die("Diff is empty.\n");
     }
 
+    if ($opt->{'output-diff'}) {
+        print $diff_content;
+        exit 0;
+    }
+
     my %data
         = rb_review_request_create( $p4info{'Server address'}, $changenum );
     my %rr  = %{ $data{'review_request'} };
@@ -1471,7 +1476,7 @@ sub do_rr_edit {
         $changed = 1;
     }
 
-    if ( $opt->{'update-diff'} or $opt->{'update-all'} ) {
+    if ( $opt->{'output-diff'} or $opt->{'update-diff'} or $opt->{'update-all'} ) {
         my %p4info       = p4_info();
         my @diff_lines   = p4_diff_cset( $rr{'changenum'} );
         my $diff_content = '';
@@ -1481,7 +1486,10 @@ sub do_rr_edit {
         if ( !$diff_content ) {
             die("Diff is empty.\n");
         }
-
+        if ($opt->{'output-diff'}) {
+            print $diff_content;
+            exit 0;
+        }
         if ( $opt->{'shelve'} ) {
             p4_update_shelve( $rid, $rr{'changenum'} );
             rb_review_request_add_shelve_comment( $rid, $rr{'changenum'} );
