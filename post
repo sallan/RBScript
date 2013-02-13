@@ -369,7 +369,6 @@ class F5Review:
         """Main method for creating and updating reviews on the Review Board Server."""
 
         # Pass the options we care about over to postreview.options
-        postreview.options.publish = options.publish
         postreview.options.target_people = options.target_people
         postreview.options.target_groups = options.target_groups
         postreview.options.server = options.server
@@ -404,12 +403,14 @@ class F5Review:
             parent_diff_content=parent_diff,
             submit_as=options.submit_as)
 
-
         self.set_bugs_closed()
         if options.shelve:
             self.add_shelve_comment()
+
+        # We publish here instead of letting post-review handle since we 
+        # sometimes add stuff.
         if options.publish:
-            self.save_draft()
+            self.publish()
 
     def add_shelve_comment(self):
         """Add comment to review regarding the shelved change list."""
@@ -481,9 +482,12 @@ class F5Review:
         return reviews
 
     def save_draft(self):
-        """Save current review draft. This is used when --publish option is passed."""
+        """Save current review draft."""
         self.server.save_draft(self.review_request)
 
+    def publish(self):
+        """Publish review."""
+        self.server.publish(self.review_request)
 
     # The methods below are currently not used. But I may need them later
     # so I'm leaving them in for now.
