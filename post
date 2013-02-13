@@ -734,6 +734,7 @@ def get_changelist_number(p4, action, args):
 def create_review(review, p4):
     """Create a new review request"""
     if options.shelve:
+        print "Shelving files for change %s." % review.change_list
         p4.shelve(review.change_list)
     review.post_review()
 
@@ -741,6 +742,7 @@ def create_review(review, p4):
 def update_review(review, p4):
     """Update existing review request."""
     if options.shelve:
+        print "Shelving files for change %s." % review.change_list
         p4.update_shelf(review.change_list)
     review.post_review()
 
