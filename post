@@ -737,6 +737,8 @@ def create_review(review, p4):
         print "Shelving files for change %s." % review.change_list
         p4.shelve(review.change_list)
     review.post_review()
+    if not options.publish:
+        print "Don't forget to publish your review."
 
 
 def update_review(review, p4):
@@ -745,6 +747,8 @@ def update_review(review, p4):
         print "Shelving files for change %s." % review.change_list
         p4.update_shelf(review.change_list)
     review.post_review()
+    if not options.publish:
+        print "Don't forget to publish your review."
 
 
 def submit_review(review, p4):
