@@ -529,23 +529,29 @@ def migrate_rbrc_file(old_rc_file, new_rc_file):
 
     # We don't migrate the user name because doing so causes post-review
     # to prompt for a password each time. By leaving it out, you get prompted
-    # once and then future requests use the cookies file.
-    valid_keys = {"server": "REVIEWBOARD_URL"}
+    # once and then future requests use the cookies file.  In fact, the only
+    # value we want to migrate is the server name and ssl setting.
+    old_settings = {}
+    for line in old_rc:
+        k, v = [s.strip() for s in line.split("=")]
+        old_settings[k] = v
 
-    try:
-        f = open(new_rc_file, "w")
-        for line in old_rc:
-            k, v = [s.strip() for s in line.split("=")]
-            if k in valid_keys.keys():
-                new_k = valid_keys[k]
-                if new_k == "REVIEWBOARD_URL":
-                    v = "https://" + v
-                f.write('%s = "%s"\n' % (new_k, v))
-        f.close()
-    except IOError, e:
-        print "Failed to write %s" % new_rc_file
-        print e
-    print "Wrote config file: %s" % new_rc_file
+    if old_settings.has_key("server"):
+        server_name = old_settings["server"]
+        protocol = "http"
+        if old_settings.has_key("use_ssl") and old_settings["use_ssl"] == "1":
+            protocol = "https"
+        server_url = protocol + "://" + server_name
+
+    if server_url:
+        try:
+            f = open(new_rc_file, "w")
+            f.write('REVIEWBOARD_URL = "%s"\n' %  server_url)
+            f.close()
+        except IOError, e:
+            print "Failed to write %s" % new_rc_file
+            print e
+        print "Wrote config file: %s" % new_rc_file
 
 
 def check_config(user_home):
