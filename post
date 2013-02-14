@@ -648,17 +648,17 @@ below.
     edit_group.add_option("-n", "--output-diff",
         dest="output_diff_only", action="store_true", default=False,
         help="Output diff to console and exit. Do not post.")
-    edit_group.add_option("-g", "--target-groups",
+    edit_group.add_option("--target-groups",
         dest="target_groups", metavar="<group [,groups]>",
         help="Assign or replace ReviewBoard groups for this review.")
-    edit_group.add_option("-u", "--target-people",
+    edit_group.add_option("--target-people",
         dest="target_people", metavar="<user [,users]>",
         help="Assign or replace reviewers for this review.")
 
     edit_group.add_option("--shelve",
         dest="shelve", action="store_true", default=False,
         help="Create or update p4 shelve for the files in the review.")
-    edit_group.add_option("--diff-only",
+    edit_group.add_option("--update-diff",
         dest="diff_only", action="store_true", default=False,
         help="Uploads a new diff, but does not update information from change list.")
     edit_group.add_option("--change-only",
