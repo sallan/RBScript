@@ -233,7 +233,7 @@ class P4:
             raise P4Error("Failed to determine submitted change list number.")
         return submitted_change
 
-    def add_reviewboard_info(self, review):
+    def add_reviewboard_shipits(self, review, ship_its):
         """
         Add review board ID and list of users who approved the review to the change list.
 
@@ -250,20 +250,24 @@ class P4:
 
         """
 
-        # Get the change form
+        ship_it_line = "Reviewed by: %s" % (", ".join(ship_its))
         change = self.get_change(review.change_list)
+        change_description = change['Description'].splitlines()
 
-        # Add list of ship-its to the change list
-        ship_its = review.get_ship_its()
-        if ship_its:
-            ship_it_line = "\nReviewed by: %s\n" % ", ".join(ship_its)
-            change['Description'] += ship_it_line
+        # Look for a 'Reviewed by:' field in the description so we don't
+        # end up with multiple entries.
+        found = False
+        for lineno in range(0, len(change_description)):
+            if change_description[lineno].startswith("Reviewed by:"):
+                change_description[lineno] = ship_it_line
+                found = True
+                break
+        if not found:
+            change_description.extend(['', ship_it_line])
 
-        # Add review board id
-        # TODO: How important is this since we add the url? Probably cruft. Remove after new trigger is working.
-        review_id_line = "\nReviewboard: %s\n" % review.review_id
-        change['Description'] +=  review_id_line
+        change['Description'] = "\n".join(change_description)
         self.run_G("change -i", input=change)
+
 
     def set(self):
         """Return output of 'p4 set' as a dict."""
@@ -778,7 +782,10 @@ def submit_review(review, p4):
     if options.edit:
         p4.edit_change(review.change_list)
 
-    p4.add_reviewboard_info(review)
+    # TODO - maybe get shipits here and only call if we have some
+    ship_its = review.get_ship_its()
+    if ship_its:
+        p4.add_reviewboard_shipits(review, ship_its)
     submitted_change_list = p4.submit(review.change_list)
     review.submit(submitted_change_list)
 
