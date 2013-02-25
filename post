@@ -782,7 +782,6 @@ def submit_review(review, p4):
     if options.edit:
         p4.edit_change(review.change_list)
 
-    # TODO - maybe get shipits here and only call if we have some
     ship_its = review.get_ship_its()
     if ship_its:
         p4.add_reviewboard_shipits(review, ship_its)
