@@ -693,6 +693,11 @@ below.
 def parse_options(parser):
     """Parse command line options, strip of legacy UI elements and return args, optiions and action."""
     options, args = parser.parse_args()
+
+    if len(args) == 0:
+        parser.print_help()
+        sys.exit()
+
     if args[0] == "rr" or args[0] == "reviewrequest":
         print "Use of 'rr' or 'reviewrequest' is no longer required."
         if len(args) == 1:
@@ -802,9 +807,6 @@ def main():
     user_home = os.path.expanduser("~")
     user_config, configs = postreview.load_config_files(user_home)
     parser = get_option_parser()
-    if len(sys.argv) == 1:
-        parser.print_help()
-        sys.exit()
 
     # Check for a legacy .rbrc file and migrate it to .reviewboardrc if necessary
     try:
