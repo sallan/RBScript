@@ -1390,9 +1390,11 @@ sub do_rr_create {
     if ( $opt->{'publish'} ) {
         rb_review_request_publish($rid);
         print "Review request $rid published ($review_url)\n";
+        print "Changelist: $changenum\n";
     }
     else {
         print "Review request $rid is ready ($review_url).\n";
+        print "Changelist: $changenum\n";
         print "Be sure to publish when finished.\n";
     }
 }
@@ -1507,9 +1509,11 @@ sub do_rr_edit {
         if ( $opt->{'publish'} ) {
             rb_review_request_publish($rid);
             print "Review request $rid published ($review_url)\n";
+            print "Changelist: $changenum\n";
         }
         else {
             print "Review request $rid is ready ($review_url).\n";
+            print "Changelist: $changenum\n";
             print "Be sure to publish when finished.\n";
         }
     }
