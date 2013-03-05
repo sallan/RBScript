@@ -11,14 +11,14 @@ try:
     from rbtools.clients import perforce
     import rbtools.api.errors
 except ImportError:
-    print """
+    sys.stderr.write("""
 Use of this script requires post-review from RBTools.
 For installation instructions, see this page:
 
 http://www.reviewboard.org/docs/manual/1.6/users/tools/post-review/#post-review
 
-"""
-    sys.exit(1)
+""")
+    raise SystemExit(1)
 
 
 class RBError(Exception): pass;
@@ -59,7 +59,7 @@ class P4:
             raise P4Error("Perforce command '%s' failed.\n" % cmd)
         return data
 
-    def run_G( self, cmd, args=[], input=0 ):
+    def run_G(self, cmd, args=None, p4_input=0):
         """
         Run perforce command and marshal the IO. Returns stdout as a  dict.
 
@@ -69,7 +69,11 @@ class P4:
 
         I modified it slightly for error checking.
         """
-        c = "p4 -G " + cmd + " " + " ".join( args )
+
+        c = "p4 -G " + cmd
+        if not args is None:
+            c = c + " " + " ".join( args )
+
         if sys.version_info[1] < 6:
             (pi, po) = os.popen2( c , "b" )
         else:
@@ -77,8 +81,8 @@ class P4:
             p = Popen( c, stdin=PIPE, stdout=PIPE, shell=True )
             (pi, po) = (p.stdin, p.stdout)
 
-        if input:
-            marshal.dump( input, pi, 0 )
+        if p4_input:
+            marshal.dump( p4_input, pi, 0 )
             pi.close()
 
         results = []
@@ -86,7 +90,8 @@ class P4:
             while 1:
                 x = marshal.load( po )
                 results.append(x)
-        except EOFError: pass
+        except EOFError:
+            pass
         po.close()
 
         # check for known perforce errors
@@ -154,9 +159,11 @@ class P4:
         os.system("%s %s" % (editor, change_form.name))
 
         # The user may have changed their mind, so see if the file changed at all.
-        f = open(change_form.name, "r")
-        new_change_form = [s.rstrip() for s in f.readlines()]
-        f.close()
+        try:
+            with open(change_form.name, "r") as f:
+                new_change_form = [s.rstrip() for s in f.readlines()]
+        except IOError, e:
+            raise RBError("Couldn't read the saved change list form.\n%s" % e)
 
         if change_template == new_change_form:
             print "No changes made."
@@ -266,7 +273,7 @@ class P4:
             change_description.extend(['', ship_it_line])
 
         change['Description'] = "\n".join(change_description)
-        self.run_G("change -i", input=change)
+        self.run_G("change -i", p4_input=change)
 
 
     def set(self):
@@ -312,7 +319,7 @@ class F5Review:
     Encapsulate a review request and handle interaction with Review Board server.
     """
 
-    def __init__(self, server, change_list, bugs_closed=[]):
+    def __init__(self, server, change_list, bugs_closed=None):
         """
         Create an instance of F5Review.
 
@@ -329,7 +336,10 @@ class F5Review:
 
         self.server = server
         self.change_list = change_list
-        self.bugs_closed = bugs_closed
+        if bugs_closed is None:
+            self.bugs_closed = []
+        else:
+            self.bugs_closed = bugs_closed
         self.review_id = None
 
         # Create a PerforceClient object to create proper diffs. This comes from rbtools.
@@ -415,6 +425,7 @@ class F5Review:
         # sometimes add stuff.
         if options.publish:
             self.publish()
+        return review_url
 
     def add_shelve_comment(self):
         """Add comment to review regarding the shelved change list."""
@@ -525,9 +536,8 @@ def migrate_rbrc_file(old_rc_file, new_rc_file):
 
     """
     try:
-        f = open(old_rc_file, "r")
-        old_rc = f.read().splitlines()
-        f.close()
+        with open(old_rc_file, "r") as f:
+            old_rc = f.read().splitlines()
     except IOError, e:
         raise RBError("Can't read %s\n%s" % (old_rc_file, e))
 
@@ -540,6 +550,7 @@ def migrate_rbrc_file(old_rc_file, new_rc_file):
         k, v = [s.strip() for s in line.split("=")]
         old_settings[k] = v
 
+    server_url = False
     if old_settings.has_key("server"):
         server_name = old_settings["server"]
         protocol = "http"
@@ -549,12 +560,12 @@ def migrate_rbrc_file(old_rc_file, new_rc_file):
 
     if server_url:
         try:
-            f = open(new_rc_file, "w")
-            f.write('REVIEWBOARD_URL = "%s"\n' %  server_url)
-            f.close()
+            with open(new_rc_file, "w") as f:
+                f.write('REVIEWBOARD_URL = "%s"\n' %  server_url)
         except IOError, e:
-            print "Failed to write %s" % new_rc_file
-            print e
+            raise RBError("Failed to write %s\n%s" % (new_rc_file, e))
+
+        # Let the user know a new config file was created
         print "Wrote config file: %s" % new_rc_file
 
 
@@ -708,14 +719,11 @@ def parse_options(parser):
         sys.exit(1)
 
     if options.testing_file:
-        if os.path.exists(options.testing_file):
-            fp = open(options.testing_file, "r")
-            options.testing_done = fp.read()
-            fp.close()
-        else:
-            sys.stderr.write("The testing file %s does not exist.\n" %
-                             options.testing_file)
-            sys.exit(1)
+        try:
+            with open(options.testing_file, "r") as f:
+                options.testing_done = f.read()
+        except IOError, e:
+            raise RBError("Couldn't read test file '%s'\n%s" % (options.testing_file, e))
 
     # We expect these to be set in the environment. For that to work we
     # have to provide a value of None to these in the options namespace
@@ -729,7 +737,7 @@ def parse_options(parser):
     # This unsupported option also needs to be initialized
     options.submit_as = None
 
-    return (options, args, action)
+    return options, args, action
 
 
 def get_changelist_number(p4, action, args):
