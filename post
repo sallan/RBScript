@@ -242,18 +242,7 @@ class P4:
 
     def add_reviewboard_shipits(self, review, ship_its):
         """
-        Add review board ID and list of users who approved the review to the change list.
-
-        Example:
-
-                 Reviewed by: Bill Walker, Michael Slass, Zach Carter
-
-                 Reviewboard: 53662
-
-        Note: We have a perforce trigger that adds the ReviewBoard URL so that it gets
-        included even if the change is submitted without using this script. So once that's
-        proven to be working with the new server, we can leave out this extra ReviewBoard
-        line.
+        Add list of users who approved the review to the change list.
 
         """
 
