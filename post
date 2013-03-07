@@ -5,6 +5,14 @@ import os
 import tempfile
 import marshal
 
+# Error codes
+MISSING_RBTOOLS = 1
+WINDOWS_NOT_SUPPORTED = 2
+CONFIG_ERROR = 3
+UNKNOWN_ACTION = 4
+P4_EXCEPTION = 5
+RB_EXCEPTION = 6
+
 # Make sure RBTools has been installed on this system
 try:
     from rbtools import postreview
@@ -18,7 +26,7 @@ For installation instructions, see this page:
 http://www.reviewboard.org/docs/manual/1.6/users/tools/post-review/#post-review
 
 """)
-    raise SystemExit(1)
+    raise SystemExit(MISSING_RBTOOLS)
 
 
 class RBError(Exception): pass;
@@ -158,34 +166,35 @@ class P4:
         editor = self.get_editor()
         os.system("%s %s" % (editor, change_form.name))
 
-        # The user may have changed their mind, so see if the file changed at all.
         try:
             with open(change_form.name, "r") as f:
                 new_change_form = [s.rstrip() for s in f.readlines()]
         except IOError, e:
+            if os.path.isfile(change_form.name):
+                os.remove(change_form.name)
             raise RBError("Couldn't read the saved change list form.\n%s" % e)
 
+        # The user may have changed their mind, so see if the file changed at all.
         if change_template == new_change_form:
-            print "No changes made."
-            change = None
+            if os.path.isfile(change_form.name):
+                os.remove(change_form.name)
+            raise RBError("No changes made to change list.")
         else:
             try:
                 change_output = self.run("change -i < %s" % change_form.name)
             except P4Error, e:
                 # Give user a chance to fix the problem
-                print "Error in change specification:\n"
-                print e
+                print "Error in change specification:\n%s" % e
                 confirm = raw_input("Try again? n|[y]: ")
                 if confirm == '' or confirm.lower() == 'y':
                     os.system("%s %s" % (editor, change_form.name))
                     change_output = self.run("change -i < %s" % change_form.name)
                 else:
-                    print "Exiting"
-                    os.unlink(change_form.name)
-                    sys.exit(1)
-            change = change_output[0].split()[1]
-        os.unlink(change_form.name)
-        return change
+                    raise P4Error("Change specification errors not fixed.")
+            finally:
+                if os.path.isfile(change_form.name):
+                    os.remove(change_form.name)
+            return change_output[0].split()[1]
 
     def get_change(self, change_number):
         """Return dict with change_number change list"""
@@ -397,7 +406,7 @@ class F5Review:
         if options.output_diff_only:
             # The comma here isn't a typo, but rather suppresses the extra newline
             print diff,
-            sys.exit(0)
+            return
 
         # Post to review board server
         changenum = self.p4client.sanitize_changenum(self.change_list)
@@ -696,16 +705,15 @@ def parse_options(parser):
 
     if len(args) == 0:
         parser.print_help()
-        sys.exit()
+        raise SystemExit(0)
 
     # The command needs to be the first argument.
     action = args[0]
     args = args[1:]
 
     if options.testing_done and options.testing_file:
-        sys.stderr.write("The --testing-done and --testing-done-file options "
+        raise RBError("The --testing-done and --testing-done-file options "
                          "are mutually exclusive.\n")
-        sys.exit(1)
 
     if options.testing_file:
         try:
@@ -793,7 +801,7 @@ def main():
     if os.name == "nt":
         print "This script is currently not supported on Windows."
         print "Please use post-review."
-        sys.exit()
+        raise SystemExit(WINDOWS_NOT_SUPPORTED)
 
     # Configuration and options
     global options
@@ -807,7 +815,7 @@ def main():
         check_config(user_home)
     except RBError, e:
         print e
-        sys.exit(1)
+        raise SystemExit(CONFIG_ERROR)
 
     # We need to call our option parser and then also call postreview's parse_options
     # because it sets global variables that we need for our operations.
@@ -824,7 +832,7 @@ def main():
     }
     if not actions.has_key(action):
         print "Unknown action: %s" % action
-        sys.exit(1)
+        raise SystemExit(UNKNOWN_ACTION)
 
     try:
         p4 = P4()
@@ -838,10 +846,10 @@ def main():
         sys.exit()
     except P4Error, e:
         print e
-        sys.exit(1)
+        raise SystemExit(P4_EXCEPTION)
     except RBError, e:
         print e
-        sys.exit(1)
+        raise SystemExit(RB_EXCEPTION)
 
 
 if __name__ == "__main__":
