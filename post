@@ -744,23 +744,14 @@ def get_changelist_number(p4, action, args):
     return change_list
 
 
-def create_review(review, p4):
-    """Create a new review request"""
+def write_review(review, p4, new=False):
+    """Create or edit a review request"""
     if options.shelve:
         print "Shelving files for change %s." % review.change_list
-        p4.shelve(review.change_list)
-    review.post_review()
-    if not options.output_diff_only:
-        print "Changelist: %s" % review.change_list
-        if not options.publish:
-            print "Don't forget to publish your review."
-
-
-def update_review(review, p4):
-    """Update existing review request."""
-    if options.shelve:
-        print "Shelving files for change %s." % review.change_list
-        p4.update_shelf(review.change_list)
+        if new:
+            p4.shelve(review.change_list)
+        else:
+            p4.update_shelf(review.change_list)
     review.post_review()
     if not options.output_diff_only:
         print "Changelist: %s" % review.change_list
@@ -820,10 +811,10 @@ def main():
     postreview.parse_options(args)
 
     actions = {
-        "create": lambda: create_review(review, p4),
-        "new": lambda: create_review(review, p4),
-        "edit": lambda: update_review(review, p4),
-        "update": lambda: update_review(review, p4),
+        "create": lambda: write_review(review, p4, new=True),
+        "new": lambda: write_review(review, p4, new=True),
+        "edit": lambda: write_review(review, p4),
+        "update": lambda: write_review(review, p4),
         "submit": lambda: submit_review(review, p4),
     }
     if not actions.has_key(action):
