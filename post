@@ -81,13 +81,7 @@ class P4:
         c = "p4 -G " + cmd
         if not args is None:
             c = c + " " + " ".join( args )
-
-        if sys.version_info[1] < 6:
-            (pi, po) = os.popen2( c , "b" )
-        else:
-            from subprocess import Popen, PIPE
-            p = Popen( c, stdin=PIPE, stdout=PIPE, shell=True )
-            (pi, po) = (p.stdin, p.stdout)
+        (pi, po) = os.popen2( c , "b" )
 
         if p4_input:
             marshal.dump( p4_input, pi, 0 )
