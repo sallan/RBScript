@@ -79,8 +79,15 @@ class P4:
         """
 
         c = "p4 -G " + cmd
+
+        # All input to this method should be internal to this program, so
+        # if we don't have either None or a list, something is very wrong.
         if not args is None:
-            c = c + " " + " ".join( args )
+            if isinstance(args, list):
+                c = c + " " + " ".join( args )
+            else:
+                raise P4Error("Program Error: run_G unexpectedly received a non-list value for 'args'.\nPlease contact CM.")
+
         (pi, po) = os.popen2( c , "b" )
 
         if p4_input:
@@ -331,6 +338,8 @@ class F5Review:
         if bugs_closed is None:
             self.bugs_closed = []
         else:
+            if not isinstance(bugs_closed, list):
+                raise RBError("Program Error: unexpectedly received a non-list value for 'bugs_closed'.\nPlease contact CM.")
             self.bugs_closed = bugs_closed
         self.review_id = None
 
