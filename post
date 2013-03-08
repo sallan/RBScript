@@ -5,20 +5,28 @@ import os
 import tempfile
 import marshal
 
+# Error codes
+MISSING_RBTOOLS = 1
+WINDOWS_NOT_SUPPORTED = 2
+CONFIG_ERROR = 3
+UNKNOWN_ACTION = 4
+P4_EXCEPTION = 5
+RB_EXCEPTION = 6
+
 # Make sure RBTools has been installed on this system
 try:
     from rbtools import postreview
     from rbtools.clients import perforce
     import rbtools.api.errors
 except ImportError:
-    print """
+    sys.stderr.write("""
 Use of this script requires post-review from RBTools.
 For installation instructions, see this page:
 
 http://www.reviewboard.org/docs/manual/1.6/users/tools/post-review/#post-review
 
-"""
-    sys.exit(1)
+""")
+    raise SystemExit(MISSING_RBTOOLS)
 
 
 class RBError(Exception): pass;
@@ -59,7 +67,7 @@ class P4:
             raise P4Error("Perforce command '%s' failed.\n" % cmd)
         return data
 
-    def run_G( self, cmd, args=[], input=0 ):
+    def run_G(self, cmd, args=None, p4_input=0):
         """
         Run perforce command and marshal the IO. Returns stdout as a  dict.
 
@@ -69,16 +77,21 @@ class P4:
 
         I modified it slightly for error checking.
         """
-        c = "p4 -G " + cmd + " " + " ".join( args )
-        if sys.version_info[1] < 6:
-            (pi, po) = os.popen2( c , "b" )
-        else:
-            from subprocess import Popen, PIPE
-            p = Popen( c, stdin=PIPE, stdout=PIPE, shell=True )
-            (pi, po) = (p.stdin, p.stdout)
 
-        if input:
-            marshal.dump( input, pi, 0 )
+        c = "p4 -G " + cmd
+
+        # All input to this method should be internal to this program, so
+        # if we don't have either None or a list, something is very wrong.
+        if not args is None:
+            if isinstance(args, list):
+                c = c + " " + " ".join( args )
+            else:
+                raise P4Error("Program Error: run_G unexpectedly received a non-list value for 'args'.\nPlease contact CM.")
+
+        (pi, po) = os.popen2( c , "b" )
+
+        if p4_input:
+            marshal.dump( p4_input, pi, 0 )
             pi.close()
 
         results = []
@@ -86,7 +99,8 @@ class P4:
             while 1:
                 x = marshal.load( po )
                 results.append(x)
-        except EOFError: pass
+        except EOFError:
+            pass
         po.close()
 
         # check for known perforce errors
@@ -153,32 +167,35 @@ class P4:
         editor = self.get_editor()
         os.system("%s %s" % (editor, change_form.name))
 
-        # The user may have changed their mind, so see if the file changed at all.
-        f = open(change_form.name, "r")
-        new_change_form = [s.rstrip() for s in f.readlines()]
-        f.close()
+        try:
+            with open(change_form.name, "r") as f:
+                new_change_form = [s.rstrip() for s in f.readlines()]
+        except IOError, e:
+            if os.path.isfile(change_form.name):
+                os.remove(change_form.name)
+            raise RBError("Couldn't read the saved change list form.\n%s" % e)
 
+        # The user may have changed their mind, so see if the file changed at all.
         if change_template == new_change_form:
-            print "No changes made."
-            change = None
+            if os.path.isfile(change_form.name):
+                os.remove(change_form.name)
+            raise RBError("No changes made to change list.")
         else:
             try:
                 change_output = self.run("change -i < %s" % change_form.name)
             except P4Error, e:
                 # Give user a chance to fix the problem
-                print "Error in change specification:\n"
-                print e
+                print "Error in change specification:\n%s" % e
                 confirm = raw_input("Try again? n|[y]: ")
                 if confirm == '' or confirm.lower() == 'y':
                     os.system("%s %s" % (editor, change_form.name))
                     change_output = self.run("change -i < %s" % change_form.name)
                 else:
-                    print "Exiting"
-                    os.unlink(change_form.name)
-                    sys.exit(1)
-            change = change_output[0].split()[1]
-        os.unlink(change_form.name)
-        return change
+                    raise P4Error("Change specification errors not fixed.")
+            finally:
+                if os.path.isfile(change_form.name):
+                    os.remove(change_form.name)
+            return change_output[0].split()[1]
 
     def get_change(self, change_number):
         """Return dict with change_number change list"""
@@ -235,18 +252,7 @@ class P4:
 
     def add_reviewboard_shipits(self, review, ship_its):
         """
-        Add review board ID and list of users who approved the review to the change list.
-
-        Example:
-
-                 Reviewed by: Bill Walker, Michael Slass, Zach Carter
-
-                 Reviewboard: 53662
-
-        Note: We have a perforce trigger that adds the ReviewBoard URL so that it gets
-        included even if the change is submitted without using this script. So once that's
-        proven to be working with the new server, we can leave out this extra ReviewBoard
-        line.
+        Add list of users who approved the review to the change list.
 
         """
 
@@ -266,7 +272,7 @@ class P4:
             change_description.extend(['', ship_it_line])
 
         change['Description'] = "\n".join(change_description)
-        self.run_G("change -i", input=change)
+        self.run_G("change -i", p4_input=change)
 
 
     def set(self):
@@ -312,7 +318,7 @@ class F5Review:
     Encapsulate a review request and handle interaction with Review Board server.
     """
 
-    def __init__(self, server, change_list, bugs_closed=[]):
+    def __init__(self, server, change_list, bugs_closed=None):
         """
         Create an instance of F5Review.
 
@@ -329,7 +335,12 @@ class F5Review:
 
         self.server = server
         self.change_list = change_list
-        self.bugs_closed = bugs_closed
+        if bugs_closed is None:
+            self.bugs_closed = []
+        else:
+            if not isinstance(bugs_closed, list):
+                raise RBError("Program Error: unexpectedly received a non-list value for 'bugs_closed'.\nPlease contact CM.")
+            self.bugs_closed = bugs_closed
         self.review_id = None
 
         # Create a PerforceClient object to create proper diffs. This comes from rbtools.
@@ -398,7 +409,7 @@ class F5Review:
         if options.output_diff_only:
             # The comma here isn't a typo, but rather suppresses the extra newline
             print diff,
-            sys.exit(0)
+            return
 
         # Post to review board server
         changenum = self.p4client.sanitize_changenum(self.change_list)
@@ -415,6 +426,7 @@ class F5Review:
         # sometimes add stuff.
         if options.publish:
             self.publish()
+        return review_url
 
     def add_shelve_comment(self):
         """Add comment to review regarding the shelved change list."""
@@ -525,9 +537,8 @@ def migrate_rbrc_file(old_rc_file, new_rc_file):
 
     """
     try:
-        f = open(old_rc_file, "r")
-        old_rc = f.read().splitlines()
-        f.close()
+        with open(old_rc_file, "r") as f:
+            old_rc = f.read().splitlines()
     except IOError, e:
         raise RBError("Can't read %s\n%s" % (old_rc_file, e))
 
@@ -540,6 +551,7 @@ def migrate_rbrc_file(old_rc_file, new_rc_file):
         k, v = [s.strip() for s in line.split("=")]
         old_settings[k] = v
 
+    server_url = False
     if old_settings.has_key("server"):
         server_name = old_settings["server"]
         protocol = "http"
@@ -549,12 +561,12 @@ def migrate_rbrc_file(old_rc_file, new_rc_file):
 
     if server_url:
         try:
-            f = open(new_rc_file, "w")
-            f.write('REVIEWBOARD_URL = "%s"\n' %  server_url)
-            f.close()
+            with open(new_rc_file, "w") as f:
+                f.write('REVIEWBOARD_URL = "%s"\n' %  server_url)
         except IOError, e:
-            print "Failed to write %s" % new_rc_file
-            print e
+            raise RBError("Failed to write %s\n%s" % (new_rc_file, e))
+
+        # Let the user know a new config file was created
         print "Wrote config file: %s" % new_rc_file
 
 
@@ -696,26 +708,22 @@ def parse_options(parser):
 
     if len(args) == 0:
         parser.print_help()
-        sys.exit()
+        raise SystemExit(0)
 
     # The command needs to be the first argument.
     action = args[0]
     args = args[1:]
 
     if options.testing_done and options.testing_file:
-        sys.stderr.write("The --testing-done and --testing-done-file options "
+        raise RBError("The --testing-done and --testing-done-file options "
                          "are mutually exclusive.\n")
-        sys.exit(1)
 
     if options.testing_file:
-        if os.path.exists(options.testing_file):
-            fp = open(options.testing_file, "r")
-            options.testing_done = fp.read()
-            fp.close()
-        else:
-            sys.stderr.write("The testing file %s does not exist.\n" %
-                             options.testing_file)
-            sys.exit(1)
+        try:
+            with open(options.testing_file, "r") as f:
+                options.testing_done = f.read()
+        except IOError, e:
+            raise RBError("Couldn't read test file '%s'\n%s" % (options.testing_file, e))
 
     # We expect these to be set in the environment. For that to work we
     # have to provide a value of None to these in the options namespace
@@ -729,7 +737,7 @@ def parse_options(parser):
     # This unsupported option also needs to be initialized
     options.submit_as = None
 
-    return (options, args, action)
+    return options, args, action
 
 
 def get_changelist_number(p4, action, args):
@@ -745,26 +753,19 @@ def get_changelist_number(p4, action, args):
     return change_list
 
 
-def create_review(review, p4):
-    """Create a new review request"""
+def write_review(review, p4, new=False):
+    """Create or edit a review request"""
     if options.shelve:
         print "Shelving files for change %s." % review.change_list
-        p4.shelve(review.change_list)
+        if new:
+            p4.shelve(review.change_list)
+        else:
+            p4.update_shelf(review.change_list)
     review.post_review()
-    print "Changelist: %s" % review.change_list
-    if not options.publish:
-        print "Don't forget to publish your review."
-
-
-def update_review(review, p4):
-    """Update existing review request."""
-    if options.shelve:
-        print "Shelving files for change %s." % review.change_list
-        p4.update_shelf(review.change_list)
-    review.post_review()
-    print "Changelist: %s" % review.change_list
-    if not options.publish:
-        print "Don't forget to publish your review."
+    if not options.output_diff_only:
+        print "Changelist: %s" % review.change_list
+        if not options.publish:
+            print "Don't forget to publish your review."
 
 
 def submit_review(review, p4):
@@ -796,7 +797,7 @@ def main():
     if os.name == "nt":
         print "This script is currently not supported on Windows."
         print "Please use post-review."
-        sys.exit()
+        raise SystemExit(WINDOWS_NOT_SUPPORTED)
 
     # Configuration and options
     global options
@@ -810,7 +811,7 @@ def main():
         check_config(user_home)
     except RBError, e:
         print e
-        sys.exit(1)
+        raise SystemExit(CONFIG_ERROR)
 
     # We need to call our option parser and then also call postreview's parse_options
     # because it sets global variables that we need for our operations.
@@ -819,15 +820,15 @@ def main():
     postreview.parse_options(args)
 
     actions = {
-        "create": lambda: create_review(review, p4),
-        "new": lambda: create_review(review, p4),
-        "edit": lambda: update_review(review, p4),
-        "update": lambda: update_review(review, p4),
+        "create": lambda: write_review(review, p4, new=True),
+        "new": lambda: write_review(review, p4, new=True),
+        "edit": lambda: write_review(review, p4),
+        "update": lambda: write_review(review, p4),
         "submit": lambda: submit_review(review, p4),
     }
     if not actions.has_key(action):
         print "Unknown action: %s" % action
-        sys.exit(1)
+        raise SystemExit(UNKNOWN_ACTION)
 
     try:
         p4 = P4()
@@ -841,10 +842,10 @@ def main():
         sys.exit()
     except P4Error, e:
         print e
-        sys.exit(1)
+        raise SystemExit(P4_EXCEPTION)
     except RBError, e:
         print e
-        sys.exit(1)
+        raise SystemExit(RB_EXCEPTION)
 
 
 if __name__ == "__main__":
