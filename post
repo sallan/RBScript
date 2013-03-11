@@ -803,8 +803,6 @@ def main():
     global options
     global configs
     user_home = os.path.expanduser("~")
-    user_config, configs = postreview.load_config_files(user_home)
-    parser = get_option_parser()
 
     # Check for a legacy .rbrc file and migrate it to .reviewboardrc if necessary
     try:
@@ -812,6 +810,9 @@ def main():
     except RBError, e:
         print e
         raise SystemExit(CONFIG_ERROR)
+
+    user_config, configs = postreview.load_config_files(user_home)
+    parser = get_option_parser()
 
     # We need to call our option parser and then also call postreview's parse_options
     # because it sets global variables that we need for our operations.
