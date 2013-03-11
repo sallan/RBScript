@@ -88,7 +88,12 @@ class P4:
             else:
                 raise P4Error("Program Error: run_G unexpectedly received a non-list value for 'args'.\nPlease contact CM.")
 
-        (pi, po) = os.popen2( c , "b" )
+        if sys.version_info[1] < 6:
+             (pi, po) = os.popen2( c , "b" )
+        else:
+            from subprocess import Popen, PIPE
+            p = Popen( c, stdin=PIPE, stdout=PIPE, shell=True )
+            (pi, po) = (p.stdin, p.stdout)
 
         if p4_input:
             marshal.dump( p4_input, pi, 0 )
