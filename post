@@ -89,7 +89,7 @@ class P4:
             else:
                 raise P4Error("Program Error: run_G unexpectedly received a non-list value for 'args'.\nPlease contact CM.")
 
-        if sys.version_info[1] < 6:
+        if sys.version_info < (2, 6):
             (pi, po) = os.popen2( c , "b" )
         else:
             from subprocess import Popen, PIPE
@@ -806,7 +806,7 @@ def main():
         raise SystemExit(UNSUPPORTED_OS)
 
     # We require at least Python 2.5
-    if sys.version_info[1] < 5:
+    if sys.version_info < (2, 5):
         sys.stderr.write("This script requires Python version 2.5 or greater.\n")
         sys.stderr.write("Please use the rb2 script instead.\n")
         raise SystemExit(UNSUPPORTED_PYTHON)
