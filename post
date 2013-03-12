@@ -7,28 +7,39 @@ import marshal
 
 # Error codes
 MISSING_RBTOOLS = 1
-UNSUPPORTED_OS = 2
-UNSUPPORTED_PYTHON = 3
-CONFIG_ERROR = 4
-UNKNOWN_ACTION = 5
-P4_EXCEPTION = 6
-RB_EXCEPTION = 7
+UNSUPPORTED_RBTOOLS = 2
+UNSUPPORTED_OS = 3
+UNSUPPORTED_PYTHON = 4
+CONFIG_ERROR = 5
+UNKNOWN_ACTION = 6
+P4_EXCEPTION = 7
+RB_EXCEPTION = 8
 
-# Make sure RBTools has been installed on this system
+# Required Versions
+PYTHON_VERSION = (2, 5)
+PYTHON_VERSION_STR = '2.5'
+RBTOOLS_VERSION = (0, 4, 2)
+RBTOOLS_VERSION_STR = '0.4.2'
+RBTOOLS_URL = 'http://www.reviewboard.org/docs/manual/1.7/users/tools/post-review/'
+RBTOOLS_VERSION_MSG = """
+Use of this script requires post-review version %s or greater from RBTools.
+For installation instructions, please see this page:
+
+%s
+
+""" % (RBTOOLS_VERSION_STR, RBTOOLS_URL)
 try:
     from rbtools import postreview
+    from rbtools import VERSION
     from rbtools.clients import perforce
     import rbtools.api.errors
 except ImportError:
-    sys.stderr.write("""
-Use of this script requires post-review from RBTools.
-For installation instructions, see this page:
-
-http://www.reviewboard.org/docs/manual/1.7/users/tools/post-review/
-
-""")
+    sys.stderr.write(RBTOOLS_VERSION_MSG)
     raise SystemExit(MISSING_RBTOOLS)
-
+else:
+    if rbtools.VERSION < RBTOOLS_VERSION:
+        sys.stderr.write(RBTOOLS_VERSION_MSG)
+        raise SystemExit(UNSUPPORTED_RBTOOLS)
 
 class RBError(Exception): pass;
 
@@ -805,9 +816,9 @@ def main():
         sys.stderr.write("Please use post-review instead.\n")
         raise SystemExit(UNSUPPORTED_OS)
 
-    # We require at least Python 2.5
-    if sys.version_info < (2, 5):
-        sys.stderr.write("This script requires Python version 2.5 or greater.\n")
+    # Check Python version
+    if sys.version_info < PYTHON_VERSION:
+        sys.stderr.write("This script requires Python version %s or greater.\n" % PYTHON_VERSION_STR)
         sys.stderr.write("Please use the rb2 script instead.\n")
         raise SystemExit(UNSUPPORTED_PYTHON)
 
