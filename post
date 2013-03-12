@@ -7,11 +7,12 @@ import marshal
 
 # Error codes
 MISSING_RBTOOLS = 1
-WINDOWS_NOT_SUPPORTED = 2
-CONFIG_ERROR = 3
-UNKNOWN_ACTION = 4
-P4_EXCEPTION = 5
-RB_EXCEPTION = 6
+UNSUPPORTED_OS = 2
+UNSUPPORTED_PYTHON = 3
+CONFIG_ERROR = 4
+UNKNOWN_ACTION = 5
+P4_EXCEPTION = 6
+RB_EXCEPTION = 7
 
 # Make sure RBTools has been installed on this system
 try:
@@ -23,7 +24,7 @@ except ImportError:
 Use of this script requires post-review from RBTools.
 For installation instructions, see this page:
 
-http://www.reviewboard.org/docs/manual/1.6/users/tools/post-review/#post-review
+http://www.reviewboard.org/docs/manual/1.7/users/tools/post-review/
 
 """)
     raise SystemExit(MISSING_RBTOOLS)
@@ -800,9 +801,15 @@ def submit_review(review, p4):
 def main():
     # For now, we don't run on Windows
     if os.name == "nt":
-        print "This script is currently not supported on Windows."
-        print "Please use post-review."
-        raise SystemExit(WINDOWS_NOT_SUPPORTED)
+        sys.stderr.write("This script is currently not supported on Windows.\n")
+        sys.stderr.write("Please use post-review instead.\n")
+        raise SystemExit(UNSUPPORTED_OS)
+
+    # We require at least Python 2.5
+    if sys.version_info[1] < 5:
+        sys.stderr.write("This script requires Python version 2.5 or greater.\n")
+        sys.stderr.write("Please use the rb2 script instead.\n")
+        raise SystemExit(UNSUPPORTED_PYTHON)
 
     # Configuration and options
     global options
