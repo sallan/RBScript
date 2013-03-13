@@ -22,12 +22,19 @@ RBTOOLS_VERSION = (0, 4, 2)
 RBTOOLS_VERSION_STR = '0.4.2'
 RBTOOLS_URL = 'http://www.reviewboard.org/docs/manual/1.7/users/tools/post-review/'
 RBTOOLS_VERSION_MSG = """
-Use of this script requires post-review version %s or greater from RBTools.
-For installation instructions, please see this page:
+Use of this script requires Python %s or greater, and post-review version %s or
+greater from RBTools. For installation instructions, please see this page:
 
-%s
+  %s
 
-""" % (RBTOOLS_VERSION_STR, RBTOOLS_URL)
+IMPORTANT:
+
+If you're on a linux system witn an older python, updating python could break your
+package management system and is not advised. If that's the case, please use
+
+  /build/cm/bin/rb2
+
+""" % (PYTHON_VERSION_STR, RBTOOLS_VERSION_STR, RBTOOLS_URL)
 try:
     from rbtools import postreview
     from rbtools import VERSION
@@ -184,12 +191,16 @@ class P4:
         editor = self.get_editor()
         os.system("%s %s" % (editor, change_form.name))
 
+        # Use 2.4 compatible version because we have so many CentOS 5 users
+        f = None
         try:
-            with open(change_form.name, "r") as f:
-                new_change_form = [s.rstrip() for s in f.readlines()]
-        except IOError, e:
+            f = open(change_form.name, "r")
+            new_change_form = [s.rstrip() for s in f.readlines()]
+        except EnvironmentError, e:
             if os.path.isfile(change_form.name):
                 os.remove(change_form.name)
+            if f:
+                f.close()
             raise RBError("Couldn't read the saved change list form.\n%s" % e)
 
         # The user may have changed their mind, so see if the file changed at all.
@@ -198,17 +209,19 @@ class P4:
                 os.remove(change_form.name)
             raise RBError("No changes made to change list.")
         else:
+            # Use 2.4 compatible syntax since we have so many CentOS 5 users.
             try:
-                change_output = self.run("change -i < %s" % change_form.name)
-            except P4Error, e:
-                # Give user a chance to fix the problem
-                print "Error in change specification:\n%s" % e
-                confirm = raw_input("Try again? n|[y]: ")
-                if confirm == '' or confirm.lower() == 'y':
-                    os.system("%s %s" % (editor, change_form.name))
+                try:
                     change_output = self.run("change -i < %s" % change_form.name)
-                else:
-                    raise P4Error("Change specification errors not fixed.")
+                except P4Error, e:
+                    # Give user a chance to fix the problem
+                    print "Error in change specification:\n%s" % e
+                    confirm = raw_input("Try again? n|[y]: ")
+                    if confirm == '' or confirm.lower() == 'y':
+                        os.system("%s %s" % (editor, change_form.name))
+                        change_output = self.run("change -i < %s" % change_form.name)
+                    else:
+                        raise P4Error("Change specification errors not fixed.")
             finally:
                 if os.path.isfile(change_form.name):
                     os.remove(change_form.name)
@@ -553,11 +566,18 @@ def migrate_rbrc_file(old_rc_file, new_rc_file):
     not already an existing .reviewboardrc file.
 
     """
+
+    # Use 2.4 compatible version because we have so many CentOS 5 users
+    f = None
     try:
-        with open(old_rc_file, "r") as f:
+        try:
+            f = open(old_rc_file, "r")
             old_rc = f.read().splitlines()
-    except IOError, e:
-        raise RBError("Can't read %s\n%s" % (old_rc_file, e))
+        except EnvironmentError, e:
+            raise RBError("Can't read %s\n%s" % (old_rc_file, e))
+    finally:
+        if f:
+            f.close()
 
     # We don't migrate the user name because doing so causes post-review
     # to prompt for a password each time. By leaving it out, you get prompted
@@ -577,11 +597,17 @@ def migrate_rbrc_file(old_rc_file, new_rc_file):
         server_url = protocol + "://" + server_name
 
     if server_url:
+        # Use 2.4 compatible version because we have so many CentOS 5 users
+        f = None
         try:
-            with open(new_rc_file, "w") as f:
+            try:
+                f = open(new_rc_file, "w")
                 f.write('REVIEWBOARD_URL = "%s"\n' %  server_url)
-        except IOError, e:
-            raise RBError("Failed to write %s\n%s" % (new_rc_file, e))
+            except EnvironmentError, e:
+                raise RBError("Failed to write %s\n%s" % (new_rc_file, e))
+        finally:
+            if f:
+                f.close()
 
         # Let the user know a new config file was created
         print "Wrote config file: %s" % new_rc_file
@@ -736,11 +762,17 @@ def parse_options(parser):
                          "are mutually exclusive.\n")
 
     if options.testing_file:
+        # Use 2.4 version since we have so many CentOS 5 users
+        f = None
         try:
-            with open(options.testing_file, "r") as f:
+            try:
+                f = open(options.testing_file, "r")
                 options.testing_done = f.read()
-        except IOError, e:
-            raise RBError("Couldn't read test file '%s'\n%s" % (options.testing_file, e))
+            except EnvironmentError, e:
+                raise RBError("Couldn't read test file '%s'\n%s" % (options.testing_file, e))
+        finally:
+            if f:
+                f.close()
 
     # We expect these to be set in the environment. For that to work we
     # have to provide a value of None to these in the options namespace
