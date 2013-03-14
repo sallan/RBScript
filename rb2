@@ -1368,11 +1368,6 @@ sub do_rr_create {
         die("Diff is empty.\n");
     }
 
-    if ( $opt->{'output-diff'} ) {
-        print $diff_content;
-        exit 0;
-    }
-
     my %data
         = rb_review_request_create( $p4info{'Server address'}, $changenum );
     my %rr  = %{ $data{'review_request'} };
@@ -1462,11 +1457,7 @@ sub do_rr_edit {
         $changed = 1;
     }
 
-    if (   $opt->{'output-diff'}
-        or $opt->{'update-diff'}
-        or $opt->{'update-all'}
-        or $opt->{'shelve'} )
-    {
+    if ( $opt->{'update-all'} or $opt->{'update-diff'} or $opt->{'shelve'} ) {
         my %p4info       = p4_info();
         my @diff_lines   = p4_diff_cset( $rr{'changenum'} );
         my $diff_content = '';
@@ -1475,10 +1466,6 @@ sub do_rr_edit {
         }
         if ( !$diff_content ) {
             die("Diff is empty.\n");
-        }
-        if ( $opt->{'output-diff'} ) {
-            print $diff_content;
-            exit 0;
         }
         if ( $opt->{'shelve'} ) {
             p4_update_shelve( $rid, $rr{'changenum'} );
@@ -1569,6 +1556,20 @@ sub do_rr_submit {
     print "Review $rid closed.\n";
 }
 
+sub do_diff {
+    my ( $changenum, $opt ) = @_;
+    my @diff_lines;
+    if ($changenum) {
+        @diff_lines = p4_diff_cset($changenum);
+    }
+    else {
+        @diff_lines = p4_diff_opened();
+    }
+    foreach (@diff_lines) {
+        print $_;
+    }
+}
+
 ####
 #### Usage and Help
 ####
@@ -1603,6 +1604,7 @@ Commands:
   create [changenum]    Create from default change or specified change list.
     edit  changenum     Edit the review associated with specified change list.
   submit  changenum     Submit the review associated with specified change list.
+    diff [changenum]    Print diff to STDOUT. If no changenum, default change is used.
 
 Options:
   -h, --help            show this help message and exit
@@ -1614,7 +1616,6 @@ Options:
 
   Create and Update Options:
     -p, --publish       Publish the review.
-    -n, --output-diff   Output diff to console and exit. Do not post.
     --target-groups=<group [,groups]>
                         Assign or replace ReviewBoard groups for this review.
     --target-people=<user [,users]>
@@ -1644,21 +1645,20 @@ EOH
 ########################################
 my $opt = {};
 GetOptions(
-    $opt,          # Hash to hold options
-    'debug',       # Print debug information
-    'verbose+',    # Increate verbosity level
-    'server=s',    # Specify server name
-    'ssl',         # Use https
-    'publish',     # publish the review
-    'n', 'output-diff',    # Print diff only
-    'target-groups=s',     # Assign review to list of groups
-    'target-people=s',     # Assign review to list of users
-    'shelve',              # Shelve the files
-    'testing-done',        # String describing testing done
-    'update-diff',         # Update the diff only
-    'update-all',          # Update diff and info in change list
-    'force',               # Force the submit
-    'edit',                # Edit the change before submit
+    $opt,                 # Hash to hold options
+    'debug',              # Print debug information
+    'verbose+',           # Increate verbosity level
+    'server=s',           # Specify server name
+    'ssl',                # Use https
+    'publish',            # publish the review
+    'target-groups=s',    # Assign review to list of groups
+    'target-people=s',    # Assign review to list of users
+    'shelve',             # Shelve the files
+    'testing-done',       # String describing testing done
+    'update-diff',        # Update the diff only
+    'update-all',         # Update diff and info in change list
+    'force',              # Force the submit
+    'edit',               # Edit the change before submit
     'help',
 ) or usage();
 
@@ -1683,6 +1683,8 @@ my %actions = (
     'edit'   => \&do_rr_edit,
     'update' => \&do_rr_edit,
     'submit' => \&do_rr_submit,
+    'diff'   => \&do_diff,
+    'help'   => \&usage,
 );
 
 unless ($cmd) {
@@ -1728,7 +1730,7 @@ $ua->cookie_jar(
 );
 $ua->timeout( $prefs{'timeout'} );
 
-# call command and we're done.
+# Call command and we're done.
 $actions{$cmd}->( $changenum, $opt );
 exit;
 
