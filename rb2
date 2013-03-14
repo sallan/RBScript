@@ -1614,7 +1614,7 @@ Options:
                         if necessary and the server name will be saved.
   --ssl                 When specifying a server, use this option if https is required.
 
-  Create and Update Options:
+  Create and Edit Options:
     -p, --publish       Publish the review.
     --target-groups=<group [,groups]>
                         Assign or replace ReviewBoard groups for this review.
