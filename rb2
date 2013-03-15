@@ -1625,8 +1625,7 @@ Options:
     --update-diff       Uploads a new diff, but does not update information
                         from change list.
     --update-all        Updates diff and all information in change list.
-    --testing-done=<string>
-                        Description of testing done.
+
   Submit Options:
     -f, --force         Submit even if the review doesn't meet all
                         requirements.
@@ -1654,7 +1653,6 @@ GetOptions(
     'target-groups=s',    # Assign review to list of groups
     'target-people=s',    # Assign review to list of users
     'shelve',             # Shelve the files
-    'testing-done',       # String describing testing done
     'update-diff',        # Update the diff only
     'update-all',         # Update diff and info in change list
     'force',              # Force the submit
@@ -1694,7 +1692,6 @@ unless ( defined $actions{$cmd} ) {
     die "Unrecognized command: $cmd\n";
 }
 
-# TODO: consider if you really want this and if so should it look more like verbose
 if ( $opt->{'debug'} ) {
     $DEBUG = 1;
 }
