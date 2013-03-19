@@ -1413,6 +1413,11 @@ sub do_rr_edit {
         }
     }
 
+    # The edit options are --update-diff and --update-all. The default should be --update-all.
+    unless ($opt->{'update-diff'}) {
+        $opt->{'update-all'} = 1;
+    }
+
     my $changed = 0;
     if ($opt_cset) {
         rb_review_request_draft_set_field( $rid, 'changenum', $opt_cset );
