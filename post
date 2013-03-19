@@ -640,6 +640,10 @@ def get_server(user_config, cookie_file):
     """
     perforce = postreview.PerforceClient(options=options)
     if options.server:
+        # Users used to using rb are accustomed to providing the server without
+        # the protocol string. In that case, assume https.
+        if not options.server.startswith('http'):
+            options.server = 'https://' + options.server
         server_url = options.server
     else:
         if user_config and user_config.has_key("REVIEWBOARD_URL"):
