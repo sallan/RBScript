@@ -1570,6 +1570,35 @@ sub do_diff {
     }
 }
 
+sub parse_server {
+    my $opt = shift;
+
+    # rb users will just pass the server name, but people using post or post-review
+    # will pass the entire url. We should handle both.
+    my $url = $opt->{'server'};
+    my ($server, $ssl);
+
+    # if we have a server, parse it and return. If not, undef will be returned
+    # and ignored.
+    if ($url) {
+        if (substr($url, 0, 4) eq 'http') {
+            if (substr($url, 0, 5) eq 'https') {
+                $server = substr($url, 8);
+                $ssl = 1;
+            }
+            else {
+                $server = substr($url, 7);
+                $ssl = 0;
+            }
+        }
+        else {
+            $server = $url;
+            $ssl = $opt->{'ssl'};
+        }
+    }
+    return ($server, $ssl);
+}
+
 ####
 #### Usage and Help
 ####
@@ -1707,12 +1736,13 @@ delete $ENV{'P4DIFF'};
 
 # Process preferences
 prefs_load();
-if ( $opt->{'server'} ) {
-    $prefs{'server'} = $opt->{'server'};
+my ($server, $ssl) = parse_server($opt);
+if (defined $server) {
+    $prefs{'server'} = $server;
     prefs_save();
 }
-if ( $opt->{'ssl'} ) {
-    $prefs{'use_ssl'} = $opt->{'ssl'};
+if (defined $ssl) {
+    $prefs{'ssl'} = $ssl;
     prefs_save();
 }
 p4_config_load();
