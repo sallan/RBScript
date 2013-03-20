@@ -4,6 +4,7 @@ import sys
 import os
 import tempfile
 import marshal
+import urllib2
 
 # Error codes
 MISSING_RBTOOLS = 1
@@ -653,8 +654,13 @@ def get_server(user_config, cookie_file):
                 "No server url found. Either set in your .reviewboardrc file or pass it with --server option.")
 
     repository_info = perforce.get_repository_info()
-    server = postreview.ReviewBoardServer(server_url, repository_info, cookie_file)
-    server.check_api_version()
+    try:
+        server = postreview.ReviewBoardServer(server_url, repository_info, cookie_file)
+        server.check_api_version()
+    except urllib2.URLError, e:
+        raise RBError(
+            "Failed to connect to %s: %s\nPlease check the REVIEWBOARD_URL entry in $HOME/.reviewboardrc"
+            % (server_url, e))
     return server
 
 
