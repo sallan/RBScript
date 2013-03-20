@@ -1374,13 +1374,13 @@ sub do_rr_create {
     my $rid = $rr{'id'};
     rb_upload_diff( $rid, $p4info{'Server address'}, $diff_content );
 
-    # Set update-all to true and call do_rr_edit to create the review.
+    # Set update-all to true and call do_rr_edit to finish creating the review.
     $opt->{'update-all'} = 1;
-    do_rr_edit( $changenum, $opt );
+    do_rr_edit( $changenum, $opt, 1 );
 }
 
 sub do_rr_edit {
-    my ( $changenum, $opt ) = @_;
+    my ( $changenum, $opt, $new_review ) = @_;
 
     unless ($changenum) {
         die "Need the changelist number for this review.\n";
@@ -1419,11 +1419,6 @@ sub do_rr_edit {
     }
 
     my $changed = 0;
-    if ($opt_cset) {
-        rb_review_request_draft_set_field( $rid, 'changenum', $opt_cset );
-        $rr{'changenum'} = $opt_cset;
-        $changed = 1;
-    }
     my %cset = p4_cset_get( $rr{'changenum'} );
 
     if ( $opt->{'target-groups'} ) {
@@ -1464,19 +1459,24 @@ sub do_rr_edit {
 
     if ( $opt->{'update-all'} or $opt->{'update-diff'} or $opt->{'shelve'} ) {
         my %p4info       = p4_info();
-        my @diff_lines   = p4_diff_cset( $rr{'changenum'} );
-        my $diff_content = '';
-        foreach (@diff_lines) {
-            $diff_content .= $_;
-        }
-        if ( !$diff_content ) {
-            die("Diff is empty.\n");
+
+        # If this is a new review, the diff has already been uploaded, but if this
+        # is an update of an existing review, we need to upload the diff now.
+        unless ($new_review) {
+            my @diff_lines   = p4_diff_cset( $rr{'changenum'} );
+            my $diff_content = '';
+            foreach (@diff_lines) {
+                $diff_content .= $_;
+            }
+            if ( !$diff_content ) {
+                die("Diff is empty.\n");
+            }
+            rb_upload_diff( $rid, $p4info{'Server address'}, $diff_content );
         }
         if ( $opt->{'shelve'} ) {
             p4_update_shelve( $rid, $rr{'changenum'} );
             rb_review_request_add_shelve_comment( $rid, $rr{'changenum'} );
         }
-        rb_upload_diff( $rid, $p4info{'Server address'}, $diff_content );
         $changed = 1;
     }
 
