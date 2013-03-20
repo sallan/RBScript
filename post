@@ -6,6 +6,8 @@ import tempfile
 import marshal
 import urllib2
 
+POST_VERSION="1.0"
+
 # Error codes
 MISSING_RBTOOLS = 1
 UNSUPPORTED_RBTOOLS = 2
@@ -23,19 +25,24 @@ RBTOOLS_VERSION = (0, 4, 0)
 RBTOOLS_VERSION_STR = '0.4.0'
 RBTOOLS_URL = 'http://www.reviewboard.org/docs/manual/1.7/users/tools/post-review/'
 RBTOOLS_VERSION_MSG = """
-Use of this script requires Python %s or greater, and post-review version %s or
-greater from RBTools. For installation instructions, please see this page:
+Use of this script requires:
+
+  RBTools version %s or greater
+  Python %s or greater
+
+For installation instructions, please see this page:
 
   %s
 
 IMPORTANT:
 
-If you're on a linux system witn an older python, updating python could break your
-package management system and is not advised. If that's the case, please use
+If you're on a linux system with an older python, updating python
+could break your package management system and is not advised.
+If that's the case, please use
 
   /build/cm/bin/rb2
 
-""" % (PYTHON_VERSION_STR, RBTOOLS_VERSION_STR, RBTOOLS_URL)
+""" % (RBTOOLS_VERSION_STR, PYTHON_VERSION_STR, RBTOOLS_URL)
 try:
     from rbtools import postreview
     from rbtools import VERSION
@@ -46,6 +53,7 @@ except ImportError:
     raise SystemExit(MISSING_RBTOOLS)
 else:
     if rbtools.VERSION < RBTOOLS_VERSION:
+        sys.stderr.write("\nERROR: Found old version of RBTools: Version %s\n" % rbtools.get_package_version())
         sys.stderr.write(RBTOOLS_VERSION_MSG)
         raise SystemExit(UNSUPPORTED_RBTOOLS)
 
@@ -698,6 +706,9 @@ The options for each command are described below.
         usage="%prog [OPTIONS] create|edit|submit|diff [changenum]",
         description=description
     )
+    parser.add_option("-v", "--version",
+        default=False, dest="version", action="store_true",
+        help="Display version and exit.")
     parser.add_option("-d", "--debug",
         dest="debug", action="store_true", default=False,
         help="Display debug output.")
@@ -761,6 +772,10 @@ The options for each command are described below.
 def parse_options(parser):
     """Parse command line options, strip of legacy UI elements and return args, optiions and action."""
     options, args = parser.parse_args()
+
+    if options.version:
+        print_version()
+        raise SystemExit(0)
 
     if len(args) == 0:
         parser.print_help()
@@ -866,6 +881,9 @@ def diff_changes(options, args):
         raise RBError("There don't seem to be any diffs!")
     print diff,
 
+def print_version():
+    program_name = os.path.basename(sys.argv[0])
+    print "%s %s (using RBTools %s)" % (program_name, POST_VERSION, rbtools.get_package_version())
 
 def main():
     # For now, we don't run on Windows
@@ -900,6 +918,10 @@ def main():
     # We don't care about the return value of postreview's parse_options.
     options, args, action = parse_options(parser)
     postreview.parse_options(args)
+
+    if options.version:
+        print "Version is ", VERSION
+        raise SystemExit(0)
 
     actions = {
         "create": lambda: write_review(review, p4, new=True),
