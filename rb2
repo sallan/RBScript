@@ -1478,7 +1478,12 @@ sub do_rr_edit {
             if ( !$diff_content ) {
                 die("Diff is empty.\n");
             }
-            rb_review_request_set_changelist( $rid, $changenum );
+
+            # After more thought, I've decided not to update the change list in the
+            # review here. Using the --rid option, someone could upload the same change
+            # list to multiple reviews which could be bad if we changed the cl 
+            # associated with those reviews.
+            # rb_review_request_set_changelist( $rid, $changenum );
             rb_upload_diff( $rid, $p4info{'Server address'}, $diff_content );
         }
         if ( $opt->{'shelve'} ) {
