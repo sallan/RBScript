@@ -430,6 +430,7 @@ class F5Review:
         postreview.options.change_only = options.change_only
         postreview.options.testing_done = options.testing_done
         postreview.options.testing_file = options.testing_file
+        postreview.options.rid = options.rid
         postreview.options.debug = options.debug
 
         # I decided against supporting the username option. I think it's confusing
@@ -753,6 +754,9 @@ The options for each command are described below.
     edit_group.add_option("--testing-done-file",
         dest="testing_file", metavar="<filename>",
         help="Text file containing description of testing done.")
+    edit_group.add_option("-r", "--rid",
+        dest="rid", metavar="<ID>",
+        help="Upload changes to specific review by ID. Use this if your change list is different from the one associated with ID.")
 
     # I decided against supporting the username option. I think it's confusing
     # and there's rarely a need for it. On those occasions where it's
