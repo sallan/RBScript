@@ -1386,16 +1386,23 @@ sub do_rr_edit {
         die "Need the changelist number for this review.\n";
     }
 
-    my $rid = rb_get_review_id_from_changelist($changenum);
-    unless ($rid) {
-        die "Can't find an open review for change list: $changenum\n";
+    my $rid; 
+    if ($opt->{'rid'}) {
+        $rid = $opt->{'rid'};
+    }
+    else {
+        $rid = rb_get_review_id_from_changelist($changenum);
+        unless ($rid) {
+            die "Can't find an open review for change list: $changenum\n";
+        }   
     }
 
     my %data = rb_review_request_get($rid);
     my %rr   = %{ $data{'review_request'} };
+    $rr{'changenum'} = $changenum;
 
     # If we're updating status, just do that and exit.
-    # TODO: Decide whether or not to suppor this. Currently disabled.
+    # TODO: Decide whether or not to support this. Currently disabled.
     if ($opt_status) {
         if (   $opt_status ne 'submitted'
             && $opt_status ne 'discarded'
@@ -1471,6 +1478,7 @@ sub do_rr_edit {
             if ( !$diff_content ) {
                 die("Diff is empty.\n");
             }
+            rb_review_request_set_changelist( $rid, $changenum );
             rb_upload_diff( $rid, $p4info{'Server address'}, $diff_content );
         }
         if ( $opt->{'shelve'} ) {
@@ -1659,6 +1667,9 @@ Options:
     --update-diff       Uploads a new diff, but does not update information
                         from change list.
     --update-all        Updates diff and all information in change list.
+    -r, --rid           Use this if you want to upload changes from a different
+                        change list than the one associated with the review.
+                        Can only be used to edit an existing review.
 
   Submit Options:
     -f, --force         Submit even if the review doesn't meet all
@@ -1687,6 +1698,7 @@ GetOptions(
     'target-groups=s',    # Assign review to list of groups
     'target-people=s',    # Assign review to list of users
     'shelve',             # Shelve the files
+    'rid=s',                # Specify Review Board id to update
     'update-diff',        # Update the diff only
     'update-all',         # Update diff and info in change list
     'force',              # Force the submit
