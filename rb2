@@ -1588,6 +1588,17 @@ sub do_diff {
     }
 }
 
+sub do_login_deprecated {
+    warn <<WARN;
+
+The 'login' command is no longer needed. Run create, edit or
+submit and if authentication is required, you'll be prompted.
+
+Run with --help for more details.
+
+WARN
+
+}
 sub parse_server {
     my $opt = shift;
 
@@ -1733,6 +1744,7 @@ my %actions = (
     'update' => \&do_rr_edit,
     'submit' => \&do_rr_submit,
     'diff'   => \&do_diff,
+    'login'  => \&do_login_deprecated,
     'help'   => \&usage,
 );
 
