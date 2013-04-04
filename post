@@ -357,7 +357,7 @@ class F5Review:
     Encapsulate a review request and handle interaction with Review Board server.
     """
 
-    def __init__(self, server, change_list, bugs_closed=None):
+    def __init__(self, server, change_list, review_id, bugs_closed=None):
         """
         Create an instance of F5Review.
 
@@ -374,29 +374,18 @@ class F5Review:
 
         self.server = server
         self.change_list = change_list
+        self.review_id = review_id
+
         if bugs_closed is None:
             self.bugs_closed = []
         else:
             if not isinstance(bugs_closed, list):
                 raise RBError("Program Error: unexpectedly received a non-list value for 'bugs_closed'.\nPlease contact CM.")
             self.bugs_closed = bugs_closed
-        self.review_id = None
 
         # Create a PerforceClient object to create proper diffs. This comes from rbtools.
         self.p4client = perforce.PerforceClient(options=options)
         self.p4client.get_repository_info()
-
-    @property
-    def review_id(self):
-        """Return the review board id number for this review."""
-        if self.review_id is None:
-            review_request = self.review_request
-            self.review_id = review_request['id']
-        return self.review_id
-
-    @review_id.setter
-    def review_id(self, value):
-        self.review_id = value
 
     @property
     def review_request(self):
@@ -821,27 +810,34 @@ def parse_options(parser):
     return options, args, action
 
 
-def get_changelist_number(p4, action, args):
-    """Return change list number. Raise exception if we can't obtain one."""
-    change_list = None
-    if args:
-        change_list = args[0]
-    else:
-        if action == "create":
-            change_list = p4.new_change()
+def create_review (change_list, server, p4):
     if change_list is None:
-        raise RBError("Need your perforce change list number for this review.")
-    return change_list
+        change_list = p4.new_change()
+    p4.verify_owner(change_list)
 
-
-def write_review(review, p4, new=False):
-    """Create or edit a review request"""
     if options.shelve:
-        print "Shelving files for change %s." % review.change_list
-        if new:
-            p4.shelve(review.change_list)
-        else:
-            p4.update_shelf(review.change_list)
+        print "Shelving files for change %s." % change_list
+        p4.shelve(change_list)
+
+    review_id = None
+    bugs_closed = p4.get_jobs(change_list)
+    review = F5Review(server, change_list, review_id, bugs_closed)
+
+    review.post_review()
+    if not options.output_diff_only:
+        print "Changelist: %s" % review.change_list
+        if not options.publish:
+            print "Don't forget to publish your review."
+
+def edit_review (change_list, server, p4):
+    if change_list is None:
+        raise RBError("Need a change list number for this review")
+    p4.verify_owner(change_list)
+
+    review_id = get_review_id_from_changenum(server, change_list)
+    bugs_closed = p4.get_jobs(change_list)
+    review = F5Review(server, change_list, review_id, bugs_closed)
+
     review.post_review()
     if not options.output_diff_only:
         print "Changelist: %s" % review.change_list
@@ -849,8 +845,15 @@ def write_review(review, p4, new=False):
             print "Don't forget to publish your review."
 
 
-def submit_review(review, p4):
-    """Submit review request change list and mark review as submitted."""
+def submit_review (change_list, server, p4):
+    if change_list is None:
+        raise RBError("Need a change list number for this review")
+    p4.verify_owner(change_list)
+
+    review_id = get_review_id_from_changenum(server, change_list)
+    bugs_closed = p4.get_jobs(change_list)
+    review = F5Review(server, change_list, review_id, bugs_closed)
+
     if not review.get_ship_its() and not options.force:
         raise RBError("Review %s has no 'Ship It' reviews. Use --force to submit anyway." % review.review_id)
 
@@ -928,13 +931,12 @@ def main():
         raise SystemExit(0)
 
     actions = {
-        "create": lambda: write_review(review, p4, new=True),
-        "new": lambda: write_review(review, p4, new=True),
-        "edit": lambda: write_review(review, p4),
-        "update": lambda: write_review(review, p4),
-        "submit": lambda: submit_review(review, p4),
-        "diff": lambda: diff_changes(options, args),
+        "create": lambda: create_review(change_list, server, p4),
+        "edit": lambda: edit_review(change_list, server, p4),
+        "submit": lambda: submit_review(change_list, server, p4),
+        "diff": lambda: diff_changes(options, change_list),
     }
+
     if not actions.has_key(action):
         print "Unknown action: %s. Try -h for usage." % action
         raise SystemExit(UNKNOWN_ACTION)
@@ -944,12 +946,11 @@ def main():
             actions[action]()
         else:
             p4 = P4()
-            change_list = get_changelist_number(p4, action, args)
-            p4.verify_owner(change_list)
-            bugs_closed = p4.get_jobs(change_list)
+            change_list = None
+            if args:
+                change_list = args[0]
             rb_cookies_file = os.path.join(user_home, ".post-review-cookies.txt")
             server = get_server(user_config, rb_cookies_file)
-            review = F5Review(server, change_list, bugs_closed)
             actions[action]()
     except P4Error, e:
         print e
