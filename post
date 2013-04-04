@@ -815,11 +815,21 @@ def create_review (change_list, server, p4):
         change_list = p4.new_change()
     p4.verify_owner(change_list)
 
+    # If user is asking to create a review with a change already 
+    # associated with a review, don't allow it.
+    review_id = None
+    try:
+        review_id = get_review_id_from_changenum(server, change_list)
+    except:
+        #  Good, we didn't find a review for this change list
+        pass
+    if review_id:
+        raise RBError("Change list %s already associated with review %s.\nDid you intend to 'edit' the review?" % (change_list, review_id))
+
     if options.shelve:
         print "Shelving files for change %s." % change_list
         p4.shelve(change_list)
 
-    review_id = None
     bugs_closed = p4.get_jobs(change_list)
     review = F5Review(server, change_list, review_id, bugs_closed)
 
