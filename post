@@ -665,14 +665,20 @@ def get_server(user_config, cookie_file):
 def get_review_id_from_changenum(server, changenum):
     """Return Review Board ID number for given changenum. Raises exception if not found."""
     url = "%sapi/review-requests?changenum=%s" % (server.url, changenum)
+    no_review_message = """\
+Cant' find an open review for change list: %s
+Did you intend to create a new review? If not
+please check your perforce settings and if the
+problem persists contact CM.""" % changenum
+
     try:
         review = server.api_get(url)
         if review['review_requests']:
             review_id = review['review_requests'][0]['id']
         else:
-            raise RBError("Can't find an open review for change list: %s" % changenum)
+            raise RBError(no_review_message)
     except rbtools.api.errors:
-        raise RBError("Can't find an open review for change list: %s" % changenum)
+        raise RBError(no_review_message)
     return review_id
 
 
