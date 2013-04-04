@@ -6,7 +6,7 @@ import tempfile
 import marshal
 import urllib2
 
-POST_VERSION="1.0"
+POST_VERSION = "1.0"
 
 # Error codes
 MISSING_RBTOOLS = 1
@@ -56,6 +56,7 @@ else:
         sys.stderr.write("\nERROR: Found old version of RBTools: Version %s\n" % rbtools.get_package_version())
         sys.stderr.write(RBTOOLS_VERSION_MSG)
         raise SystemExit(UNSUPPORTED_RBTOOLS)
+
 
 class RBError(Exception): pass;
 
@@ -112,25 +113,27 @@ class P4:
         # if we don't have either None or a list, something is very wrong.
         if not args is None:
             if isinstance(args, list):
-                c = c + " " + " ".join( args )
+                c = c + " " + " ".join(args)
             else:
-                raise P4Error("Program Error: run_G unexpectedly received a non-list value for 'args'.\nPlease contact CM.")
+                raise P4Error(
+                    "Program Error: run_G unexpectedly received a non-list value for 'args'.\nPlease contact CM.")
 
         if sys.version_info < (2, 6):
-            (pi, po) = os.popen2( c , "b" )
+            (pi, po) = os.popen2(c, "b")
         else:
             from subprocess import Popen, PIPE
-            p = Popen( c, stdin=PIPE, stdout=PIPE, shell=True )
+
+            p = Popen(c, stdin=PIPE, stdout=PIPE, shell=True)
             (pi, po) = (p.stdin, p.stdout)
 
         if p4_input:
-            marshal.dump( p4_input, pi, 0 )
+            marshal.dump(p4_input, pi, 0)
             pi.close()
 
         results = []
         try:
             while 1:
-                x = marshal.load( po )
+                x = marshal.load(po)
                 results.append(x)
         except EOFError:
             pass
@@ -271,7 +274,7 @@ class P4:
     def get_jobs(self, change_number):
         """Return list of jobs associated with this change list."""
         change = self.get_change(change_number)
-        jobs = [ change[k] for k in change.keys() if k.startswith('Jobs')]
+        jobs = [change[k] for k in change.keys() if k.startswith('Jobs')]
         return jobs
 
     def submit(self, change_number):
@@ -380,7 +383,8 @@ class F5Review:
             self.bugs_closed = []
         else:
             if not isinstance(bugs_closed, list):
-                raise RBError("Program Error: unexpectedly received a non-list value for 'bugs_closed'.\nPlease contact CM.")
+                raise RBError(
+                    "Program Error: unexpectedly received a non-list value for 'bugs_closed'.\nPlease contact CM.")
             self.bugs_closed = bugs_closed
 
         # Create a PerforceClient object to create proper diffs. This comes from rbtools.
@@ -444,8 +448,8 @@ class F5Review:
         changenum = self.p4client.sanitize_changenum(self.change_list)
         self.server.login()
         review_url = postreview.tempt_fate(self.server, self.p4client, changenum, diff_content=diff,
-            parent_diff_content=parent_diff,
-            submit_as=options.submit_as)
+                                           parent_diff_content=parent_diff,
+                                           submit_as=options.submit_as)
 
         self.set_bugs_closed()
         if options.shelve:
@@ -463,8 +467,8 @@ class F5Review:
         shelve_message += "To unshelve this change into your workspace:\n\n\tp4 unshelve -s %s" % self.change_list
         reviews_url = self.review_request['links']['reviews']['href']
         self.server.api_post(reviews_url, {
-            'body_top' : shelve_message,
-            'public' : 1
+            'body_top': shelve_message,
+            'public': 1
         })
 
     def submit(self, submitted_changelist):
@@ -601,7 +605,7 @@ def migrate_rbrc_file(old_rc_file, new_rc_file):
         try:
             try:
                 f = open(new_rc_file, "w")
-                f.write('REVIEWBOARD_URL = "%s"\n' %  server_url)
+                f.write('REVIEWBOARD_URL = "%s"\n' % server_url)
             except EnvironmentError, e:
                 raise RBError("Failed to write %s\n%s" % (new_rc_file, e))
         finally:
@@ -703,55 +707,55 @@ The options for each command are described below.
         description=description
     )
     parser.add_option("-v", "--version",
-        default=False, dest="version", action="store_true",
-        help="Display version and exit.")
+                      default=False, dest="version", action="store_true",
+                      help="Display version and exit.")
     parser.add_option("-d", "--debug",
-        dest="debug", action="store_true", default=False,
-        help="Display debug output.")
+                      dest="debug", action="store_true", default=False,
+                      help="Display debug output.")
     parser.add_option("--server",
-        dest="server", metavar="<server_name>",
-        help="Use specified server. Default is the REVIEWBOARD_URL entry in .reviewboardrc file.")
+                      dest="server", metavar="<server_name>",
+                      help="Use specified server. Default is the REVIEWBOARD_URL entry in .reviewboardrc file.")
 
     submit_group = optparse.OptionGroup(parser, "Submit Options")
     submit_group.add_option("-f", "--force",
-        dest="force", action="store_true", default=False,
-        help="Submit even if the review doesn't meet all requirements.")
+                            dest="force", action="store_true", default=False,
+                            help="Submit even if the review doesn't meet all requirements.")
     submit_group.add_option("-e", "--edit-changelist",
-        dest="edit", action="store_true", default=False,
-        help="Edit the change list before submitting.")
+                            dest="edit", action="store_true", default=False,
+                            help="Edit the change list before submitting.")
 
     edit_group = optparse.OptionGroup(parser, "Create and Edit Options")
     edit_group.add_option("-p", "--publish",
-        dest="publish", action="store_true", default=False,
-        help="Publish the review.")
+                          dest="publish", action="store_true", default=False,
+                          help="Publish the review.")
     edit_group.add_option("-n", "--output-diff",
-        dest="output_diff_only", action="store_true", default=False,
-        help="Output diff to console and exit. Do not post.")
+                          dest="output_diff_only", action="store_true", default=False,
+                          help="Output diff to console and exit. Do not post.")
     edit_group.add_option("--target-groups",
-        dest="target_groups", metavar="<group [,groups]>",
-        help="Assign or replace ReviewBoard groups for this review.")
+                          dest="target_groups", metavar="<group [,groups]>",
+                          help="Assign or replace ReviewBoard groups for this review.")
     edit_group.add_option("--target-people",
-        dest="target_people", metavar="<user [,users]>",
-        help="Assign or replace reviewers for this review.")
+                          dest="target_people", metavar="<user [,users]>",
+                          help="Assign or replace reviewers for this review.")
 
     edit_group.add_option("--shelve",
-        dest="shelve", action="store_true", default=False,
-        help="Create or update p4 shelve for the files in the review.")
+                          dest="shelve", action="store_true", default=False,
+                          help="Create or update p4 shelve for the files in the review.")
     edit_group.add_option("--update-diff",
-        dest="diff_only", action="store_true", default=False,
-        help="Uploads a new diff, but does not update information from change list.")
+                          dest="diff_only", action="store_true", default=False,
+                          help="Uploads a new diff, but does not update information from change list.")
     edit_group.add_option("--change-only",
-        dest="change_only", action="store_true", default=False,
-        help="Updates info from change list, but does not upload diff.")
+                          dest="change_only", action="store_true", default=False,
+                          help="Updates info from change list, but does not upload diff.")
     edit_group.add_option("--testing-done",
-        dest="testing_done", metavar="<string>",
-        help="Description of testing done.")
+                          dest="testing_done", metavar="<string>",
+                          help="Description of testing done.")
     edit_group.add_option("--testing-done-file",
-        dest="testing_file", metavar="<filename>",
-        help="Text file containing description of testing done.")
+                          dest="testing_file", metavar="<filename>",
+                          help="Text file containing description of testing done.")
     edit_group.add_option("-r", "--rid",
-        dest="rid", metavar="<ID>",
-        help="Upload changes to specific review by ID. Use this if your change list is different from the one associated with ID.")
+                          dest="rid", metavar="<ID>",
+                          help="Upload changes to specific review by ID. Use this if your change list is different from the one associated with ID.")
 
     # I decided against supporting the username option. I think it's confusing
     # and there's rarely a need for it. On those occasions where it's
@@ -786,7 +790,7 @@ def parse_options(parser):
 
     if options.testing_done and options.testing_file:
         raise RBError("The --testing-done and --testing-done-file options "
-                         "are mutually exclusive.\n")
+                      "are mutually exclusive.\n")
 
     if options.testing_file:
         # Use 2.4 version since we have so many CentOS 5 users
@@ -816,7 +820,7 @@ def parse_options(parser):
     return options, args, action
 
 
-def create_review (change_list, server, p4):
+def create_review(change_list, server, p4):
     if change_list is None:
         change_list = p4.new_change()
     p4.verify_owner(change_list)
@@ -830,7 +834,8 @@ def create_review (change_list, server, p4):
         #  Good, we didn't find a review for this change list
         pass
     if review_id:
-        raise RBError("Change list %s already associated with review %s.\nDid you intend to 'edit' the review?" % (change_list, review_id))
+        raise RBError("Change list %s already associated with review %s.\nDid you intend to 'edit' the review?" % (
+        change_list, review_id))
 
     if options.shelve:
         print "Shelving files for change %s." % change_list
@@ -845,7 +850,8 @@ def create_review (change_list, server, p4):
         if not options.publish:
             print "Don't forget to publish your review."
 
-def edit_review (change_list, server, p4):
+
+def edit_review(change_list, server, p4):
     if change_list is None:
         raise RBError("Need a change list number for this review")
     p4.verify_owner(change_list)
@@ -861,7 +867,7 @@ def edit_review (change_list, server, p4):
             print "Don't forget to publish your review."
 
 
-def submit_review (change_list, server, p4):
+def submit_review(change_list, server, p4):
     if change_list is None:
         raise RBError("Need a change list number for this review")
     p4.verify_owner(change_list)
@@ -904,9 +910,11 @@ def diff_changes(options, args):
         raise RBError("There don't seem to be any diffs!")
     print diff,
 
+
 def print_version():
     program_name = os.path.basename(sys.argv[0])
     print "%s %s (using RBTools %s)" % (program_name, POST_VERSION, rbtools.get_package_version())
+
 
 def main():
     # For now, we don't run on Windows
