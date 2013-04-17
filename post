@@ -391,6 +391,12 @@ class F5Review:
         self.p4client = perforce.PerforceClient(options=options)
         self.p4client.get_repository_info()
 
+        if options.debug:
+            print self
+
+    def __str__(self):
+        return "Change:%s, RID: %s" % (self.change_list, self.review_id)
+
     @property
     def review_request(self):
         """
@@ -854,9 +860,15 @@ def create_review(change_list, server, p4):
 def edit_review(change_list, server, p4):
     if change_list is None:
         raise RBError("Need a change list number for this review")
+
     p4.verify_owner(change_list)
 
-    review_id = get_review_id_from_changenum(server, change_list)
+    # If the user passed an rid, use it, otherwise try to get it via the CL.
+    if options.rid:
+        review_id = options.rid
+    else:
+        review_id = get_review_id_from_changenum(server, change_list)
+
     bugs_closed = p4.get_jobs(change_list)
     review = F5Review(server, change_list, review_id, bugs_closed)
 
