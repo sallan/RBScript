@@ -910,10 +910,9 @@ def submit_review(change_list, server, p4):
     review.submit(submitted_change_list)
 
 
-def diff_changes(options, args):
-    change_list = "default"
-    if args:
-        change_list = args[0]
+def diff_changes(options, change_list):
+    if change_list is None:
+        change_list = "default"
 
     perforce = postreview.PerforceClient(options=options)
     perforce.get_repository_info()
@@ -977,14 +976,14 @@ def main():
         print "Unknown action: %s. Try -h for usage." % action
         raise SystemExit(UNKNOWN_ACTION)
 
+    change_list = None
+    if args:
+        change_list = args[0]
     try:
         if action == "diff":
             actions[action]()
         else:
             p4 = P4()
-            change_list = None
-            if args:
-                change_list = args[0]
             rb_cookies_file = os.path.join(user_home, ".post-review-cookies.txt")
             server = get_server(user_config, rb_cookies_file)
             actions[action]()
