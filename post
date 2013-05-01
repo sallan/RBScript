@@ -436,6 +436,11 @@ class F5Review:
         # and there's rarely a need for it. On those occasions where it's
         # needed, we can run post-review.  Leaving the code in for now in
         # case I change my mind. Delete on 06/01/13 if still commented out.
+        #
+        # Turns out there's another reason I decided to not support it: I can't
+        # get it to work quite right. When I hook it up, I get prompted for my
+        # username even though I pass it.  That doesn't happen with post-review.
+        # I don't kno why that happens but I don't want to spend a lot of time on it.
         # -sallan
         # postreview.options.username = options.username
 
