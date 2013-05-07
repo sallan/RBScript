@@ -1455,8 +1455,13 @@ sub do_rr_edit {
 
         my @jobs;
         foreach ( @{ $cset{'Jobs'} } ) {
-            m/^\s*(\S+)/;
-            push( @jobs, $1 );
+            if(m/^\s*(\S+)/) {
+                verbose(2, "Adding perforce job: $1\n");
+                push( @jobs, $1 );
+            }
+            else {
+                warn "Is this a valid perforce job id: $_\n?";
+            }
         }
         my $bugs = join( ',', @jobs );
         rb_review_request_draft_set_field( $rid, 'bugs_closed', $bugs );
