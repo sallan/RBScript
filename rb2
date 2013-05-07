@@ -1381,7 +1381,7 @@ sub do_rr_create {
 
 sub do_rr_edit {
     my ( $changenum, $opt, $new_review ) = @_;
-
+   
     unless ($changenum) {
         die "Need the changelist number for this review.\n";
     }
@@ -1420,8 +1420,8 @@ sub do_rr_edit {
         }
     }
 
-    # The edit options are --update-diff and --update-all. The default should be --update-all.
-    unless ($opt->{'update-diff'}) {
+    # The edit options are --update-diff, --update-bugs and --update-all. The default should be --update-all.
+    unless ($opt->{'update-diff'} or $opt->{'update-bugs'}) {
         $opt->{'update-all'} = 1;
     }
 
@@ -1452,21 +1452,25 @@ sub do_rr_edit {
         my $summary = ${ $cset{'Description'} }[0];
         rb_review_request_draft_set_field( $rid, 'summary', $summary );
         $rr{'summary'} = ${ $cset{'Description'} }[0];
-
-        my @jobs;
-        foreach ( @{ $cset{'Jobs'} } ) {
-            if(m/^\s*(\S+)/) {
-                verbose(2, "Adding perforce job: $1\n");
-                push( @jobs, $1 );
-            }
-            else {
-                warn "Is this a valid perforce job id: $_\n?";
-            }
-        }
-        my $bugs = join( ',', @jobs );
-        rb_review_request_draft_set_field( $rid, 'bugs_closed', $bugs );
-        $rr{'bugs_closed'} = $bugs;
         $changed = 1;
+    }
+
+
+    if ($opt->{'update-all'} or $opt->{'update-bugs'}) {
+            my @jobs;
+            foreach ( @{ $cset{'Jobs'} } ) {
+                if(m/^\s*(\S+)/) {
+                    verbose(2, "Adding perforce job: $1\n");
+                    push( @jobs, $1 );
+                }
+                else {
+                    warn "Is this a valid perforce job id: $_\n?";
+                }
+            }
+            my $bugs = join( ',', @jobs );
+            rb_review_request_draft_set_field( $rid, 'bugs_closed', $bugs );
+            $rr{'bugs_closed'} = $bugs;
+            $changed = 1;
     }
 
     if ( $opt->{'update-all'} or $opt->{'update-diff'} or $opt->{'shelve'} ) {
@@ -1687,6 +1691,7 @@ Options:
                         review.
     --update-diff       Uploads a new diff, but does not update information
                         from change list.
+   --update-bugs        Update the Bugs field from the Jobs entry in the change list.
     --update-all        Updates diff and all information in change list.
     -r, --rid           Use this if you want to upload changes from a different
                         change list than the one associated with the review.
@@ -1719,8 +1724,9 @@ GetOptions(
     'target-groups=s',    # Assign review to list of groups
     'target-people=s',    # Assign review to list of users
     'shelve',             # Shelve the files
-    'rid=s',                # Specify Review Board id to update
+    'rid=s',              # Specify Review Board id to update
     'update-diff',        # Update the diff only
+    'update-bugs',        # Update the bug list
     'update-all',         # Update diff and info in change list
     'force',              # Force the submit
     'edit',               # Edit the change before submit
