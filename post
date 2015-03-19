@@ -64,7 +64,7 @@ If that's the case, please use
 
 """ % (RBTOOLS_MAX_VERSION_STR, PYTHON_VERSION_STR, RBTOOLS_MAX_VERSION_STR, RBTOOLS_URL)
 try:
-    from rbtools import postreview
+    from rbtools.commands import post
     from rbtools import VERSION
     from rbtools.clients import perforce
     import rbtools.api.errors
@@ -404,7 +404,7 @@ class F5Review:
         Create an instance of F5Review.
 
         Fields:
-        server -- an instance of postreview.ReviewBoardServer
+        server -- an instance of post.ReviewBoardServer
         change_list -- the perforce change list number
         review_id  -- the review board id number
         bugs_closed -- list of bugs attached to the change_list
@@ -460,24 +460,24 @@ class F5Review:
     def post_review(self):
         """Main method for creating and updating reviews on the Review Board Server."""
 
-        # Pass the options we care about over to postreview.options
-        postreview.options.target_people = options.target_people
-        postreview.options.target_groups = options.target_groups
-        postreview.options.server = options.server
-        postreview.options.diff_only = options.diff_only
-        postreview.options.change_only = options.change_only
-        postreview.options.testing_done = options.testing_done
-        postreview.options.testing_file = options.testing_file
-        postreview.options.rid = options.rid
-        postreview.options.branch = options.branch
-        postreview.options.debug = options.debug
+        # Pass the options we care about over to post.options
+        post.options.target_people = options.target_people
+        post.options.target_groups = options.target_groups
+        post.options.server = options.server
+        post.options.diff_only = options.diff_only
+        post.options.change_only = options.change_only
+        post.options.testing_done = options.testing_done
+        post.options.testing_file = options.testing_file
+        post.options.rid = options.rid
+        post.options.branch = options.branch
+        post.options.debug = options.debug
 
         # I decided against supporting the username option. I think it's confusing
         # and there's rarely a need for it. On those occasions where it's
         # needed, we can run post-review.  Leaving the code in for now in
         # case I change my mind. Delete on 06/01/13 if still commented out.
         # -sallan
-        # postreview.options.username = options.username
+        # post.options.username = options.username
 
 
         # Create our diff using rbtools
@@ -502,7 +502,7 @@ class F5Review:
         # Post to review board server
         changenum = self.p4client.sanitize_changenum(self.change_list)
         self.server.login()
-        review_url = postreview.tempt_fate(self.server, self.p4client, changenum, diff_content=diff,
+        review_url = post.tempt_fate(self.server, self.p4client, changenum, diff_content=diff,
                                            parent_diff_content=parent_diff,
                                            submit_as=options.submit_as)
 
@@ -713,7 +713,7 @@ def get_server(user_config, cookie_file):
     directly to the Review Board server.
 
     """
-    perforce = postreview.PerforceClient(options=options)
+    perforce = post.PerforceClient(options=options)
     if options.server:
         # Users used to using rb are accustomed to providing the server without
         # the protocol string. In that case, assume https.
@@ -729,7 +729,7 @@ def get_server(user_config, cookie_file):
 
     repository_info = perforce.get_repository_info()
     try:
-        server = postreview.ReviewBoardServer(server_url, repository_info, cookie_file)
+        server = post.ReviewBoardServer(server_url, repository_info, cookie_file)
         server.check_api_version()
     except urllib2.URLError, e:
         raise RBError(
@@ -1004,7 +1004,7 @@ def diff_changes(options, change_list):
     if change_list is None:
         change_list = "default"
 
-    perforce = postreview.PerforceClient(options=options)
+    perforce = post.PerforceClient(options=options)
     perforce.get_repository_info()
     diff, parent_diff = perforce.diff([change_list])
     if len(diff) == 0:
@@ -1026,7 +1026,9 @@ def main():
 
     # Track usage
     try:
-        if not os.environ.get('PDTOOLS_NOTRACKING'):
+        # TODO: Turn this back on for production
+        # if not os.environ.get('PDTOOLS_NOTRACKING'):
+        if os.environ.get('PDTOOLS_NOTRACKING'):
             m = MSG_FMT % ('RUN', ''.join(','.join(sys.argv[1:]).encode('base64').splitlines()))
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.sendto(m, LOGHOST)
@@ -1045,14 +1047,19 @@ def main():
         print e
         raise SystemExit(CONFIG_ERROR)
 
-    user_config, configs = postreview.load_config_files(user_home)
+    # TODO: This no longer works
+    # user_config, configs = post.load_config_files(user_home)
     parser = get_option_parser()
 
-    # We need to call our option parser and then also call postreview's parse_options
+    # We need to call our option parser and then also call post's parse_options
     # because it sets global variables that we need for our operations.
-    # We don't care about the return value of postreview's parse_options.
+    # We don't care about the return value of post's parse_options.
     options, args, action = parse_options(parser)
-    postreview.parse_options(args)
+    #post.parse_options(args)
+    post.main(args)
+    print "DONE!"
+    raise SystemExit(0)
+    
 
     if options.version:
         print "Version is ", VERSION
