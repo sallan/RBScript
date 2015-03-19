@@ -18,7 +18,7 @@ if hasattr(ssl, '_create_unverified_context'):
 POST_VERSION = "1.1"
 
 # PDTools usage tracking
-LOGHOST=('192.168.24.80', 7053) # seadbg01.olympus.f5net.com
+LOGHOST=("REMOVED", "FIXME")
 USERNAME=os.environ.get('LOGNAME', os.environ.get('USER', 'UNKNOWN'))
 MSG_FMT='%s:[PDTOOLS TRACKING]:%%s:%s:%%s' % (USERNAME, os.path.realpath(sys.argv[0]))
 
