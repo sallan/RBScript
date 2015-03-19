@@ -5,8 +5,22 @@ import os
 import tempfile
 import marshal
 import urllib2
+import ssl
+import socket
+from urlparse import urljoin
 
-POST_VERSION = "1.0"
+# Newer versions of Python are more strict about ssl verfication
+# and need to have verification turnred off
+if hasattr(ssl, '_create_unverified_context'):
+    ssl._create_default_https_context = ssl._create_unverified_context
+
+
+POST_VERSION = "1.1"
+
+# PDTools usage tracking
+LOGHOST=('192.168.24.80', 7053) # seadbg01.olympus.f5net.com
+USERNAME=os.environ.get('LOGNAME', os.environ.get('USER', 'UNKNOWN'))
+MSG_FMT='%s:[PDTOOLS TRACKING]:%%s:%s:%%s' % (USERNAME, os.path.realpath(sys.argv[0]))
 
 # Error codes
 MISSING_RBTOOLS = 1
@@ -21,16 +35,22 @@ RB_EXCEPTION = 8
 # Required Versions
 PYTHON_VERSION = (2, 5)
 PYTHON_VERSION_STR = '2.5'
-RBTOOLS_VERSION = (0, 4, 0)
-RBTOOLS_VERSION_STR = '0.4.0'
+RBTOOLS_MIN_VERSION = (0, 4, 0)
+RBTOOLS_MIN_VERSION_STR = '0.4.0'
+RBTOOLS_MAX_VERSION = (0, 5, 2)
+RBTOOLS_MAX_VERSION_STR = '0.5.2'
 RBTOOLS_URL = 'http://www.reviewboard.org/docs/manual/1.7/users/tools/post-review/'
 RBTOOLS_VERSION_MSG = """
 Use of this script requires:
 
-  RBTools version %s or greater
+  RBTools version %s (0.6 is not yet supported)
   Python %s or greater
 
-For installation instructions, please see this page:
+To install the preferred version of RBTools:
+
+    $ sudo easy_install -U RBTools==%s
+
+For detailed installation instructions, please see this page:
 
   %s
 
@@ -42,7 +62,7 @@ If that's the case, please use
 
   /build/cm/bin/rb2
 
-""" % (RBTOOLS_VERSION_STR, PYTHON_VERSION_STR, RBTOOLS_URL)
+""" % (RBTOOLS_MAX_VERSION_STR, PYTHON_VERSION_STR, RBTOOLS_MAX_VERSION_STR, RBTOOLS_URL)
 try:
     from rbtools import postreview
     from rbtools import VERSION
@@ -52,7 +72,7 @@ except ImportError:
     sys.stderr.write(RBTOOLS_VERSION_MSG)
     raise SystemExit(MISSING_RBTOOLS)
 else:
-    if rbtools.VERSION < RBTOOLS_VERSION:
+    if rbtools.VERSION < RBTOOLS_MIN_VERSION:
         sys.stderr.write("\nERROR: Found old version of RBTools: Version %s\n" % rbtools.get_package_version())
         sys.stderr.write(RBTOOLS_VERSION_MSG)
         raise SystemExit(UNSUPPORTED_RBTOOLS)
@@ -193,50 +213,56 @@ class P4:
         # Capture a change template with files opened in the default change list
         change_template = self.run("change -o")
 
-        # Create a temp file and dump the p4 change to it.
-        change_form = tempfile.NamedTemporaryFile(mode="w", delete=False)
-        for line in change_template:
-            change_form.write(line + "\n")
-        change_form.close()
+        try:
+            # Create a temp file and dump the p4 change to it.
+            file_descriptor, file_name = tempfile.mkstemp(prefix="p4.change.")
+            change_form = os.fdopen(file_descriptor, "w")
+            for line in change_template:
+                change_form.write(line + os.linesep)
+            change_form.close()
 
-        # Open the file in the users editor
-        editor = self.get_editor()
-        os.system("%s %s" % (editor, change_form.name))
+            # Open the file in the users editor
+            self.edit_file(file_name)
+        except OSError, e:
+            raise RBError("Error creating new change list.\n%s" % e)
 
         # Use 2.4 compatible version because we have so many CentOS 5 users
         f = None
         try:
-            f = open(change_form.name, "r")
+            f = open(file_name, "r")
             new_change_form = [s.rstrip() for s in f.readlines()]
-        except EnvironmentError, e:
-            if os.path.isfile(change_form.name):
-                os.remove(change_form.name)
+        except IOError, e:
+            if os.path.isfile(file_name):
+                f.close()
+                os.remove(file_name)
             if f:
                 f.close()
             raise RBError("Couldn't read the saved change list form.\n%s" % e)
 
         # The user may have changed their mind, so see if the file changed at all.
         if change_template == new_change_form:
-            if os.path.isfile(change_form.name):
-                os.remove(change_form.name)
+            if os.path.isfile(file_name):
+                f.close()
+                os.remove(file_name)
             raise RBError("No changes made to change list.")
         else:
             # Use 2.4 compatible syntax since we have so many CentOS 5 users.
             try:
                 try:
-                    change_output = self.run("change -i < %s" % change_form.name)
+                    change_output = self.run("change -i < %s" % file_name)
                 except P4Error, e:
                     # Give user a chance to fix the problem
                     print "Error in change specification:\n%s" % e
                     confirm = raw_input("Try again? n|[y]: ")
                     if confirm == '' or confirm.lower() == 'y':
-                        os.system("%s %s" % (editor, change_form.name))
-                        change_output = self.run("change -i < %s" % change_form.name)
+                        self.edit_file(file_name)
+                        change_output = self.run("change -i < %s" % file_name)
                     else:
                         raise P4Error("Change specification errors not fixed.")
             finally:
-                if os.path.isfile(change_form.name):
-                    os.remove(change_form.name)
+                if os.path.isfile(file_name):
+                    f.close()
+                    os.remove(file_name)
             return change_output[0].split()[1]
 
     def get_change(self, change_number):
@@ -246,9 +272,12 @@ class P4:
     def edit_change(self, change_number):
         os.system("p4 change %s" % change_number)
 
-    def shelve(self, change_number):
-        """Create a p4 shelve from change_number"""
-        cmd = "shelve -c %s" % change_number
+    def shelve(self, change_number, update=False):
+        """Create or update a p4 shelve from change_number"""
+        if update:
+            cmd = "shelve -f -c %s" % change_number
+        else:
+            cmd = "shelve -c %s" % change_number
         return self.run_G(cmd)
 
     def update_shelf(self, change_number):
@@ -258,7 +287,7 @@ class P4:
 
     def shelved(self, change_number):
         """Return True if the change_number is a shelved change list"""
-        return change_number in self.shelves()
+        return int(change_number) in self.shelves()
 
     def shelves(self):
         """Return list of change list numbers for user that are currently shelved."""
@@ -322,7 +351,7 @@ class P4:
         set_list = self.run("set")
         set_dict = {}
         for item in set_list:
-            k, v = item.split('=')
+            k, v = item.split('=', 1)
             set_dict[k] = v
         return set_dict
 
@@ -338,7 +367,9 @@ class P4:
         """
 
         p4set = self.set()
-        if p4set.has_key("P4EDITOR"):
+        if os.name == "nt":
+            editor = "notepad"
+        elif p4set.has_key("P4EDITOR"):
             editor = p4set["P4EDITOR"]
 
             # If the editor is set in a p4.config file, the entry will end with (config)
@@ -347,12 +378,20 @@ class P4:
         elif os.environ.has_key("EDITOR"):
             editor = os.environ["EDITOR"]
         else:
-            if os.name == "nt":
-                editor = "notepad"
-            else:
-                editor = "vi"
+            editor = "vi"
 
         return editor
+
+    def edit_file(self, file_name):
+        """
+        Open a file for editing
+        """
+        editor = self.get_editor()
+        if os.name == "nt":
+            from subprocess import call
+            call([editor, file_name])
+        else:
+            os.system("%s %s" % (editor, file_name))
 
 
 class F5Review:
@@ -430,22 +469,27 @@ class F5Review:
         postreview.options.testing_done = options.testing_done
         postreview.options.testing_file = options.testing_file
         postreview.options.rid = options.rid
+        postreview.options.branch = options.branch
         postreview.options.debug = options.debug
 
         # I decided against supporting the username option. I think it's confusing
         # and there's rarely a need for it. On those occasions where it's
         # needed, we can run post-review.  Leaving the code in for now in
         # case I change my mind. Delete on 06/01/13 if still commented out.
-        #
-        # Turns out there's another reason I decided to not support it: I can't
-        # get it to work quite right. When I hook it up, I get prompted for my
-        # username even though I pass it.  That doesn't happen with post-review.
-        # I don't kno why that happens but I don't want to spend a lot of time on it.
         # -sallan
         # postreview.options.username = options.username
 
+
         # Create our diff using rbtools
-        diff, parent_diff = self.p4client.diff([self.change_list])
+        # For RBTools <= 0.5.1, we get a tuple. For newer versions, we get a dict.
+        p4_change_diff = self.p4client.diff([self.change_list])
+        if isinstance(p4_change_diff, tuple):
+            diff, parent_diff = p4_change_diff
+        elif isinstance(p4_change_diff, dict):
+            diff = p4_change_diff['diff']
+            parent_diff = None
+        else:
+            raise RBError("Unrecognized object returned by p4client.diff(): %s" % type(p4_change_diff))
 
         if len(diff) == 0:
             raise RBError("There don't seem to be any diffs!")
@@ -461,6 +505,22 @@ class F5Review:
         review_url = postreview.tempt_fate(self.server, self.p4client, changenum, diff_content=diff,
                                            parent_diff_content=parent_diff,
                                            submit_as=options.submit_as)
+
+        # Capture review request for Coverity
+        rev = self.server.api_get(self.review_request['links']['diffs']['href'])['total_results']
+        # This URL construction feels like a cheat, since it doesn't really use
+        # the REST API, but this is what RBTools does, so I'm leaving it
+        url = '/'.join(['r',str(self.review_request['id']), 'diff', str(rev + 1),'']) 
+        url = urljoin(self.server.url, url)
+        try:
+            from subprocess import call
+            if not os.environ.get('PDTOOLS_DEBUG'):
+                DEVNULL = open(os.devnull, 'w')
+                call(['cov-f5-post-request', str(changenum), url], stdout = DEVNULL)
+            else:
+                call(['cov-f5-post-request', str(changenum), url])
+        except:
+            pass
 
         self.set_bugs_closed()
         if options.shelve:
@@ -507,7 +567,7 @@ class F5Review:
     def get_reviewer_name(self, review):
         """Returns First Last names for user who did given review."""
         user_id = review['links']['user']['title']
-        user_url = self.server.url + "api/users/%s" % user_id
+        user_url = self.server.url + "api/users/%s/" % user_id
         user = self.server.api_get(user_url)
         return "%s %s" % (user['user']['first_name'], user['user']['last_name'])
 
@@ -636,6 +696,7 @@ def check_config(user_home):
     settings to .reviewboardrc.
 
     """
+
     rbrc_file = os.path.join(user_home, ".rbrc")
     reviewboardrc_file = os.path.join(user_home, ".reviewboardrc")
     if os.path.isfile(rbrc_file) and not os.path.isfile(reviewboardrc_file):
@@ -679,7 +740,7 @@ def get_server(user_config, cookie_file):
 
 def get_review_id_from_changenum(server, changenum):
     """Return Review Board ID number for given changenum. Raises exception if not found."""
-    url = "%sapi/review-requests?changenum=%s" % (server.url, changenum)
+    url = "%sapi/review-requests/?changenum=%s" % (server.url, changenum)
     no_review_message = """\
 Cant' find an open review for change list: %s
 Did you intend to create a new review? If not
@@ -748,6 +809,10 @@ The options for each command are described below.
     edit_group.add_option("--target-people",
                           dest="target_people", metavar="<user [,users]>",
                           help="Assign or replace reviewers for this review.")
+    edit_group.add_option("--branch",
+                          dest="branch", metavar="<branch [,branch]>",
+                          help="Assign or replace branches for this review. Accepts any string.")
+
 
     edit_group.add_option("--shelve",
                           dest="shelve", action="store_true", default=False,
@@ -874,6 +939,14 @@ def edit_review(change_list, server, p4):
     else:
         review_id = get_review_id_from_changenum(server, change_list)
 
+    if options.shelve:
+        if p4.shelved(change_list):
+            print "Updating shelve for change %s." % change_list
+            p4.shelve(change_list, update=True)
+        else:
+            print "Shelving files for change %s." % change_list
+            p4.shelve(change_list)
+
     bugs_closed = p4.get_jobs(change_list)
     review = F5Review(server, change_list, review_id, bugs_closed)
 
@@ -889,12 +962,14 @@ def submit_review(change_list, server, p4):
         raise RBError("Need a change list number for this review")
     p4.verify_owner(change_list)
 
-    review_id = get_review_id_from_changenum(server, change_list)
+    # If the user passed an rid, use it, otherwise try to get it via the CL.
+    if options.rid:
+        review_id = options.rid
+    else:
+        review_id = get_review_id_from_changenum(server, change_list)
+
     bugs_closed = p4.get_jobs(change_list)
     review = F5Review(server, change_list, review_id, bugs_closed)
-
-    if not review.get_ship_its() and not options.force:
-        raise RBError("Review %s has no 'Ship It' reviews. Use --force to submit anyway." % review.review_id)
 
     if p4.shelved(review.change_list):
         if options.force:
@@ -905,10 +980,20 @@ def submit_review(change_list, server, p4):
             msg += "You may use --force to delete the shelved change automatically prior to submit."
             raise RBError(msg)
 
+    # Unless the force option is used, we want to block reviews with no ship it or with
+    # only a Review Bot ship it.
+    ship_its = review.get_ship_its()
+    if not options.force:
+        if not ship_its:
+            raise RBError("Review %s has no 'Ship It' reviews. Use --force to submit anyway." % review.review_id)
+
+        # The list of ship_its contains unique elements, so check the case where only 1.
+        if len(ship_its) == 1 and 'Review Bot' in ship_its:
+            raise RBError("Review %s has only a Review Bot 'Ship It'. Use --force to submit anyway." % review.review_id)
+
     if options.edit:
         p4.edit_change(review.change_list)
 
-    ship_its = review.get_ship_its()
     if ship_its:
         p4.add_reviewboard_shipits(review, ship_its)
     submitted_change_list = p4.submit(review.change_list)
@@ -933,17 +1018,20 @@ def print_version():
 
 
 def main():
-    # For now, we don't run on Windows
-    if os.name == "nt":
-        sys.stderr.write("This script is currently not supported on Windows.\n")
-        sys.stderr.write("Please use post-review instead.\n")
-        raise SystemExit(UNSUPPORTED_OS)
-
     # Check Python version
     if sys.version_info < PYTHON_VERSION:
         sys.stderr.write("This script requires Python version %s or greater.\n" % PYTHON_VERSION_STR)
         sys.stderr.write("Please use the rb2 script instead.\n")
         raise SystemExit(UNSUPPORTED_PYTHON)
+
+    # Track usage
+    try:
+        if not os.environ.get('PDTOOLS_NOTRACKING'):
+            m = MSG_FMT % ('RUN', ''.join(','.join(sys.argv[1:]).encode('base64').splitlines()))
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.sendto(m, LOGHOST)
+    except:
+        pass
 
     # Configuration and options
     global options
