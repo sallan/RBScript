@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import optparse
+import argparse
 import sys
 import os
 import tempfile
@@ -14,13 +14,12 @@ from urlparse import urljoin
 if hasattr(ssl, '_create_unverified_context'):
     ssl._create_default_https_context = ssl._create_unverified_context
 
-
-POST_VERSION = "1.1"
+POST_VERSION = "2.0"
 
 # PDTools usage tracking
-LOGHOST=("REMOVED", "FIXME")
-USERNAME=os.environ.get('LOGNAME', os.environ.get('USER', 'UNKNOWN'))
-MSG_FMT='%s:[PDTOOLS TRACKING]:%%s:%s:%%s' % (USERNAME, os.path.realpath(sys.argv[0]))
+LOGHOST = ("REMOVED", "FIXME")
+USERNAME = os.environ.get('LOGNAME', os.environ.get('USER', 'UNKNOWN'))
+MSG_FMT = '%s:[PDTOOLS TRACKING]:%%s:%s:%%s' % (USERNAME, os.path.realpath(sys.argv[0]))
 
 # Error codes
 MISSING_RBTOOLS = 1
@@ -389,6 +388,7 @@ class P4:
         editor = self.get_editor()
         if os.name == "nt":
             from subprocess import call
+
             call([editor, file_name])
         else:
             os.system("%s %s" % (editor, file_name))
@@ -503,20 +503,21 @@ class F5Review:
         changenum = self.p4client.sanitize_changenum(self.change_list)
         self.server.login()
         review_url = post.tempt_fate(self.server, self.p4client, changenum, diff_content=diff,
-                                           parent_diff_content=parent_diff,
-                                           submit_as=options.submit_as)
+                                     parent_diff_content=parent_diff,
+                                     submit_as=options.submit_as)
 
         # Capture review request for Coverity
         rev = self.server.api_get(self.review_request['links']['diffs']['href'])['total_results']
         # This URL construction feels like a cheat, since it doesn't really use
         # the REST API, but this is what RBTools does, so I'm leaving it
-        url = '/'.join(['r',str(self.review_request['id']), 'diff', str(rev + 1),'']) 
+        url = '/'.join(['r', str(self.review_request['id']), 'diff', str(rev + 1), ''])
         url = urljoin(self.server.url, url)
         try:
             from subprocess import call
+
             if not os.environ.get('PDTOOLS_DEBUG'):
                 DEVNULL = open(os.devnull, 'w')
-                call(['cov-f5-post-request', str(changenum), url], stdout = DEVNULL)
+                call(['cov-f5-post-request', str(changenum), url], stdout=DEVNULL)
             else:
                 call(['cov-f5-post-request', str(changenum), url])
         except:
@@ -625,12 +626,13 @@ class F5Review:
             description = self.review_request['description'] + "\n" + description
         self.server.set_review_request_field(self.review_request, "description", description)
 
+
 # End of F5Review class
 
 
-#==============================================================================
+# ==============================================================================
 # Top-level functions
-#==============================================================================
+# ==============================================================================
 def migrate_rbrc_file(old_rc_file, new_rc_file):
     """
     Migrate any legacy .rbrc settings.
@@ -758,6 +760,8 @@ problem persists contact CM.""" % changenum
     return review_id
 
 
+'''
+
 def get_option_parser():
     """Options parser and usage."""
 
@@ -774,7 +778,7 @@ The options for each command are described below.
 
 """
 
-    parser = optparse.OptionParser(
+    parser = optparse.ArgumentParser(
         usage="%prog [OPTIONS] create|edit|submit|diff [changenum]",
         description=description
     )
@@ -844,26 +848,105 @@ The options for each command are described below.
     #            "The new login credentials will remain in effect until you use --username again.")
 
     parser.add_option_group(edit_group)
-    parser.add_option_group(submit_group)
+    parser.add_argument_group(submit_group)
+    return parser
+
+'''
+
+
+def get_option_parser():
+    """Options parser and usage."""
+
+    description = """
+Create, update and submit review requests.
+
+This script is a wrapper to the post-review script that comes with Review Board.
+It can only be used with perforce and provides some additional functionality related
+to perforce.  The work flow is create/edit/submit. Alternatively, the diff command will
+print a Review Board compatible diff of a change list to STDOUT without creating or
+modify a review.
+
+The options for each command are described below.
+
+"""
+
+    parser = argparse.ArgumentParser(description=description, usage="Greatest Program EVER!")
+    parser.add_argument("changelist", nargs="?", default=None)
+    parser.add_argument("-v", "--version",
+                        dest="version", action="store_true",
+                        help="Display version and exit.")
+    parser.add_argument("-d", "--debug",
+                        dest="debug", action="store_true",
+                        help="Display debug output.")
+    parser.add_argument("--server", metavar="<url>", dest="server",
+                        help="Use specified server. Default is the REVIEWBOARD_URL entry in .reviewboardrc file.")
+
+    submit_group = parser.add_argument_group("Submit Options")
+    submit_group.add_argument("-f", "--force",
+                              dest="force", action="store_true",
+                              help="Submit even if the review doesn't meet all requirements.")
+    submit_group.add_argument("-e", "--edit-changelist",
+                              dest="edit", action="store_true",
+                              help="Edit the change list before submitting.")
+
+    edit_group = parser.add_argument_group("Create and Edit Options")
+    edit_group.add_argument("-p", "--publish",
+                            dest="publish", action="store_true",
+                            help="Publish the review.")
+    edit_group.add_argument("-n", "--output-diff",
+                            dest="output_diff_only", action="store_true",
+                            help="Output diff to console and exit. Do not post.")
+    edit_group.add_argument("--target-groups",
+                            dest="target_groups", metavar="<group [,groups]>",
+                            help="Assign or replace ReviewBoard groups for this review.")
+    edit_group.add_argument("--target-people",
+                            dest="target_people", metavar="<user [,users]>",
+                            help="Assign or replace reviewers for this review.")
+    edit_group.add_argument("--branch",
+                            dest="branch", metavar="<branch [,branch]>",
+                            help="Assign or replace branches for this review. Accepts any string.")
+    edit_group.add_argument("--shelve",
+                            dest="shelve", action="store_true",
+                            help="Create or update p4 shelve for the files in the review.")
+    edit_group.add_argument("--update-diff",
+                            dest="diff_only", action="store_true",
+                            help="Uploads a new diff, but does not update information from change list.")
+    edit_group.add_argument("--change-only",
+                            dest="change_only", action="store_true",
+                            help="Updates info from change list, but does not upload diff.")
+    edit_group.add_argument("--testing-done",
+                            dest="testing_done", metavar="<string>",
+                            help="Description of testing done.")
+    edit_group.add_argument("--testing-done-file",
+                            dest="testing_file", metavar="<filename>",
+                            help="Text file containing description of testing done.")
+    edit_group.add_argument("-r", "--rid",
+                            dest="rid", metavar="<ID>",
+                            help="Upload changes to specific review by ID. Use this if your change list is different from the one associated with ID.")
+    edit_group.add_argument("--username", dest="username", metavar="<user>",
+                            help="Switch to this Review Board username. Useful if different from p4 username (e.g. mergeit). " +
+                                 "The new login credentials will remain in effect until you use --username again.")
+
     return parser
 
 
 def parse_options(parser):
-    """Parse command line options, strip of legacy UI elements and return args, optiions and action."""
-    options, args = parser.parse_args()
+    """Parse command line options, strip of legacy UI elements and return args, options and action."""
+    args = parser.parse_args()
 
-    if options.version:
+    if args.version:
         print_version()
         raise SystemExit(0)
 
-    if len(args) == 0:
-        parser.print_help()
-        raise SystemExit(0)
+    # if len(args) == 0:
+        # parser.print_help()
+        # raise SystemExit(0)
 
     # The command needs to be the first argument.
-    action = args[0]
-    args = args[1:]
+    # action = args[0]
+    # args = args[1:]
 
+    '''
     if options.testing_done and options.testing_file:
         raise RBError("The --testing-done and --testing-done-file options "
                       "are mutually exclusive.\n")
@@ -894,6 +977,8 @@ def parse_options(parser):
     options.submit_as = None
 
     return options, args, action
+    '''
+    return args
 
 
 def create_review(change_list, server, p4):
@@ -911,7 +996,7 @@ def create_review(change_list, server, p4):
         pass
     if review_id:
         raise RBError("Change list %s already associated with review %s.\nDid you intend to 'edit' the review?" % (
-        change_list, review_id))
+            change_list, review_id))
 
     if options.shelve:
         print "Shelving files for change %s." % change_list
@@ -1050,16 +1135,18 @@ def main():
     # TODO: This no longer works
     # user_config, configs = post.load_config_files(user_home)
     parser = get_option_parser()
+    args = parse_options(parser)
+
+    print args
 
     # We need to call our option parser and then also call post's parse_options
     # because it sets global variables that we need for our operations.
     # We don't care about the return value of post's parse_options.
-    options, args, action = parse_options(parser)
+    # options, args, action = parse_options(parser)
     #post.parse_options(args)
-    post.main(args)
+    # post.main(args)
     print "DONE!"
     raise SystemExit(0)
-    
 
     if options.version:
         print "Version is ", VERSION
