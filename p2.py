@@ -10,19 +10,15 @@ ACTIONS = ['create', 'edit', 'submit', 'diff']
 
 
 def opt_parser(args):
+    myargs = args[:]
     parser = optparse.OptionParser()
     parser.add_option('-d', '--debug', dest='debug', action='store_true')
     parser.add_option('--shelve', dest='shelve', action='store_true')
     parser.add_option('--p4-port', dest='p4port')
     parser.add_option('--p4-client', dest='p4client')
     parser.add_option('--server', dest='server')
-    return parser.parse_args(args)
 
-
-if __name__ == '__main__':
-    myargs = sys.argv[1:]
-    opts, args = opt_parser(sys.argv[1:])
-
+    opts, args = parser.parse_args(args)
     # Remove all occurrences of the args from the original list so we
     # can build up a list that argparse likes
     for arg in args:
@@ -44,12 +40,15 @@ if __name__ == '__main__':
     else:
         action = requested_actions[0]
 
+    return action, ['rbt', action] + myargs + args
+
+
+if __name__ == '__main__':
+    action, args = opt_parser(sys.argv[1:])
     if action == 'diff':
-        myargs = ['rbt', 'diff'] + myargs + args
         d = diff.Diff()
-        d.run_from_argv(myargs)
+        d.run_from_argv(args)
     elif action == 'edit':
-        myargs = ['rbt', 'edit'] + myargs + args
         p = post.Post()
-        p.run_from_argv(myargs)
+        p.run_from_argv(args)
 
