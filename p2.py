@@ -1,12 +1,338 @@
 #!/usr/bin/python
+import os
 import sys
 import optparse
+import tempfile
+import marshal
 
 from rbtools.commands import post
 from rbtools.commands import diff
 
 
 ACTIONS = ['create', 'edit', 'submit', 'diff']
+
+
+class RBError(Exception): pass;
+
+
+class P4Error(Exception): pass;
+
+
+class P4:
+    """
+    Encapsulate perforce environment and handle calls to the perforce server.
+
+    """
+
+    def __init__(self, user=None, port=None, client=None):
+        """
+        Create an object to interact with perforce using the user, port and client
+        settings provided. If any are missing, use those from the environment.
+        """
+        if not all([user, port, client]):
+            p4_info = self.info()
+            self.user = p4_info['userName']
+            self.port = p4_info['serverAddress']
+            self.client = p4_info['clientName']
+        else:
+            self.user = user
+            self.port = port
+            self.client = client
+
+    def info(self):
+        p4_info = self.run_G("info")
+        if not p4_info:
+            raise P4Error("Could not talk to the perforce server.")
+        return p4_info[0]
+
+    def run(self, cmd):
+        """Run perforce cmd and return output as a list of output lines."""
+        cmd = "p4 " + cmd
+        child = os.popen(cmd)
+        data = child.read().splitlines()
+        err = child.close()
+        if err:
+            raise P4Error("Perforce command '%s' failed.\n" % cmd)
+        return data
+
+    def run_G(self, cmd, args=None, p4_input=0):
+        """
+        Run perforce command and marshal the IO. Returns stdout as a  dict.
+
+        This code was copied from this perforce knowledge base page:
+
+        http://kb.perforce.com/article/585/using-p4-g
+
+        I modified it slightly for error checking.
+        """
+
+        c = "p4 -G " + cmd
+
+        # All input to this method should be internal to this program, so
+        # if we don't have either None or a list, something is very wrong.
+        if not args is None:
+            if isinstance(args, list):
+                c = c + " " + " ".join(args)
+            else:
+                raise P4Error(
+                    "Program Error: run_G unexpectedly received a non-list value for 'args'.\nPlease contact CM.")
+
+        if sys.version_info < (2, 6):
+            (pi, po) = os.popen2(c, "b")
+        else:
+            from subprocess import Popen, PIPE
+
+            p = Popen(c, stdin=PIPE, stdout=PIPE, shell=True)
+            (pi, po) = (p.stdin, p.stdout)
+
+        if p4_input:
+            marshal.dump(p4_input, pi, 0)
+            pi.close()
+
+        results = []
+        try:
+            while 1:
+                x = marshal.load(po)
+                results.append(x)
+        except EOFError:
+            pass
+        po.close()
+
+        # check for known perforce errors
+        for r in results:
+            if r['code'] == 'error':
+                msg = "\n'%s' command failed.\n\n" % c
+                msg += "%s\n" % r['data']
+                raise P4Error(msg)
+        return results
+
+    def __str__(self):
+        return "user: %s port: %s client: %s" % (self.user, self.port, self.client)
+
+    def opened(self, change_number=None):
+        """Return a dict with opened files for user."""
+        if change_number:
+            cmd = "opened -c %s" % change_number
+        else:
+            cmd = "opened"
+        return self.run_G(cmd)
+
+    def changes(self, status=None):
+        """Return a dict with changes for user."""
+        cmd = "changes -u %s" % self.user
+        if status:
+            cmd += " -s %s" % status
+        return self.run_G(cmd)
+
+    def changelist_owner(self, change_number):
+        """Return the user name of the change list owner"""
+        change_list = self.get_change(change_number)
+        return change_list['User']
+
+    def verify_owner(self, change_list):
+        """Raise exception if we are not the owner of the change list."""
+        change_owner = self.changelist_owner(change_list)
+        if self.user != change_owner:
+            raise P4Error(
+                "Perforce change %s is owned by %s - you are running as %s." % (change_list, change_owner, self.user))
+
+    def new_change(self):
+        """
+        Create a numbered change list with all files in the default change list.
+
+        Run p4 change on the default change list to create a new, numbered change
+        and return the new change list number.
+
+        Raise exception if there are no files in the default changelist.
+
+        """
+        if len(self.opened("default")) == 0:
+            raise P4Error("No files opened in default changelist.")
+
+        # Capture a change template with files opened in the default change list
+        change_template = self.run("change -o")
+
+        try:
+            # Create a temp file and dump the p4 change to it.
+            file_descriptor, file_name = tempfile.mkstemp(prefix="p4.change.")
+            change_form = os.fdopen(file_descriptor, "w")
+            for line in change_template:
+                change_form.write(line + os.linesep)
+            change_form.close()
+
+            # Open the file in the users editor
+            self.edit_file(file_name)
+        except OSError, e:
+            raise RBError("Error creating new change list.\n%s" % e)
+
+        # Use 2.4 compatible version because we have so many CentOS 5 users
+        f = None
+        try:
+            f = open(file_name, "r")
+            new_change_form = [s.rstrip() for s in f.readlines()]
+        except IOError, e:
+            if os.path.isfile(file_name):
+                f.close()
+                os.remove(file_name)
+            if f:
+                f.close()
+            raise RBError("Couldn't read the saved change list form.\n%s" % e)
+
+        # The user may have changed their mind, so see if the file changed at all.
+        if change_template == new_change_form:
+            if os.path.isfile(file_name):
+                f.close()
+                os.remove(file_name)
+            raise RBError("No changes made to change list.")
+        else:
+            # Use 2.4 compatible syntax since we have so many CentOS 5 users.
+            try:
+                try:
+                    change_output = self.run("change -i < %s" % file_name)
+                except P4Error, e:
+                    # Give user a chance to fix the problem
+                    print "Error in change specification:\n%s" % e
+                    confirm = raw_input("Try again? n|[y]: ")
+                    if confirm == '' or confirm.lower() == 'y':
+                        self.edit_file(file_name)
+                        change_output = self.run("change -i < %s" % file_name)
+                    else:
+                        raise P4Error("Change specification errors not fixed.")
+            finally:
+                if os.path.isfile(file_name):
+                    f.close()
+                    os.remove(file_name)
+            return change_output[0].split()[1]
+
+    def get_change(self, change_number):
+        """Return dict with change_number change list"""
+        return self.run_G("change -o %s" % change_number)[0]
+
+    def edit_change(self, change_number):
+        os.system("p4 change %s" % change_number)
+
+    def shelve(self, change_number, update=False):
+        """Create or update a p4 shelve from change_number"""
+        if update:
+            cmd = "shelve -f -c %s" % change_number
+        else:
+            cmd = "shelve -c %s" % change_number
+        return self.run_G(cmd)
+
+    def update_shelf(self, change_number):
+        """Update the shelved change_number"""
+        cmd = "shelve -r -c %s" % change_number
+        return self.run_G(cmd)
+
+    def shelved(self, change_number):
+        """Return True if the change_number is a shelved change list"""
+        return int(change_number) in self.shelves()
+
+    def shelves(self):
+        """Return list of change list numbers for user that are currently shelved."""
+        shelved_changes = self.changes("shelved")
+        return [int(sc['change']) for sc in shelved_changes]
+
+    def unshelve(self, change_number):
+        """Delete the shelf for the change_number"""
+        cmd = "shelve -d -c %s" % change_number
+        output = self.run_G(cmd)
+        return output
+
+    def get_jobs(self, change_number):
+        """Return list of jobs associated with this change list number."""
+        change = self.get_change(change_number)
+        jobs = [change[k] for k in change.keys() if k.startswith('Jobs')]
+        jobs.sort()
+        return jobs
+
+    def submit(self, change_number):
+        """Submit change and return submitted change number"""
+        cmd = "submit -c %s" % change_number
+        output = self.run_G(cmd)
+
+        # Check each dict in the output until we find submittedChange
+        submitted_change = None
+        for line in output:
+            if line.has_key("submittedChange"):
+                submitted_change = int(line['submittedChange'])
+                break
+        if submitted_change is None:
+            raise P4Error("Failed to determine submitted change list number.")
+        return submitted_change
+
+    def add_reviewboard_shipits(self, review, ship_its):
+        """
+        Add list of users who approved the review to the change list.
+
+        """
+
+        ship_it_line = "Reviewed by: %s" % (", ".join(ship_its))
+        change = self.get_change(review.change_list)
+        change_description = change['Description'].splitlines()
+
+        # Look for a 'Reviewed by:' field in the description so we don't
+        # end up with multiple entries.
+        found = False
+        for lineno in range(0, len(change_description)):
+            if change_description[lineno].startswith("Reviewed by:"):
+                change_description[lineno] = ship_it_line
+                found = True
+                break
+        if not found:
+            change_description.extend(['', ship_it_line])
+
+        change['Description'] = "\n".join(change_description)
+        self.run_G("change -i", p4_input=change)
+
+
+    def set(self):
+        """Return output of 'p4 set' as a dict."""
+        set_list = self.run("set")
+        set_dict = {}
+        for item in set_list:
+            k, v = item.split('=', 1)
+            set_dict[k] = v
+        return set_dict
+
+    def get_editor(self):
+        """
+        Return the editor to use based on environment variables.
+
+        Look at various environment variables to see if the user has
+        specified a favorite and return that value.
+
+        Default: vi on linux and mac, notepad on windows
+
+        """
+
+        p4set = self.set()
+        if os.name == "nt":
+            editor = "notepad"
+        elif p4set.has_key("P4EDITOR"):
+            editor = p4set["P4EDITOR"]
+
+            # If the editor is set in a p4.config file, the entry will end with (config)
+            if editor.endswith(" (config)"):
+                editor = editor[0:-9]
+        elif os.environ.has_key("EDITOR"):
+            editor = os.environ["EDITOR"]
+        else:
+            editor = "vi"
+
+        return editor
+
+    def edit_file(self, file_name):
+        """
+        Open a file for editing
+        """
+        editor = self.get_editor()
+        if os.name == "nt":
+            from subprocess import call
+
+            call([editor, file_name])
+        else:
+            os.system("%s %s" % (editor, file_name))
 
 
 def get_option_parser():
@@ -91,6 +417,13 @@ The options for each command are described below.
     parser.add_option_group(edit_group)
     parser.add_option_group(submit_group)
     return parser
+
+
+def get_jobs(change_list):
+    """Return list of jobs associated with this change list."""
+    jobs = [change_list[k] for k in change_list.keys() if k.startswith('Jobs')]
+    jobs.sort()
+    return jobs
 
 
 def parse_options(args):
