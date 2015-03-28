@@ -93,7 +93,7 @@ The options for each command are described below.
     return parser
 
 
-def opt_parser(args):
+def parse_options(args):
     myargs = args[:]
     parser = get_option_parser()
     opts, args = parser.parse_args(args)
@@ -123,7 +123,7 @@ def opt_parser(args):
 
 
 if __name__ == '__main__':
-    action, args = opt_parser(sys.argv[1:])
+    action, args = parse_options(sys.argv[1:])
     if action == 'diff':
         d = diff.Diff()
         d.run_from_argv(args)
