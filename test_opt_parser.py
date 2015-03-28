@@ -6,7 +6,7 @@ from unittest import main
 import p2
 
 
-class TestOpt_parser(TestCase):
+class TestOptParser(TestCase):
     def test_opt_parser(self):
         test_args = ['edit', '--debug', '999']
         action, args = p2.parse_options(test_args)
