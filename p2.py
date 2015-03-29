@@ -418,23 +418,20 @@ The options for each command are described below.
     parser.add_option_group(submit_group)
     return parser
 
-
-def get_jobs(change_list):
-    """Return list of jobs associated with this change list."""
-    jobs = [change_list[k] for k in change_list.keys() if k.startswith('Jobs')]
-    jobs.sort()
-    return jobs
-
-
 def parse_options(args):
+    f5_options = {'shelve': '--shelve', 'force': '--force', 'edit': '--edit-changelist'}
     myargs = args[:]
     parser = get_option_parser()
     opts, args = parser.parse_args(args)
 
-    # Remove all occurrences of the args from the original list so we
-    # can build up a list that argparse likes
+    # Remove all occurrences of args and f5_args from the original
+    # list leaving only the options we plan to pass on.
     for arg in args:
         myargs.remove(arg)
+    opts_dict = vars(opts)
+    for option in f5_options:
+        if opts_dict[option]:
+            myargs.remove(f5_options[option])
 
     # Now remove duplicates from args list
     args = list(set(args))
