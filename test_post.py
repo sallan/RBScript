@@ -3,57 +3,64 @@
 from unittest import TestCase
 from unittest import main
 
-import p2
+import p2 as post
 
 
-class TestOptParser(TestCase):
-    def test_opt_parser(self):
-        test_args = ['edit', '--debug', '999']
-        action, args = p2.parse_options(test_args)
-        self.assertEqual("edit", action)
-        self.assertEqual(args, ['rbt', 'edit', '--debug', '999'])
+class TestArgParser(TestCase):
+    def test_arg_parser(self):
+        test_args = ['post', 'create', '999']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual("create", arg_parser.action)
+        self.assertEqual(arg_parser.rbt_args, ['rbt', '999'])
+
+        '''
+        test_args = ['post', 'edit', '999']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual("edit", arg_parser.action)
+        self.assertEqual(arg_parser.rbt_args, ['rbt', 'edit', '999'])
 
         test_args = ['edit', '999', '--debug']
-        action, args = p2.parse_options(test_args)
+        action, args = post.parse_options(test_args)
         self.assertEqual("edit", action)
         self.assertEqual(args, ['rbt', 'edit', '--debug', '999'])
 
         test_args = ['create', '999', '--server', 'http://rb', '999', '--debug', '999']
-        action, args = p2.parse_options(test_args)
+        action, args = post.parse_options(test_args)
         self.assertEqual("create", action)
         self.assertEqual(args, ['rbt', 'create', '--server', 'http://rb', '--debug', '999'])
 
         test_args = ['edit', '999', '--publish']
-        action, args = p2.parse_options(test_args)
+        action, args = post.parse_options(test_args)
         self.assertEqual("edit", action)
         self.assertEqual(args, ['rbt', 'edit', '--publish', '999'])
+        '''
 
-    def test_f5_options(self):
+    def Xtest_f5_options(self):
         test_args = ['edit', '999', '--shelve']
-        # action, f5_args, args = p2.parse_options(test_args)
-        action, args = p2.parse_options(test_args)
+        # action, f5_args, args = post.parse_options(test_args)
+        action, args = post.parse_options(test_args)
         self.assertEqual("edit", action)
         self.assertEqual(args, ['rbt', 'edit', '999'])
         # TODO: Enable this assert
         # self.asserTrue(f5_args['shelve'])
 
         test_args = ['edit', '--shelve', '999', '--server', 'http://rb', '999', '--debug', '999']
-        action, args = p2.parse_options(test_args)
+        action, args = post.parse_options(test_args)
         self.assertEqual("edit", action)
         self.assertEqual(args, ['rbt', 'edit', '--server', 'http://rb', '--debug', '999'])
 
         test_args = ['submit', '--force', '999', '--server', 'http://rb']
-        action, args = p2.parse_options(test_args)
+        action, args = post.parse_options(test_args)
         self.assertEqual("submit", action)
         self.assertEqual(args, ['rbt', 'submit', '--server', 'http://rb', '999'])
 
         test_args = ['submit', '--force', '999', '--edit-changelist', '--server', 'http://rb']
-        action, args = p2.parse_options(test_args)
+        action, args = post.parse_options(test_args)
         self.assertEqual("submit", action)
         self.assertEqual(args, ['rbt', 'submit', '--server', 'http://rb', '999'])
 
         test_args = ['submit', '-f', '999']
-        action, args = p2.parse_options(test_args)
+        action, args = post.parse_options(test_args)
         self.assertEqual("submit", action)
         self.assertEqual(args, ['rbt', 'submit', '999'])
 
@@ -70,7 +77,7 @@ class TestFindBugs(TestCase):
         return self.change_list
 
     def test_find_bugs(self):
-        p4 = p2.P4(user='sallan', port='xena:1492', client='sallan-xena-sample-depot')
+        p4 = post.P4(user='sallan', port='xena:1492', client='sallan-xena-sample-depot')
         p4.get_change = self.get_change_list
         found = p4.get_jobs('813')
         expected = ['job000019', 'job000020']
