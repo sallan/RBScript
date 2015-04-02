@@ -20,11 +20,13 @@ class RBArgParser:
 
     def __init__(self, args):
         """Create argument parser with input argument list"""
-        # self.args = args[1:]  # remove script name
-        # myargs = args[:]  # make copy that we can modify
-
+        self.raw_args = args[1:]
         self.parser = self._option_parser()
-        self.opts, self.args = self.parser.parse_args(args[1:])
+        self.opts, self.args = self.parser.parse_args(self.raw_args)
+
+        if not self.args:
+            raise RBError()
+
         # self.opts = vars(self.opts)
 
         self.action = []
@@ -32,19 +34,39 @@ class RBArgParser:
             if action in self.args:
                 self.action.append(action)
                 self.args.remove(action)
+                self.raw_args.remove(action)
 
         if len(self.action) != 1:
-            print "Please provide exactly one action: " + ' | '.join(ACTIONS)
-            # TODO: Raise exception here, not SystemExit
-            raise SystemExit(1)
+            raise RBError("Please provide exactly one action: " + ' | '.join(ACTIONS))
         else:
             self.action = self.action[0]
 
+        if len(self.args) > 1:
+            raise RBError("Please provide 1 action and at most 1 change list number")
+
+        if len(self.args) == 1:
+            self.change_number = self.args[0]
+        else:
+            self.change_number = None
+
+        if self.change_number is None and self.action != 'create':
+            raise RBError("Need a change list number")
+
         if self.opts.shelve:
             self.shelve = True
-            self.rbt_args.remove('--shelve')
+            self.raw_args.remove('--shelve')
 
-        self.rbt_args = ['rbt'] + self.args
+        if self.opts.force:
+            self.force = True
+            self.raw_args.remove('--force')
+
+        self.rbt_args = ['rbt'] + self.raw_args
+
+    def usage(self):
+        """Print help and exit"""
+        self.parser.print_help()
+        raise SystemExit()
+
 
     def Xjunk(self):
 
