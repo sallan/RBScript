@@ -1,0 +1,43 @@
+* Sprint
+** Dev should be able to enter options and args in any order (unlike with rbt)
+    -[ ] Functional tests pass
+    -[ ] Code has unit tests
+    -[ ] Classes and public methods have doc strings
+
+*** Dev passes arguments and gets appropriate response
+    We always require 1 argument - an action. Most of the time we also
+    require a change list number, though it's optional if the action
+    is create. The user may pass who knows what, including multiple
+    actions, changelists, their password, who knows?  The program
+    should handle all that gracefully.
+
+**** TODO No arguments
+     If a user passes no arguments, print a short, useful message
+     which includes reference to --help.
+
+**** Action, but no changelist
+     This is only valid if the action is create.
+
+**** Changelist but no action
+
+**** Multiple actions
+
+**** Multiple changelists
+
+**** Any extra junk they may decide to type in
+
+
+** If dev enters unrecognized or bad input, print useful message
+*** AC
+    -[ ] Functional tests pass
+    -[ ] Code has unit tests
+    -[ ] Classes and public methods have doc strings
+
+* Product Backlog
+** Jobs in CL should be automatically entered in RB Bugs field
+
+** Dev should be able to shelve a change when creating or editing a review
+
+** Allow dev to create a new review from default change list
+
+* Done
