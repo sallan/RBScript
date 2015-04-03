@@ -42,6 +42,48 @@ class TestArgParser(TestCase):
         with self.assertRaises(post.RBError):
             post.RBArgParser(test_args)
 
+    def test_options_only(self):
+        # NOTE: Need to pass an action and change listto avoid exception.
+
+        # Options that get passed straight to rbt
+        test_args = ['post', 'create', '--debug', '999']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(['rbt', '--debug', '999'], arg_parser.rbt_args)
+
+        test_args = ['post', 'create', '-d', '999']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(['rbt', '-d', '999'], arg_parser.rbt_args)
+
+        test_args = ['post', 'create', '--server', 'http://rb', '999']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(['rbt', '--server', 'http://rb', '999'], arg_parser.rbt_args)
+
+        test_args = ['post', 'create', '--target-people', 'me, you, them', '999']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(['rbt', '--target-people', 'me, you, them', '999'], arg_parser.rbt_args)
+
+        # Options we need to intercept
+        test_args = ['post', 'create', '--publish', '999']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(['rbt', '999'], arg_parser.rbt_args)
+        self.assertTrue(arg_parser.publish)
+
+        test_args = ['post', 'create', '-p', '999']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(['rbt', '999'], arg_parser.rbt_args)
+        self.assertTrue(arg_parser.publish)
+
+        test_args = ['post', 'create', '--shelve', '999']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(['rbt', '999'], arg_parser.rbt_args)
+        self.assertTrue(arg_parser.shelve)
+
+        test_args = ['post', 'create', '--force', '999']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(['rbt', '999'], arg_parser.rbt_args)
+        self.assertTrue(arg_parser.force)
+
+
     def Xtest_create_ui(self):
         test_args = ['post', 'create']
         arg_parser = post.RBArgParser(test_args)

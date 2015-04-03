@@ -60,6 +60,10 @@ class RBArgParser:
             self.force = True
             self.raw_args.remove('--force')
 
+        if self.opts.publish:
+            self.publish = True
+            self.raw_args.remove('--publish')
+
         self.rbt_args = ['rbt'] + self.raw_args
 
     def usage(self):
