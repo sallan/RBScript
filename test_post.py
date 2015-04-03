@@ -52,7 +52,7 @@ class TestArgParser(TestCase):
 
         test_args = ['post', 'create', '-d', '999']
         arg_parser = post.RBArgParser(test_args)
-        self.assertEqual(['rbt', '-d', '999'], arg_parser.rbt_args)
+        self.assertEqual(['rbt', '--debug', '999'], arg_parser.rbt_args)
 
         test_args = ['post', 'create', '--server', 'http://rb', '999']
         arg_parser = post.RBArgParser(test_args)

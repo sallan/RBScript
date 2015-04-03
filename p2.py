@@ -7,7 +7,7 @@ import marshal
 
 
 ACTIONS = ['create', 'edit', 'submit', 'diff']
-
+F5_OPTIONS = ['shelve', 'force', 'publish', 'edit_changelist']
 
 class RBError(Exception): pass;
 
@@ -18,6 +18,7 @@ class P4Error(Exception): pass;
 class RBArgParser:
     """Manage options and arguments for review requests"""
 
+
     def __init__(self, args):
         """Create argument parser with input argument list"""
         self.raw_args = args[1:]
@@ -27,8 +28,8 @@ class RBArgParser:
         if not self.args:
             raise RBError()
 
-        # self.opts = vars(self.opts)
 
+        # Process the arguments to get action and change list number
         self.action = []
         for action in ACTIONS:
             if action in self.args:
@@ -52,19 +53,49 @@ class RBArgParser:
         if self.change_number is None and self.action != 'create':
             raise RBError("Need a change list number")
 
-        if self.opts.shelve:
-            self.shelve = True
-            self.raw_args.remove('--shelve')
 
-        if self.opts.force:
-            self.force = True
-            self.raw_args.remove('--force')
+        # Process the options separating those we handle and those we pass to rbt
+        opts_dict = {k: v for k, v in vars(self.opts).iteritems() if v}
 
-        if self.opts.publish:
-            self.publish = True
-            self.raw_args.remove('--publish')
+        self.rbt_args = ['rbt']
+        for opt, value in opts_dict.iteritems():
+            print "Processing %s - %s" % (opt, value)
+            if opt in F5_OPTIONS:
+                setattr(self, opt, value)
+            else:
+                self.rbt_args.extend(self.opt_to_string(opt, value))
 
-        self.rbt_args = ['rbt'] + self.raw_args
+        # if self.opts.shelve:
+        # self.shelve = True
+        #     self.remove_arg('shelve')
+        #
+        # if self.opts.force:
+        #     self.force = True
+        #     self.remove_arg('force')
+        #
+        # if self.opts.publish:
+        #     self.publish = True
+        #     self.remove_arg('publish')
+
+        self.rbt_args.append(self.change_number)
+
+
+    def opt_to_string(self, opt, value):
+        # TODO: write me
+        boolean = ['shelve', 'force', 'edit_changelist', 'publish', 'debug']
+        option_string = {
+            'shelve': '--shelve',
+            'force': '--force',
+            'edit_changelist': '--edit-changelist',
+            'debug': '--debug',
+            'publish': '--publish',
+            'server': '--server',
+        }
+        args = [option_string[opt]]
+        if opt not in boolean:
+            args.append(value)
+        return args
+
 
     def usage(self):
         """Print help and exit"""
