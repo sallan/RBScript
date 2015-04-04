@@ -43,7 +43,7 @@ class TestArgParser(TestCase):
             post.RBArgParser(test_args)
 
     def test_options_only(self):
-        # NOTE: Need to pass an action and change listto avoid exception.
+        # NOTE: Need to pass an action and change list to avoid exception.
 
         # Options that get passed straight to rbt
         test_args = ['post', 'create', '--debug', '999']
@@ -54,25 +54,52 @@ class TestArgParser(TestCase):
         arg_parser = post.RBArgParser(test_args)
         self.assertEqual(['rbt', '--debug', '999'], arg_parser.rbt_args)
 
+        test_args = ['post', 'create', '--version', '999']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(['rbt', '--version', '999'], arg_parser.rbt_args)
+
+        test_args = ['post', 'create', '-v', '999']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(['rbt', '--version', '999'], arg_parser.rbt_args)
+
         test_args = ['post', 'create', '--server', 'http://rb', '999']
         arg_parser = post.RBArgParser(test_args)
         self.assertEqual(['rbt', '--server', 'http://rb', '999'], arg_parser.rbt_args)
 
-        test_args = ['post', 'create', '--target-people', 'me, you, them', '999']
+        test_args = ['post', 'create', '--target-people', 'me, you, him', '999']
         arg_parser = post.RBArgParser(test_args)
-        self.assertEqual(['rbt', '--target-people', 'me, you, them', '999'], arg_parser.rbt_args)
+        self.assertEqual(['rbt', '--target-people', 'me, you, him', '999'], arg_parser.rbt_args)
+
+        test_args = ['post', 'create', '--target-groups', 'us, them', '999']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(['rbt', '--target-groups', 'us, them', '999'], arg_parser.rbt_args)
+
+        test_args = ['post', 'create', '--testing-done', 'no testing needed', '999']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(['rbt', '--testing-done', 'no testing needed', '999'], arg_parser.rbt_args)
+
+        test_args = ['post', 'create', '--testing-done-file', '/dev/null', '999']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(['rbt', '--testing-done-file', '/dev/null', '999'], arg_parser.rbt_args)
+
+        test_args = ['post', 'create', '--rid', '12345', '999']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(['rbt', '--rid', '12345', '999'], arg_parser.rbt_args)
+
+        test_args = ['post', 'create', '-r', '12345', '999']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(['rbt', '--rid', '12345', '999'], arg_parser.rbt_args)
+
+        test_args = ['post', 'edit', '--update-diff', '999']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(['rbt', '--update-diff', '999'], arg_parser.rbt_args)
+
+        test_args = ['post', 'edit', '--change-only', '999']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(['rbt', '--change-only', '999'], arg_parser.rbt_args)
+
 
         # Options we need to intercept
-        test_args = ['post', 'create', '--publish', '999']
-        arg_parser = post.RBArgParser(test_args)
-        self.assertEqual(['rbt', '999'], arg_parser.rbt_args)
-        self.assertTrue(arg_parser.publish)
-
-        test_args = ['post', 'create', '-p', '999']
-        arg_parser = post.RBArgParser(test_args)
-        self.assertEqual(['rbt', '999'], arg_parser.rbt_args)
-        self.assertTrue(arg_parser.publish)
-
         test_args = ['post', 'create', '--shelve', '999']
         arg_parser = post.RBArgParser(test_args)
         self.assertEqual(['rbt', '999'], arg_parser.rbt_args)
@@ -82,6 +109,28 @@ class TestArgParser(TestCase):
         arg_parser = post.RBArgParser(test_args)
         self.assertEqual(['rbt', '999'], arg_parser.rbt_args)
         self.assertTrue(arg_parser.force)
+
+        # If the --shelve option is used with publish, we need to intercept
+        # publish so we can add the shelve comment first. Otherwise let it go.
+        test_args = ['post', 'create', '--publish', '999']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(['rbt', '--publish', '999'], arg_parser.rbt_args)
+        self.assertTrue(arg_parser.publish)
+
+        test_args = ['post', 'create', '-p', '999']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(['rbt', '--publish', '999'], arg_parser.rbt_args)
+        self.assertTrue(arg_parser.publish)
+
+        test_args = ['post', 'create', '--publish', '999', '--shelve']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(['rbt', '999'], arg_parser.rbt_args)
+        self.assertTrue(arg_parser.publish)
+
+        test_args = ['post', 'create', '999', '--shelve']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(['rbt', '999'], arg_parser.rbt_args)
+        self.assertFalse(arg_parser.publish)
 
 
     def Xtest_create_ui(self):

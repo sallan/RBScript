@@ -7,7 +7,6 @@ import marshal
 
 
 ACTIONS = ['create', 'edit', 'submit', 'diff']
-F5_OPTIONS = ['shelve', 'force', 'publish', 'edit_changelist']
 
 class RBError(Exception): pass;
 
@@ -28,7 +27,6 @@ class RBArgParser:
         if not self.args:
             raise RBError()
 
-
         # Process the arguments to get action and change list number
         self.action = []
         for action in ACTIONS:
@@ -41,55 +39,56 @@ class RBArgParser:
             raise RBError("Please provide exactly one action: " + ' | '.join(ACTIONS))
         else:
             self.action = self.action[0]
-
         if len(self.args) > 1:
             raise RBError("Please provide 1 action and at most 1 change list number")
-
         if len(self.args) == 1:
             self.change_number = self.args[0]
         else:
             self.change_number = None
-
         if self.change_number is None and self.action != 'create':
             raise RBError("Need a change list number")
 
 
+        # The f5_options list are options that we don't pass on to rbt.
+        # If the shelve option is used, we need to intercept the publish
+        # option so we can add the shelve comment after rbt runs, but
+        # before publishing.  We also make sure to save the publish option
+        # here.
+        self.f5_options = ['shelve', 'force', 'edit_changelist']
+        if self.opts.shelve:
+            self.f5_options.append('publish')
+        self.publish = self.opts.publish
+
         # Process the options separating those we handle and those we pass to rbt
         opts_dict = {k: v for k, v in vars(self.opts).iteritems() if v}
-
         self.rbt_args = ['rbt']
         for opt, value in opts_dict.iteritems():
-            print "Processing %s - %s" % (opt, value)
-            if opt in F5_OPTIONS:
+            if opt in self.f5_options:
                 setattr(self, opt, value)
             else:
                 self.rbt_args.extend(self.opt_to_string(opt, value))
-
-        # if self.opts.shelve:
-        # self.shelve = True
-        #     self.remove_arg('shelve')
-        #
-        # if self.opts.force:
-        #     self.force = True
-        #     self.remove_arg('force')
-        #
-        # if self.opts.publish:
-        #     self.publish = True
-        #     self.remove_arg('publish')
-
         self.rbt_args.append(self.change_number)
 
 
     def opt_to_string(self, opt, value):
-        # TODO: write me
-        boolean = ['shelve', 'force', 'edit_changelist', 'publish', 'debug']
+        boolean = ['version', 'debug', 'shelve', 'force', 'edit_changelist', 'publish', 'diff_only', 'change_only']
         option_string = {
+            'debug': '--debug',
+            'version': '--version',
+            'server': '--server',
             'shelve': '--shelve',
             'force': '--force',
+            'diff_only': '--update-diff',
+            'change_only': '--change-only',
             'edit_changelist': '--edit-changelist',
-            'debug': '--debug',
             'publish': '--publish',
-            'server': '--server',
+            'target_people': '--target-people',
+            'target_groups': '--target-groups',
+            'branch': '--branch',
+            'testing_done': '--testing-done',
+            'testing_file': '--testing-done-file',
+            'rid': '--rid',
+            'username': '--username',
         }
         args = [option_string[opt]]
         if opt not in boolean:
@@ -542,5 +541,5 @@ if __name__ == '__main__':
     # d.run_from_argv(args)
     # elif action == 'edit':
     # p = post.Post()
-    #     p.run_from_argv(args)
+    # p.run_from_argv(args)
 
