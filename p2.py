@@ -8,6 +8,7 @@ import marshal
 
 ACTIONS = ['create', 'edit', 'submit', 'diff']
 
+
 class RBError(Exception): pass;
 
 
@@ -17,14 +18,14 @@ class P4Error(Exception): pass;
 class RBArgParser:
     """Manage options and arguments for review requests"""
 
-
     def __init__(self, args):
         """Create argument parser with input argument list"""
-        self.raw_args = args[1:]
+        # self.raw_args = args[1:]
         self.parser = self._option_parser()
-        self.opts, self.args = self.parser.parse_args(self.raw_args)
+        self.opts, self.args = self.parser.parse_args(args[1:])
 
         if not self.args:
+            self.parser.print_help()
             raise RBError()
 
         # Process the arguments to get action and change list number
@@ -33,7 +34,6 @@ class RBArgParser:
             if action in self.args:
                 self.action.append(action)
                 self.args.remove(action)
-                self.raw_args.remove(action)
 
         if len(self.action) != 1:
             raise RBError("Please provide exactly one action: " + ' | '.join(ACTIONS))
@@ -49,11 +49,11 @@ class RBArgParser:
             raise RBError("Need a change list number")
 
 
-        # The f5_options list are options that we don't pass on to rbt.
+        # The f5_options list holds options that we don't pass on to rbt.
         # If the shelve option is used, we need to intercept the publish
         # option so we can add the shelve comment after rbt runs, but
-        # before publishing.  We also make sure to save the publish option
-        # here.
+        # before publishing, so we add it to f5_options.
+        # We also make sure to save the publish option here.
         self.f5_options = ['shelve', 'force', 'edit_changelist']
         if self.opts.shelve:
             self.f5_options.append('publish')
@@ -68,7 +68,6 @@ class RBArgParser:
             else:
                 self.rbt_args.extend(self.opt_to_string(opt, value))
         self.rbt_args.append(self.change_number)
-
 
     def opt_to_string(self, opt, value):
         boolean = ['version', 'debug', 'shelve', 'force', 'edit_changelist', 'publish', 'diff_only', 'change_only']
@@ -95,44 +94,10 @@ class RBArgParser:
             args.append(value)
         return args
 
-
     def usage(self):
         """Print help and exit"""
         self.parser.print_help()
         raise SystemExit()
-
-
-    def Xjunk(self):
-
-        f5_options = {'shelve': '--shelve', 'force': '--force', 'edit': '--edit-changelist'}
-
-        # Remove all occurrences of args and f5_args from the original
-        # list leaving only the options we plan to pass on.
-        for arg in self.args:
-            self.rbt_args.remove(arg)
-        for option in f5_options:
-            if self.opts[option]:
-                self.rbt_args.remove(f5_options[option])
-
-        # Now remove duplicates from args list
-        self.args = list(set(self.args))
-
-        # Look for one and only one action
-        requested_actions = []
-        for action in ACTIONS:
-            if action in self.args:
-                requested_actions.append(action)
-                self.args.remove(action)
-
-        if len(requested_actions) != 1:
-            print "Please provide exactly one action: " + ' | '.join(ACTIONS)
-            # TODO: Raise exception here, not SystemExit
-            raise SystemExit(1)
-        else:
-            self.action = requested_actions[0]
-
-        self.rbt_args.extend(self.args)
-
 
     def _option_parser(self):
         description = """
@@ -534,7 +499,15 @@ class P4:
 
 
 if __name__ == '__main__':
-    print "FOO"
+    try:
+        arg_parser = RBArgParser(sys.argv)
+    except RBError as e:
+        print e.message
+        raise SystemExit(1)
+
+    print arg_parser.action
+    print arg_parser.rbt_args
+
     # action, args = parse_options(sys.argv[1:])
     # if action == 'diff':
     # d = diff.Diff()
