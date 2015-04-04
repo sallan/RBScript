@@ -8,10 +8,9 @@ import p2 as post
 
 class TestArgParser(TestCase):
     def test_arguments_only(self):
-        # No args raises exception
-        # test_args = ['post']
-        # with self.assertRaises(post.RBError):
-        # post.RBArgParser(test_args)
+        # With no actions or args, nothing happens
+        test_args = ['post']
+        post.RBArgParser(test_args)
 
         # Create without CL is okay
         test_args = ['post', 'create']

@@ -30,8 +30,8 @@ class RBArgParser:
         self.opts, self.args = self.parser.parse_args(args[1:])
 
         if not self.args:
-            self.parser.print_help()
-            raise RBError()
+            self.action = None
+            return
 
         # Process the arguments to get action and change list number
         self.action = []
@@ -185,6 +185,10 @@ class RBArgParser:
         parser.add_option_group(edit_group)
         parser.add_option_group(submit_group)
         return parser
+
+    def print_help(self):
+        """Print useage"""
+        self.parser.print_help()
 
 
 class P4:
@@ -503,12 +507,16 @@ class P4:
             os.system("%s %s" % (editor, file_name))
 
 
-if __name__ == '__main__':
+def main():
     try:
         arg_parser = RBArgParser(sys.argv)
     except RBError as e:
         print e.message
         raise SystemExit(1)
+
+    if arg_parser.action is None:
+        arg_parser.print_help()
+        raise SystemExit(0)
 
     print arg_parser.action
     print arg_parser.rbt_args
@@ -520,4 +528,7 @@ if __name__ == '__main__':
     # elif action == 'edit':
     # p = post.Post()
     # p.run_from_argv(args)
+
+if __name__ == '__main__':
+    main()
 
