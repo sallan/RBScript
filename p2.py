@@ -9,10 +9,12 @@ import marshal
 ACTIONS = ['create', 'edit', 'submit', 'diff']
 
 
-class RBError(Exception): pass;
+class RBError(Exception):
+    pass
 
 
-class P4Error(Exception): pass;
+class P4Error(Exception):
+    pass
 
 
 class RBArgParser:
@@ -21,7 +23,10 @@ class RBArgParser:
     def __init__(self, args):
         """Create argument parser with input argument list"""
         # self.raw_args = args[1:]
-        self.parser = self._option_parser()
+        self.edit_changelist = False
+        self.shelve = False
+        self.force = False
+        self.parser = RBArgParser._option_parser()
         self.opts, self.args = self.parser.parse_args(args[1:])
 
         if not self.args:
@@ -48,7 +53,6 @@ class RBArgParser:
         if self.change_number is None and self.action != 'create':
             raise RBError("Need a change list number")
 
-
         # The f5_options list holds options that we don't pass on to rbt.
         # If the shelve option is used, we need to intercept the publish
         # option so we can add the shelve comment after rbt runs, but
@@ -66,10 +70,11 @@ class RBArgParser:
             if opt in self.f5_options:
                 setattr(self, opt, value)
             else:
-                self.rbt_args.extend(self.opt_to_string(opt, value))
+                self.rbt_args.extend(RBArgParser._opt_to_string(opt, value))
         self.rbt_args.append(self.change_number)
 
-    def opt_to_string(self, opt, value):
+    @staticmethod
+    def _opt_to_string(opt, value):
         boolean = ['version', 'debug', 'shelve', 'force', 'edit_changelist', 'publish', 'diff_only', 'change_only']
         option_string = {
             'debug': '--debug',
@@ -99,7 +104,8 @@ class RBArgParser:
         self.parser.print_help()
         raise SystemExit()
 
-    def _option_parser(self):
+    @staticmethod
+    def _option_parser():
         description = """
     Create, update and submit review requests.
 
@@ -132,7 +138,7 @@ class RBArgParser:
                                 dest="force", action="store_true", default=False,
                                 help="Submit even if the review doesn't meet all requirements.")
         submit_group.add_option("-e", "--edit-changelist",
-                                dest="edit", action="store_true", default=False,
+                                dest="edit_changelist", action="store_true", default=False,
                                 help="Edit the change list before submitting.")
 
         edit_group = optparse.OptionGroup(parser, "Create and Edit Options")
@@ -233,7 +239,7 @@ class P4:
 
         # All input to this method should be internal to this program, so
         # if we don't have either None or a list, something is very wrong.
-        if not args is None:
+        if args is not None:
             if isinstance(args, list):
                 c = c + " " + " ".join(args)
             else:
@@ -447,7 +453,6 @@ class P4:
 
         change['Description'] = "\n".join(change_description)
         self.run_G("change -i", p4_input=change)
-
 
     def set(self):
         """Return output of 'p4 set' as a dict."""

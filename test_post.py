@@ -9,9 +9,9 @@ import p2 as post
 class TestArgParser(TestCase):
     def test_arguments_only(self):
         # No args raises exception
-        test_args = ['post']
-        with self.assertRaises(post.RBError):
-            post.RBArgParser(test_args)
+        # test_args = ['post']
+        # with self.assertRaises(post.RBError):
+        # post.RBArgParser(test_args)
 
         # Create without CL is okay
         test_args = ['post', 'create']
@@ -98,7 +98,6 @@ class TestArgParser(TestCase):
         arg_parser = post.RBArgParser(test_args)
         self.assertEqual(['rbt', '--change-only', '999'], arg_parser.rbt_args)
 
-
         # Options we need to intercept
         test_args = ['post', 'create', '--shelve', '999']
         arg_parser = post.RBArgParser(test_args)
@@ -132,8 +131,7 @@ class TestArgParser(TestCase):
         self.assertEqual(['rbt', '999'], arg_parser.rbt_args)
         self.assertFalse(arg_parser.publish)
 
-
-    def Xtest_create_ui(self):
+    def test_create_ui(self):
         test_args = ['post', 'create']
         arg_parser = post.RBArgParser(test_args)
         self.assertEqual("create", arg_parser.action)
@@ -166,58 +164,59 @@ class TestArgParser(TestCase):
         self.assertTrue(arg_parser.shelve)
         self.assertEqual(arg_parser.rbt_args, ['rbt', '--debug', '999'])
 
-        '''
+        test_args = ['post', 'create', '--shelve', '999', '--debug', '-p']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual("create", arg_parser.action)
+        self.assertEqual("999", arg_parser.change_number)
+        self.assertTrue(arg_parser.shelve)
+        self.assertTrue(arg_parser.publish)
+        self.assertEqual(arg_parser.rbt_args, ['rbt', '--debug', '999'])
+
+        test_args = ['create', '999', '--server', 'http://rb', '999', '--debug', '999']
+        with self.assertRaises(post.RBError):
+            post.RBArgParser(test_args)
+
+    def test_edit_ui(self):
         test_args = ['post', 'edit', '999']
         arg_parser = post.RBArgParser(test_args)
         self.assertEqual("edit", arg_parser.action)
         self.assertEqual(arg_parser.rbt_args, ['rbt', '999'])
 
-        test_args = ['post', 'edit', '999', '--debug']
+        test_args = ['post', '-d', 'edit', '999', '--publish']
         arg_parser = post.RBArgParser(test_args)
         self.assertEqual("edit", arg_parser.action)
+        self.assertTrue(arg_parser.publish)
+        self.assertEqual(arg_parser.rbt_args, ['rbt', '--debug', '--publish', '999'])
+
+        test_args = ['post', '-d', 'edit', '--shelve', '999', '-p']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual("edit", arg_parser.action)
+        self.assertTrue(arg_parser.publish)
+        self.assertTrue(arg_parser.shelve)
         self.assertEqual(arg_parser.rbt_args, ['rbt', '--debug', '999'])
-        '''
 
-        '''
-        test_args = ['create', '999', '--server', 'http://rb', '999', '--debug', '999']
-        action, args = post.parse_options(test_args)
-        self.assertEqual("create", action)
-        self.assertEqual(args, ['rbt', 'create', '--server', 'http://rb', '--debug', '999'])
+    def test_submit_ui(self):
+        test_args = ['post', 'submit']
+        with self.assertRaises(post.RBError):
+            post.RBArgParser(test_args)
 
-        test_args = ['edit', '999', '--publish']
-        action, args = post.parse_options(test_args)
-        self.assertEqual("edit", action)
-        self.assertEqual(args, ['rbt', 'edit', '--publish', '999'])
-        '''
+        test_args = ['post', 'submit', '999']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(arg_parser.action, 'submit')
+        self.assertEqual('999', arg_parser.change_number)
 
-    def Xtest_f5_options(self):
-        test_args = ['edit', '999', '--shelve']
-        # action, f5_args, args = post.parse_options(test_args)
-        action, args = post.parse_options(test_args)
-        self.assertEqual("edit", action)
-        self.assertEqual(args, ['rbt', 'edit', '999'])
-        # TODO: Enable this assert
-        # self.asserTrue(f5_args['shelve'])
+        test_args = ['post', '-f', 'submit', '999']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(arg_parser.action, 'submit')
+        self.assertEqual('999', arg_parser.change_number)
+        self.assertTrue(arg_parser.force)
 
-        test_args = ['edit', '--shelve', '999', '--server', 'http://rb', '999', '--debug', '999']
-        action, args = post.parse_options(test_args)
-        self.assertEqual("edit", action)
-        self.assertEqual(args, ['rbt', 'edit', '--server', 'http://rb', '--debug', '999'])
-
-        test_args = ['submit', '--force', '999', '--server', 'http://rb']
-        action, args = post.parse_options(test_args)
-        self.assertEqual("submit", action)
-        self.assertEqual(args, ['rbt', 'submit', '--server', 'http://rb', '999'])
-
-        test_args = ['submit', '--force', '999', '--edit-changelist', '--server', 'http://rb']
-        action, args = post.parse_options(test_args)
-        self.assertEqual("submit", action)
-        self.assertEqual(args, ['rbt', 'submit', '--server', 'http://rb', '999'])
-
-        test_args = ['submit', '-f', '999']
-        action, args = post.parse_options(test_args)
-        self.assertEqual("submit", action)
-        self.assertEqual(args, ['rbt', 'submit', '999'])
+        test_args = ['post', '-f', 'submit', '999', '-e']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(arg_parser.action, 'submit')
+        self.assertEqual('999', arg_parser.change_number)
+        self.assertTrue(arg_parser.force)
+        self.assertTrue(arg_parser.edit_changelist)
 
 
 class TestFindBugs(TestCase):
@@ -237,6 +236,7 @@ class TestFindBugs(TestCase):
         found = p4.get_jobs('813')
         expected = ['job000019', 'job000020']
         self.assertEqual(expected, found)
+
 
 if __name__ == '__main__':
     main()
