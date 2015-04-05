@@ -63,6 +63,9 @@ class RBArgParser:
             self.f5_options.append('publish')
         self.publish = self.opts.publish
 
+        # Save the rid option
+        self.rid = self.opts.rid
+
         # Process the options separating those we handle and those we pass to rbt
         opts_dict = {k: v for k, v in vars(self.opts).iteritems() if v}
         self.rbt_args = ['rbt']
@@ -71,10 +74,12 @@ class RBArgParser:
                 setattr(self, opt, value)
             else:
                 self.rbt_args.extend(RBArgParser._opt_to_string(opt, value))
+
         self.rbt_args.append(self.change_number)
 
     @staticmethod
     def _opt_to_string(opt, value):
+        # Private method to convert an option name and value back to command line strings
         boolean = ['version', 'debug', 'shelve', 'force', 'edit_changelist', 'publish', 'diff_only', 'change_only']
         option_string = {
             'debug': '--debug',
@@ -99,13 +104,9 @@ class RBArgParser:
             args.append(value)
         return args
 
-    def usage(self):
-        """Print help and exit"""
-        self.parser.print_help()
-        raise SystemExit()
-
     @staticmethod
     def _option_parser():
+        # Private method to instantiate an option parser for post
         description = """
     Create, update and submit review requests.
 
@@ -187,7 +188,7 @@ class RBArgParser:
         return parser
 
     def print_help(self):
-        """Print useage"""
+        """Print usage"""
         self.parser.print_help()
 
 
@@ -513,7 +514,6 @@ def main():
     except RBError as e:
         print e.message
         raise SystemExit(1)
-
     if arg_parser.action is None:
         arg_parser.print_help()
         raise SystemExit(0)

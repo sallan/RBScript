@@ -83,10 +83,12 @@ class TestArgParser(TestCase):
 
         test_args = ['post', 'create', '--rid', '12345', '999']
         arg_parser = post.RBArgParser(test_args)
+        self.assertEqual('12345', arg_parser.rid)
         self.assertEqual(['rbt', '--rid', '12345', '999'], arg_parser.rbt_args)
 
         test_args = ['post', 'create', '-r', '12345', '999']
         arg_parser = post.RBArgParser(test_args)
+        self.assertEqual('12345', arg_parser.rid)
         self.assertEqual(['rbt', '--rid', '12345', '999'], arg_parser.rbt_args)
 
         test_args = ['post', 'edit', '--update-diff', '999']
@@ -162,6 +164,12 @@ class TestArgParser(TestCase):
         self.assertEqual("999", arg_parser.change_number)
         self.assertTrue(arg_parser.shelve)
         self.assertEqual(arg_parser.rbt_args, ['rbt', '--debug', '999'])
+
+        test_args = ['post', 'create', '--username', 'me', '999']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual("create", arg_parser.action)
+        self.assertEqual("999", arg_parser.change_number)
+        self.assertEqual(arg_parser.rbt_args, ['rbt', '--username', 'me', '999'])
 
         test_args = ['post', 'create', '--shelve', '999', '--debug', '-p']
         arg_parser = post.RBArgParser(test_args)
