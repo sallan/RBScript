@@ -5,6 +5,9 @@ import optparse
 import tempfile
 import marshal
 
+from rbtools.commands import diff
+from rbtools.commands import post
+
 
 ACTIONS = ['create', 'edit', 'submit', 'diff']
 
@@ -68,7 +71,7 @@ class RBArgParser:
 
         # Process the options separating those we handle and those we pass to rbt
         opts_dict = {k: v for k, v in vars(self.opts).iteritems() if v}
-        self.rbt_args = ['rbt']
+        self.rbt_args = ['rbt', self.action]
         for opt, value in opts_dict.iteritems():
             if opt in self.f5_options:
                 setattr(self, opt, value)
@@ -518,17 +521,22 @@ def main():
         arg_parser.print_help()
         raise SystemExit(0)
 
-    print arg_parser.action
-    print arg_parser.rbt_args
-
-    # action, args = parse_options(sys.argv[1:])
-    # if action == 'diff':
-    # d = diff.Diff()
-    # d.run_from_argv(args)
-    # elif action == 'edit':
-    # p = post.Post()
-    # p.run_from_argv(args)
+    if arg_parser.action == 'diff':
+        d = diff.Diff()
+        print arg_parser.rbt_args
+        d.run_from_argv(arg_parser.rbt_args)
+    elif arg_parser.action == 'edit':
+        p = post.Post()
+        print arg_parser.rbt_args
+        p.run_from_argv(arg_parser.rbt_args)
+    elif arg_parser.action == 'create':
+        if arg_parser.change_number is None:
+            p4 = P4()
+            arg_parser.change_number = p4.new_change()
+            arg_parser.rbt_args.append(arg_parser.change_number)
+        p = post.Post()
+        print arg_parser.rbt_args
+        p.run_from_argv(arg_parser.rbt_args)
 
 if __name__ == '__main__':
     main()
-

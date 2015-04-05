@@ -225,6 +225,13 @@ class TestArgParser(TestCase):
         self.assertTrue(arg_parser.force)
         self.assertTrue(arg_parser.edit_changelist)
 
+    def test_diff_ui(self):
+        test_args = ['post', 'diff', '999']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(arg_parser.action, 'diff')
+        self.assertEqual('999', arg_parser.change_number)
+        self.assertEqual(['rbt', '999'], arg_parser.rbt_args)
+
 
 class TestFindBugs(TestCase):
     change_list = {'Status': 'pending', 'code': 'stat',
