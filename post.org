@@ -1,43 +1,52 @@
 * Sprint
-** Dev should be able to enter options and args in any order (unlike with rbt)
-    -[ ] Functional tests pass
-    -[ ] Code has unit tests
-    -[ ] Classes and public methods have doc strings
+** Allow dev to create a new review from default change list
 
-*** Dev passes arguments and gets appropriate response
+* Product Backlog
+** Jobs in CL should be automatically entered in RB Bugs field
+
+** Dev should be able to shelve a change when creating or editing a review
+** Have automated functional tests
+   It would be really nice if I had a test suite that
+
+   - Creates new p4 repository
+   - Creates new RB instance
+   - Runs through various create, edit, submit cycles
+   - Report results
+
+   We'd want to keep the system around afterwards to investigate any
+   failures, so the tear down would be done at the beginning of each
+   test run.   
+
+*** Script to create new RB instance
+**** Create new site with admin account
+    - Stop web service and delete old instance
+    - Create new instance with admin account set up
+    - Start web service 
+**** Be able to create 2 user accounts without admin rights in automated fashion
+
+    
+* Done
+** DONE Dev should be able to enter options and args in any order (unlike with rbt)
     We always require 1 argument - an action. Most of the time we also
     require a change list number, though it's optional if the action
     is create. The user may pass who knows what, including multiple
     actions, changelists, their password, who knows?  The program
     should handle all that gracefully.
 
-**** TODO No arguments
-     If a user passes no arguments, print a short, useful message
-     which includes reference to --help.
+*** DONE No arguments
+     If a user passes no arguments, print help and exit.
 
-**** Action, but no changelist
+*** DONE Action, but no changelist
      This is only valid if the action is create.
 
-**** Changelist but no action
+*** DONE Changelist but no action
 
-**** Multiple actions
+*** DONE Multiple actions
 
-**** Multiple changelists
+*** DONE Multiple changelists
 
-**** Any extra junk they may decide to type in
+*** DONE Any extra junk they may decide to type in
 
-
-** If dev enters unrecognized or bad input, print useful message
-*** AC
-    -[ ] Functional tests pass
-    -[ ] Code has unit tests
-    -[ ] Classes and public methods have doc strings
-
-* Product Backlog
-** Jobs in CL should be automatically entered in RB Bugs field
-
-** Dev should be able to shelve a change when creating or editing a review
-
-** Allow dev to create a new review from default change list
-
-* Done
+** DONE If dev enters unrecognized or bad input, print useful message
+** [[Have%20automated%20functional%20tests][Automated Functional Tests]]
+*** DONE Script to create new p4 repo
