@@ -132,7 +132,12 @@ class TestArgParser(TestCase):
         self.assertEqual(['999'], arg_parser.rbt_args[2:])
         self.assertFalse(arg_parser.publish)
 
-    def Xtest_create_ui(self):
+        test_args = ['post', 'create', '999', '--branch', 'v1.0']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(['--branch', 'v1.0', '999'], arg_parser.rbt_args[2:])
+
+
+    def test_create_ui(self):
         test_args = ['post', 'create']
         arg_parser = post.RBArgParser(test_args)
         self.assertEqual("create", arg_parser.action)
@@ -183,7 +188,7 @@ class TestArgParser(TestCase):
         with self.assertRaises(post.RBError):
             post.RBArgParser(test_args)
 
-    def Xtest_edit_ui(self):
+    def test_edit_ui(self):
         test_args = ['post', 'edit', '999']
         arg_parser = post.RBArgParser(test_args)
         self.assertEqual("edit", arg_parser.action)
@@ -202,7 +207,7 @@ class TestArgParser(TestCase):
         self.assertTrue(arg_parser.shelve)
         self.assertEqual(arg_parser.rbt_args[2:], ['--debug', '999'])
 
-    def Xtest_submit_ui(self):
+    def test_submit_ui(self):
         test_args = ['post', 'submit']
         with self.assertRaises(post.RBError):
             post.RBArgParser(test_args)
@@ -225,7 +230,7 @@ class TestArgParser(TestCase):
         self.assertTrue(arg_parser.force)
         self.assertTrue(arg_parser.edit_changelist)
 
-    def Xtest_diff_ui(self):
+    def test_diff_ui(self):
         test_args = ['post', 'diff', '999']
         arg_parser = post.RBArgParser(test_args)
         self.assertEqual(arg_parser.action, 'diff')
