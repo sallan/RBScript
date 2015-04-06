@@ -511,6 +511,48 @@ class P4:
             os.system("%s %s" % (editor, file_name))
 
 
+class F5Review:
+    """Handle creation, updating and submitting of Review Requests"""
+
+    def __init__(self, arg_parser):
+        self.arg_parser = arg_parser
+        self.change_number = arg_parser.change_number
+        self.rid = arg_parser.rid
+
+
+    def post(self):
+        p = post.Post()
+        if self.debug:
+            print self.rbt_args
+        p.run_from_argv(self.rbt_args)
+
+
+    def diff(self):
+        d = diff.Diff()
+        if self.debug:
+            print self.rbt_args
+        d.run_from_argv(self.rbt_args)
+
+
+def create_review(f5_review):
+    if f5_review.change_number is None:
+        p4 = P4()
+        f5_review.change_number = p4.new_change()
+    f5_review.post()
+
+
+def edit_review(f5_review):
+    pass
+
+
+def submit_review(f5_review):
+    pass
+
+
+def run_diff(f5_review):
+    pass
+
+
 def main():
     try:
         arg_parser = RBArgParser(sys.argv)
@@ -521,22 +563,16 @@ def main():
         arg_parser.print_help()
         raise SystemExit(0)
 
+    f5_review = F5Review(arg_parser)
     if arg_parser.action == 'diff':
-        d = diff.Diff()
-        print arg_parser.rbt_args
-        d.run_from_argv(arg_parser.rbt_args)
+        run_diff(f5_review)
     elif arg_parser.action == 'edit':
-        p = post.Post()
-        print arg_parser.rbt_args
-        p.run_from_argv(arg_parser.rbt_args)
+        edit_review(f5_review)
     elif arg_parser.action == 'create':
-        if arg_parser.change_number is None:
-            p4 = P4()
-            arg_parser.change_number = p4.new_change()
-            arg_parser.rbt_args.append(arg_parser.change_number)
-        p = post.Post()
-        print arg_parser.rbt_args
-        p.run_from_argv(arg_parser.rbt_args)
+        create_review(f5_review)
+    elif arg_parser.action == 'submit':
+        submit_review(f5_review)
+
 
 if __name__ == '__main__':
     main()
