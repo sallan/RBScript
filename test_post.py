@@ -47,14 +47,17 @@ class TestArgParser(TestCase):
         # Options that get passed straight to rbt
         test_args = ['post', 'create', '--debug', '999']
         arg_parser = post.RBArgParser(test_args)
+        self.assertTrue(arg_parser.debug)
         self.assertEqual(['--debug', '999'], arg_parser.rbt_args[2:])
 
         test_args = ['post', 'create', '-d', '999']
         arg_parser = post.RBArgParser(test_args)
+        self.assertTrue(arg_parser.debug)
         self.assertEqual(['--debug', '999'], arg_parser.rbt_args[2:])
 
         test_args = ['post', 'create', '--version', '999']
         arg_parser = post.RBArgParser(test_args)
+        self.assertFalse(arg_parser.debug)
         self.assertEqual(['--version', '999'], arg_parser.rbt_args[2:])
 
         test_args = ['post', 'create', '-v', '999']

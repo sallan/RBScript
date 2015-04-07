@@ -29,6 +29,7 @@ class RBArgParser:
         self.edit_changelist = False
         self.shelve = False
         self.force = False
+        self.debug = False
         self.parser = RBArgParser._option_parser()
         self.opts, self.args = self.parser.parse_args(args[1:])
 
@@ -66,8 +67,9 @@ class RBArgParser:
             self.f5_options.append('publish')
         self.publish = self.opts.publish
 
-        # Save the rid option
+        # These options used by us and rbt
         self.rid = self.opts.rid
+        self.debug = self.opts.debug
 
         # Process the options separating those we handle and those we pass to rbt
         opts_dict = {k: v for k, v in vars(self.opts).iteritems() if v}
@@ -518,7 +520,8 @@ class F5Review:
         self.arg_parser = arg_parser
         self.change_number = arg_parser.change_number
         self.rid = arg_parser.rid
-
+        self.debug = arg_parser.debug
+        self.rbt_args = arg_parser.rbt_args
 
     def post(self):
         p = post.Post()
