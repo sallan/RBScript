@@ -545,7 +545,10 @@ def create_review(f5_review):
 
 
 def edit_review(f5_review):
-    pass
+    if f5_review.change_number is None:
+        raise RBError("The edit command requires a change list number.")
+    f5_review.post()
+
 
 
 def submit_review(f5_review):
