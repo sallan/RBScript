@@ -3,6 +3,8 @@ import os
 import argparse
 import shutil
 import subprocess
+import time
+
 
 class SampleDepot:
 
@@ -41,6 +43,9 @@ class SampleDepot:
                     # assume it's a sample depot and try to stop the server first
                     print "%s already exists. Attempting to stop server..." % p4root
                     self.server_stop()
+                    # Pause for a bit to let server shut down or you won't be able to delete
+                    time.sleep(5)
+
                     print "Deleting %s" % p4root
                     shutil.rmtree(p4root)
                 else:
