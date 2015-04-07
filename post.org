@@ -1,10 +1,5 @@
 * Sprint
 ** Allow dev to create a new review from default change list
-
-* Product Backlog
-** Jobs in CL should be automatically entered in RB Bugs field
-
-** Dev should be able to shelve a change when creating or editing a review
 ** Have automated functional tests
    It would be really nice if I had a test suite that
 
@@ -18,11 +13,22 @@
    test run.   
 
 *** Script to create new RB instance
-**** Create new site with admin account
+**** DONE Create new site with admin account
     - Stop web service and delete old instance
     - Create new instance with admin account set up
     - Start web service 
-**** Be able to create 2 user accounts without admin rights in automated fashion
+**** DONE Be able to create 2 user accounts without admin rights in automated fashion
+     This is not supported by the api. I'll work around it by creating
+     an account for sallan as admin during installation.  That will
+     allow me to test most use cases.
+**** DONE Add perforce repo to new RB site
+**** TODO Create p4 client for testing - template would be easiest way
+**** TODO Be able to create a new review and verify it's content
+
+* Product Backlog
+** Jobs in CL should be automatically entered in RB Bugs field
+
+** Dev should be able to shelve a change when creating or editing a review
 
     
 * Done
