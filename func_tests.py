@@ -45,8 +45,14 @@ class FuncTests(TestCase):
         self.assertFalse(draft.public)
         draft.delete()
 
-        os.system("./p2.py edit --server http://localhost %s -p" % change_number)
-        self.assertEqual(0, rr.ship_it_count)
+        os.system("echo 'This should not publish because I have not implemented that yet' >> %s" % self.readme)
+        os.system("./p2.py edit --debug --publish --server http://localhost %s" % change_number)
+        draft = rr.get_draft()
+        self.assertFalse(draft.public)
+        # draft.delete()
+
+        #os.system("./p2.py edit --server http://localhost %s -p" % change_number)
+        #self.assertEqual(0, rr.ship_it_count)
 
 
 if __name__ == '__main__':

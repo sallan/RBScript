@@ -521,6 +521,7 @@ class F5Review:
         self.change_number = arg_parser.change_number
         self.rid = arg_parser.rid
         self.debug = arg_parser.debug
+        self.shelve = arg_parser.shelve
         self.rbt_args = arg_parser.rbt_args
 
     def post(self):
@@ -547,8 +548,11 @@ def create_review(f5_review):
 def edit_review(f5_review):
     if f5_review.change_number is None:
         raise RBError("The edit command requires a change list number.")
-    f5_review.post()
 
+    if f5_review.shelve:
+        p4 = P4()
+        p4.shelve(f5_review.change_number, update=True)
+    f5_review.post()
 
 
 def submit_review(f5_review):
