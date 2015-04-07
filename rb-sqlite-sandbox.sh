@@ -35,8 +35,8 @@ rb-site install --noinput --domain-name $domain \
                 --media-url 'media/' \
                 --db-type 'sqlite3' \
                 --db-name "$webroot/data/reviewboard.db" \
-                --admin-user 'admin' \
-                --admin-password 'admin' \
+                --admin-user 'sallan' \
+                --admin-password 'sallan' \
                 --admin-email 'me@home.com'\
                 --cache-type 'memcached' \
                 --cache-info 'localhost:11211' \
