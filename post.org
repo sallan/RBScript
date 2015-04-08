@@ -1,32 +1,30 @@
 * Sprint
-** Allow dev to create a new review from default change list
-** Have automated functional tests
-   It would be really nice if I had a test suite that
+** DONE Allow dev to create a new review from default change list
+** DONE Jobs in CL should be automatically entered in RB Bugs field
+** Automated functional tests
+*** Basic functional test
+    - create rr 1 with 1 bug and a branch, assign and publish
+    - update rr 1
+    - create rr 2 with branch, assign and publish
+    - submit rr 2 with -f
+    - submit rr 1 with -f
 
-   - Creates new p4 repository
-   - Creates new RB instance
-   - Runs through various create, edit, submit cycles
-   - Report results
+    I was going to verify the cl was updated, but that proved
+    difficult and visual inspection was sufficient. Besides,I don't
+    want to spend a lot of time testing rbt functionality.
 
-   We'd want to keep the system around afterwards to investigate any
-   failures, so the tear down would be done at the beginning of each
-   test run.   
+*** Test submit
+**** Fails becaue no ship its
+**** Fails because self ship it
+**** Succeeds with -f
 
-*** Script to create new RB instance
-**** DONE Create new site with admin account
-    - Stop web service and delete old instance
-    - Create new instance with admin account set up
-    - Start web service 
-**** DONE Be able to create 2 user accounts without admin rights in automated fashion
-     This is not supported by the api. I'll work around it by creating
-     an account for sallan as admin during installation.  That will
-     allow me to test most use cases.
-**** DONE Add perforce repo to new RB site
-**** TODO Create p4 client for testing - template would be easiest way
-**** TODO Be able to create a new review and verify it's content
-
+*** Shelves
+**** Create with shelve and publish
+**** Update shelve
+**** Failed submit with shelve
+**** Forced submit
+     
 * Product Backlog
-** Jobs in CL should be automatically entered in RB Bugs field
 
 ** Dev should be able to shelve a change when creating or editing a review
 
@@ -56,3 +54,15 @@
 ** DONE If dev enters unrecognized or bad input, print useful message
 ** [[Have%20automated%20functional%20tests][Automated Functional Tests]]
 *** DONE Script to create new p4 repo
+*** Script to create new RB instance
+**** DONE Create new site with admin account
+    - Stop web service and delete old instance
+    - Create new instance with admin account set up
+    - Start web service 
+**** DONE Be able to create 2 user accounts without admin rights in automated fashion
+     This is not supported by the api. I'll work around it by creating
+     an account for sallan as admin during installation.  That will
+     allow me to test most use cases.
+**** DONE Add perforce repo to new RB site
+**** DONE Create p4 client for testing - template would be easiest way
+**** DONE Be able to create a new review and verify it's content
