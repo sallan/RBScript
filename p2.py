@@ -516,8 +516,9 @@ class P4:
 class F5Review:
     """Handle creation, updating and submitting of Review Requests"""
 
-    def __init__(self, arg_parser):
+    def __init__(self, arg_parser, p4):
         self.arg_parser = arg_parser
+        self.p4 = p4
         self.change_number = arg_parser.change_number
         self.rid = arg_parser.rid
         self.debug = arg_parser.debug
@@ -525,6 +526,9 @@ class F5Review:
         self.rbt_args = arg_parser.rbt_args
 
     def post(self):
+        bugs = self.p4.get_jobs(self.change_number)
+        if bugs:
+            self.rbt_args[-1:] = ['--bugs-closed', ','.join(bugs), self.change_number]
         p = post.Post()
         if self.debug:
             print self.rbt_args
@@ -573,7 +577,8 @@ def main():
         arg_parser.print_help()
         raise SystemExit(0)
 
-    f5_review = F5Review(arg_parser)
+    p4 = P4()
+    f5_review = F5Review(arg_parser, p4)
     if arg_parser.action == 'diff':
         run_diff(f5_review)
     elif arg_parser.action == 'edit':
