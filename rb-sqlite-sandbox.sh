@@ -15,10 +15,31 @@ if [ -z "$site" ]; then
     exit 1
 fi
 
+
+if grep -q apache /etc/passwd; then
+    web_owner='apache'
+    web_conf_dir='/etc/httpd/conf.d'
+fi
+if grep -q www-data /etc/passwd; then
+    web_owner='www-data'
+    web_conf_dir='/etc/apache2/sites-available'
+fi
+if [ -z "$web_owner" ]; then
+    echo Unable to determine owner of web server
+    exit 1
+fi
+
 webroot="/var/www/$site"
 
 # Stop web service and remove old site if exists
-service httpd stop
+service httpd status > /dev/null 2>&1
+if [ $? = 0 ]; then
+    service_name='httpd'
+else
+    service_name='apache2'
+fi
+
+service $service_name stop
 if [ $? != 0 ]; then
     echo "Failed to stop web server - exiting."
     exit 1
@@ -47,13 +68,13 @@ rb-site install --noinput --domain-name $domain \
 
 # Fix permissions
 cd $webroot
-chown -R apache:apache data logs 
-chown -R apache:apache htdocs/media/uploaded htdocs/media/ext htdocs/static/ext
-cp -fv  $webroot/conf/apache-wsgi.conf /etc/httpd/conf.d/${site}.conf
+chown -R $web_owner:$web_owner data logs 
+chown -R $web_owner:$web_owner htdocs/media/uploaded htdocs/media/ext htdocs/static/ext
+cp -fv  $webroot/conf/apache-wsgi.conf $web_conf_dir/${site}.conf
 
 # Restart web server
 echo "Installation done. Restarting the httpd service."
-service httpd start
+service $service_name start
 if [ $? != 0 ]; then
     echo "Problem restarting web server!"
     exit 1
