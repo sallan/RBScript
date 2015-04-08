@@ -1,0 +1,23 @@
+Client:	sallan-rbscript-test-depot
+
+Update:	2015/03/19 11:17:01
+
+Access:	2015/04/07 09:44:40
+
+Owner:	sallan
+
+Description:
+	Used for development and testing rbscript
+
+Root:	/home/sallan/Projects/RBScript
+
+Options:	noallwrite noclobber nocompress unlocked nomodtime normdir
+
+SubmitOptions:	submitunchanged
+
+LineEnd:	local
+
+View:
+	//depot/Jam/MAIN/src/README //sallan-rbscript-test-depot/readme.txt
+	//depot/Jam/MAIN/src/RELNOTES //sallan-rbscript-test-depot/relnotes.txt
+
