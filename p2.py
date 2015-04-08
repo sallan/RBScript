@@ -7,6 +7,9 @@ import marshal
 
 from rbtools.commands import diff
 from rbtools.commands import post
+from rbtools.commands import close
+from rbtools.api.client import RBClient
+from rbtools.api.errors import APIError
 
 
 ACTIONS = ['create', 'edit', 'submit', 'diff']
@@ -80,7 +83,10 @@ class RBArgParser:
             else:
                 self.rbt_args.extend(RBArgParser._opt_to_string(opt, value))
 
-        self.rbt_args.append(self.change_number)
+        # The close function from rbt takes a rid, not a cl so leave the cl off
+        # and add the rid later when we actually have an rid
+        if self.action != 'submit' and self.change_number is not None:
+            self.rbt_args.append(self.change_number)
 
     @staticmethod
     def _opt_to_string(opt, value):
@@ -516,16 +522,46 @@ class P4:
 class F5Review:
     """Handle creation, updating and submitting of Review Requests"""
 
-    def __init__(self, arg_parser, p4):
+    def __init__(self, arg_parser, url, p4):
         self.arg_parser = arg_parser
+        self.url = url
         self.p4 = p4
         self.change_number = arg_parser.change_number
         self.rid = arg_parser.rid
         self.debug = arg_parser.debug
         self.shelve = arg_parser.shelve
+        self.force = arg_parser.force
+        self.edit_changelist = arg_parser.edit_changelist
         self.rbt_args = arg_parser.rbt_args
+        self.rbt_api = RBClient(url).get_root()
+
+
+    @property
+    def review_request(self):
+        """
+        Return the latest version of the review request and update id, changelist.
+
+        We always get the latest version of the review from the server, we never store
+        it in our object.
+        """
+        review_request = None
+        try:
+            if not self.rid:
+                if self.change_number:
+                    self.rid = self._get_review_id_from_changenum()
+                else:
+                    raise RBError("Review has no change list number and no ID number.")
+            review_request = self.rbt_api.get_review_request(review_request_id=self.rid)
+        except APIError:
+            raise RBError("Failed to retrieve review number %s." % self.rid)
+        return review_request
 
     def post(self):
+        if self.change_number is None:
+            self.change_number = self.p4.new_change()
+            self.rbt_args.append(self.change_number)
+        if self.shelve:
+            self.p4.shelve(self.change_number, update=True)
         bugs = self.p4.get_jobs(self.change_number)
         if bugs:
             self.rbt_args[-1:] = ['--bugs-closed', ','.join(bugs), self.change_number]
@@ -534,33 +570,88 @@ class F5Review:
             print self.rbt_args
         p.run_from_argv(self.rbt_args)
 
-
     def diff(self):
         d = diff.Diff()
         if self.debug:
             print self.rbt_args
         d.run_from_argv(self.rbt_args)
 
+    def submit(self):
+        if self.p4.shelved(self.change_number):
+            if self.force:
+                print "Deleting shelve since --force option used."
+                self.p4.unshelve(self.change_number)
+            else:
+                msg = "Cannot submit a shelved change (%s).\n" % self.change_number
+                msg += "You may use --force to delete the shelved change automatically prior to submit."
+                raise RBError(msg)
+
+        # Unless the force option is used, we want to block reviews with no ship it or with
+        # only a Review Bot ship it.
+        ship_its = self._get_ship_its()
+        if not self.force:
+            if not ship_its:
+                raise RBError("Review %s has no 'Ship It' reviews. Use --force to submit anyway." % self.rid)
+
+            # The list of ship_its contains unique elements, so check the case where only 1.
+            if len(ship_its) == 1 and 'Review Bot' in ship_its:
+                raise RBError("Review %s has only a Review Bot 'Ship It'. Use --force to submit anyway." % self.rid)
+
+        if self.edit_changelist:
+            self.p4.edit_change(self.change_number)
+
+        # TODO:
+        # if ship_its:
+        # self.p4.add_reviewboard_shipits(review, ship_its)
+
+        review_request = self.review_request
+        submitted_change = self.p4.submit(self.change_number)
+        c = close.Close()
+        self.rbt_args.append(str(review_request.id))
+        if self.debug:
+            print self.rbt_args
+        c.run_from_argv(self.rbt_args)
+
+
+    def _get_ship_its(self):
+        # TODO
+        return []
+
+    def _get_url(self):
+        raise NotImplementedError()
+        server_url = None
+        if self.arg_parser.server:
+            # Users used to using rb are accustomed to providing the server without
+            # the protocol string. In that case, assume https.
+            if not self.arg_parser.server.startswith('http'):
+                server_url = 'https://' + self.arg_parser.server
+            else:
+                server_url = self.arg_parser.server
+                # else:
+                # if user_config and user_config.has_key("REVIEWBOARD_URL"):
+                #         server_url = user_config["REVIEWBOARD_URL"]
+                # else:
+                #     raise RBError(
+                #         "No server url found. Either set in your .reviewboardrc file or pass it with --server option.")
+
+    def _get_review_id_from_changenum(self):
+        rr = self.rbt_api.get_review_requests(changenum=self.change_number)
+        if len(rr) != 1:
+            raise RBError("Error: found %d reviews associated with %d" % (len(rr), self.change_number))
+        return str(rr[0].id)
 
 def create_review(f5_review):
-    if f5_review.change_number is None:
-        p4 = P4()
-        f5_review.change_number = p4.new_change()
     f5_review.post()
 
 
 def edit_review(f5_review):
     if f5_review.change_number is None:
         raise RBError("The edit command requires a change list number.")
-
-    if f5_review.shelve:
-        p4 = P4()
-        p4.shelve(f5_review.change_number, update=True)
     f5_review.post()
 
 
 def submit_review(f5_review):
-    pass
+    f5_review.submit()
 
 
 def run_diff(f5_review):
@@ -578,7 +669,9 @@ def main():
         raise SystemExit(0)
 
     p4 = P4()
-    f5_review = F5Review(arg_parser, p4)
+    # TODO: Need to properly handle url
+    url = 'http://localhost'
+    f5_review = F5Review(arg_parser, url, p4)
     if arg_parser.action == 'diff':
         run_diff(f5_review)
     elif arg_parser.action == 'edit':

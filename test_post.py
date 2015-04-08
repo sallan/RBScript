@@ -16,6 +16,7 @@ class TestArgParser(TestCase):
         test_args = ['post', 'create']
         arg_parser = post.RBArgParser(test_args)
         self.assertEqual('create', arg_parser.action)
+        self.assertIsNone(arg_parser.change_number)
 
         # Any other action without CL raises exception
         test_args = ['post', 'edit']
@@ -43,6 +44,11 @@ class TestArgParser(TestCase):
 
     def test_options_only(self):
         # NOTE: Need to pass an action and change list to avoid exception.
+
+        test_args = ['post', 'create', '--debug']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertTrue(arg_parser.debug)
+        self.assertEqual(['--debug'], arg_parser.rbt_args[2:])
 
         # Options that get passed straight to rbt
         test_args = ['post', 'create', '--debug', '999']
@@ -219,12 +225,20 @@ class TestArgParser(TestCase):
         arg_parser = post.RBArgParser(test_args)
         self.assertEqual(arg_parser.action, 'submit')
         self.assertEqual('999', arg_parser.change_number)
+        self.assertEqual([], arg_parser.rbt_args[2:])
+
+        test_args = ['post', 'submit', '999', '-d']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(arg_parser.action, 'submit')
+        self.assertEqual('999', arg_parser.change_number)
+        self.assertEqual(['--debug'], arg_parser.rbt_args[2:])
 
         test_args = ['post', '-f', 'submit', '999']
         arg_parser = post.RBArgParser(test_args)
         self.assertEqual(arg_parser.action, 'submit')
         self.assertEqual('999', arg_parser.change_number)
         self.assertTrue(arg_parser.force)
+        self.assertEqual([], arg_parser.rbt_args[2:])
 
         test_args = ['post', '-f', 'submit', '999', '-e']
         arg_parser = post.RBArgParser(test_args)
@@ -232,6 +246,7 @@ class TestArgParser(TestCase):
         self.assertEqual('999', arg_parser.change_number)
         self.assertTrue(arg_parser.force)
         self.assertTrue(arg_parser.edit_changelist)
+        self.assertEqual([], arg_parser.rbt_args[2:])
 
     def test_diff_ui(self):
         test_args = ['post', 'diff', '999']

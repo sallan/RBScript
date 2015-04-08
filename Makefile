@@ -26,3 +26,7 @@ tags:
 	@/usr/local/bin/ctags -R
 
 
+review:
+	p4 edit relnotes.txt
+	echo "blah blah" >> relnotes.txt
+	./p2.py create --target-people sallan --publish --debug
