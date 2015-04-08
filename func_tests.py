@@ -56,12 +56,15 @@ class FuncTests(TestCase):
         change['Description'] = "Second test case\n"
         change_output = self.p4.save_change(change)
         cl2 = int(change_output[0].split()[1])
+        self.p4.run('fix', '-c', cl2, 'job000011')
+        self.p4.run('fix', '-c', cl2, 'job000012')
         os.system("./p2.py create --server http://localhost --target-people sallan %d -p --branch mybranch" % cl2)
         rr2 = self.rbapi_root.get_review_request(review_request_id=2)
         self.assertEqual('sallan', rr2.get_submitter().username)
         self.assertEqual('Second test case', rr2.summary)
         #self.assertEqual('sallan', rr1.target_people)
         self.assertEqual(cl2, rr2.changenum)
+        self.assertEqual(['job000011', 'job000012'], rr2.bugs_closed)
         self.assertEqual('pending', rr2.status)
         self.assertTrue(rr2.public)
 
