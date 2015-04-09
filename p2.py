@@ -75,13 +75,13 @@ class RBArgParser:
         self.debug = self.opts.debug
 
         # Process the options separating those we handle and those we pass to rbt
-        opts_dict = {k: v for k, v in vars(self.opts).iteritems() if v}
         self.rbt_args = ['rbt', self.action]
-        for opt, value in opts_dict.iteritems():
-            if opt in self.f5_options:
-                setattr(self, opt, value)
-            else:
-                self.rbt_args.extend(RBArgParser._opt_to_string(opt, value))
+        for opt, value in vars(self.opts).iteritems():
+            if value:
+                if opt in self.f5_options:
+                    setattr(self, opt, value)
+                else:
+                    self.rbt_args.extend(RBArgParser._opt_to_string(opt, value))
 
         # The close function from rbt takes a rid, not a cl so leave the cl off
         # and add the rid later when we actually have an rid
