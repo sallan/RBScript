@@ -35,6 +35,7 @@ class RBArgParser:
         self.debug = False
         self.parser = RBArgParser._option_parser()
         self.opts, self.args = self.parser.parse_args(args[1:])
+        self.server_url = self.opts.server
 
         if not self.args:
             self.action = None
