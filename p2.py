@@ -671,7 +671,7 @@ def main():
 
     p4 = P4()
     # TODO: Need to properly handle url
-    url = 'http://localhost'
+    url = arg_parser.server_url
     f5_review = F5Review(arg_parser, url, p4)
     if arg_parser.action == 'diff':
         run_diff(f5_review)
