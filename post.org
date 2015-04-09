@@ -1,6 +1,10 @@
 * Sprint
 ** DONE Allow dev to create a new review from default change list
 ** DONE Jobs in CL should be automatically entered in RB Bugs field
+** TODO User config file needs to be honored
+   Right now you're hard-coding the url. Take that out and watch your
+   tests fail, then...
+** TODO Write unit tests for user config processing
 ** Automated functional tests
 *** Basic functional test
     - create rr 1 with 1 bug and a branch, assign and publish
@@ -28,6 +32,9 @@
 
 ** Dev should be able to shelve a change when creating or editing a review
 
+** Dev should be able to have review automatically open in browser
+
+** The developer should not have to use the --shelve option if the CL has already been shelved.
     
 * Done
 ** DONE Dev should be able to enter options and args in any order (unlike with rbt)
