@@ -276,5 +276,21 @@ class TestFindBugs(TestCase):
         self.assertEqual(expected, found)
 
 
+class TestConfigFile(TestCase):
+    RC_FILE = 'reviewboardrc'
+
+    def test_url_provided_on_command_line(self):
+        test_args = ['post', 'create', '--server', 'http://rb']
+        arg_parser = post.RBArgParser(test_args)
+        url = post.get_url(arg_parser, self.RC_FILE)
+        self.assertEqual("http://rb", url)
+
+    def test_url_not_provided_on_command_line(self):
+        test_args = ['post', 'create']
+        arg_parser = post.RBArgParser(test_args)
+        url = post.get_url(arg_parser, self.RC_FILE)
+        self.assertEqual("http://rb", url)
+
+
 if __name__ == '__main__':
     main()

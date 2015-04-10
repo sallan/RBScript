@@ -4,15 +4,84 @@ import sys
 import optparse
 import tempfile
 import marshal
+import ssl
 
 from rbtools.commands import diff
-from rbtools.commands import post
 from rbtools.commands import close
 from rbtools.api.client import RBClient
 from rbtools.api.errors import APIError
 
 
+
+# TODO: do we need this here?
 ACTIONS = ['create', 'edit', 'submit', 'diff']
+
+# Newer versions of Python are more strict about ssl verfication
+# and need to have verification turnred off
+if hasattr(ssl, '_create_unverified_context'):
+    ssl._create_default_https_context = ssl._create_unverified_context
+
+POST_VERSION = "2.0"
+
+# PDTools usage tracking
+LOGHOST = ("REMOVED", "FIXME")
+USERNAME = os.environ.get('LOGNAME', os.environ.get('USER', 'UNKNOWN'))
+MSG_FMT = '%s:[PDTOOLS TRACKING]:%%s:%s:%%s' % (USERNAME, os.path.realpath(sys.argv[0]))
+
+# Error codes
+MISSING_RBTOOLS = 1
+UNSUPPORTED_RBTOOLS = 2
+UNSUPPORTED_OS = 3
+UNSUPPORTED_PYTHON = 4
+CONFIG_ERROR = 5
+UNKNOWN_ACTION = 6
+P4_EXCEPTION = 7
+RB_EXCEPTION = 8
+
+# Required Versions
+PYTHON_VERSION = (2, 5)
+PYTHON_VERSION_STR = '2.5'
+RBTOOLS_MIN_VERSION = (0, 4, 0)
+RBTOOLS_MIN_VERSION_STR = '0.4.0'
+RBTOOLS_MAX_VERSION = (0, 5, 2)
+RBTOOLS_MAX_VERSION_STR = '0.5.2'
+RBTOOLS_URL = 'http://www.reviewboard.org/docs/manual/1.7/users/tools/post-review/'
+RBTOOLS_VERSION_MSG = """
+Use of this script requires:
+
+  RBTools version %s (0.6 is not yet supported)
+  Python %s or greater
+
+To install the preferred version of RBTools:
+
+    $ sudo easy_install -U RBTools==%s
+
+For detailed installation instructions, please see this page:
+
+  %s
+
+IMPORTANT:
+
+If you're on a linux system with an older python, updating python
+could break your package management system and is not advised.
+If that's the case, please use
+n
+  /build/cm/bin/rb2
+
+""" % (RBTOOLS_MAX_VERSION_STR, PYTHON_VERSION_STR, RBTOOLS_MAX_VERSION_STR, RBTOOLS_URL)
+try:
+    from rbtools.commands import post
+    from rbtools import VERSION
+    from rbtools.clients import perforce
+    import rbtools.api.errors
+except ImportError:
+    sys.stderr.write(RBTOOLS_VERSION_MSG)
+    raise SystemExit(MISSING_RBTOOLS)
+else:
+    if rbtools.VERSION < RBTOOLS_MIN_VERSION:
+        sys.stderr.write("\nERROR: Found old version of RBTools: Version %s\n" % rbtools.get_package_version())
+        sys.stderr.write(RBTOOLS_VERSION_MSG)
+        raise SystemExit(UNSUPPORTED_RBTOOLS)
 
 
 class RBError(Exception):
@@ -523,7 +592,17 @@ class P4:
 class F5Review:
     """Handle creation, updating and submitting of Review Requests"""
 
-    def __init__(self, arg_parser, url, p4):
+    def __init__(self, url, arg_parser, p4):
+        """Instantiate F5Review object
+
+        url : The url for the server
+
+        arg_parser : holds all the options and arguments needed.
+                     We pull them out to make the interface simpler.
+
+        p4 : A P4 object allowing us to talk to the perforce server.
+        """
+
         self.arg_parser = arg_parser
         self.url = url
         self.p4 = p4
@@ -549,7 +628,7 @@ class F5Review:
         try:
             if not self.rid:
                 if self.change_number:
-                    self.rid = self._get_review_id_from_changenum()
+                    self.rid = self.get_review_id_from_changenum(self.change_number)
                 else:
                     raise RBError("Review has no change list number and no ID number.")
             review_request = self.rbt_api.get_review_request(review_request_id=self.rid)
@@ -558,6 +637,12 @@ class F5Review:
         return review_request
 
     def post(self):
+        """Post a review to the review board server
+
+        If an existing review is found for this CL/RID, it will be updated.
+        If not a new review will be created.
+
+        """
         if self.change_number is None:
             self.change_number = self.p4.new_change()
             self.rbt_args.append(self.change_number)
@@ -572,12 +657,18 @@ class F5Review:
         p.run_from_argv(self.rbt_args)
 
     def diff(self):
+        """Print diff for review to stdout"""
         d = diff.Diff()
         if self.debug:
             print self.rbt_args
         d.run_from_argv(self.rbt_args)
 
     def submit(self):
+        """Submit the review
+
+        Submits the review if it meets all criteria and then marks as
+        closed on reviewboard.
+        """
         if self.p4.shelved(self.change_number):
             if self.force:
                 print "Deleting shelve since --force option used."
@@ -613,10 +704,8 @@ class F5Review:
             print self.rbt_args
         c.run_from_argv(self.rbt_args)
 
-
     def _get_ship_its(self):
-        # TODO
-        return []
+        pass
 
     def _get_url(self):
         raise NotImplementedError()
@@ -630,16 +719,60 @@ class F5Review:
                 server_url = self.arg_parser.server
                 # else:
                 # if user_config and user_config.has_key("REVIEWBOARD_URL"):
-                #         server_url = user_config["REVIEWBOARD_URL"]
+                # server_url = user_config["REVIEWBOARD_URL"]
                 # else:
                 #     raise RBError(
                 #         "No server url found. Either set in your .reviewboardrc file or pass it with --server option.")
 
-    def _get_review_id_from_changenum(self):
-        rr = self.rbt_api.get_review_requests(changenum=self.change_number)
-        if len(rr) != 1:
+    def get_review_id_from_changenum(self, change_number):
+        """Find review board id associated with change list number.
+
+        Query the rb server to see if there is a review associated with the
+        given change list number.
+
+        Return the id as a string, or None if not found. If more than 1 found,
+        raise RBError.
+        """
+        rr = self.rbt_api.get_review_requests(changenum=change_number)
+        if not rr:
+            return None
+        if len(rr) > 1:
             raise RBError("Error: found %d reviews associated with %d" % (len(rr), self.change_number))
         return str(rr[0].id)
+
+
+'''
+def create_review(change_list, f5_review, p4):
+    if change_list is None:
+        change_list = p4.new_change()
+    else:
+        p4.verify_owner(change_list)
+
+    # If user is asking to create a review with a change already
+    # associated with a review, don't allow it.
+    review_id = None
+    try:
+        review_id = f5_review
+    except:
+        #  Good, we didn't find a review for this change list
+        pass
+    if review_id:
+        raise RBError("Change list %s already associated with review %s.\nDid you intend to 'edit' the review?" % (
+            change_list, review_id))
+
+    if f5_review.shelve:
+        print "Shelving files for change %s." % change_list
+        p4.shelve(change_list)
+
+    bugs_closed = p4.get_jobs(change_list)
+    review = F5Review(server, change_list, review_id, bugs_closed)
+
+    review.post_review()
+    if not options.output_diff_only:
+        print "Changelist: %s" % review.change_list
+        if not options.publish:
+            print "Don't forget to publish your review."
+'''
 
 def create_review(f5_review):
     f5_review.post()
@@ -659,6 +792,96 @@ def run_diff(f5_review):
     pass
 
 
+def migrate_rbrc_file(old_rc_file, new_rc_file):
+    """
+    Migrate any legacy .rbrc settings.
+
+    Copy known compatible settings from the legacy .rbrc file to a new
+    .reviewboardrc file. This function should only get called if there is
+    not already an existing .reviewboardrc file.
+
+    """
+
+    try:
+        with open(old_rc_file, "r") as f:
+            old_rc = f.read().splitlines()
+    except EnvironmentError, e:
+        raise RBError("Can't read %s\n%s" % (old_rc_file, e))
+
+    # We don't migrate the user name because doing so causes post-review
+    # to prompt for a password each time. By leaving it out, you get prompted
+    # once and then future requests use the cookies file.  In fact, the only
+    # value we want to migrate is the server name and ssl setting.
+    old_settings = {}
+    for line in old_rc:
+        k, v = [s.strip() for s in line.split("=")]
+        old_settings[k] = v
+
+    server_url = False
+    if "server" in old_settings:
+        server_name = old_settings["server"]
+        protocol = "http"
+        if "use_ssl" in old_settings and old_settings["use_ssl"] == "1":
+            protocol = "https"
+        server_url = protocol + "://" + server_name
+
+    if server_url:
+        try:
+            with open(new_rc_file, "w") as f:
+                f = open(new_rc_file, "w")
+                f.write('REVIEWBOARD_URL = "%s"\n' % server_url)
+        except EnvironmentError, e:
+            raise RBError("Failed to write %s\n%s" % (new_rc_file, e))
+
+        # Let the user know a new config file was created
+        print "Wrote config file: %s" % new_rc_file
+
+
+def check_config(user_home):
+    """
+    Reconcile old and new configuration files.
+
+    If there is now .reviewboardrc file, but there is a legacy .rbrc file,
+    migrate those settings to .reviewboardrc.
+    """
+
+    rbrc_file = os.path.join(user_home, ".rbrc")
+    reviewboardrc_file = os.path.join(user_home, ".reviewboardrc")
+    if os.path.isfile(rbrc_file) and not os.path.isfile(reviewboardrc_file):
+        print "Found legacy %s file." % rbrc_file
+        print "Migrating to %s" % reviewboardrc_file
+        migrate_rbrc_file(rbrc_file, reviewboardrc_file)
+
+
+def get_url(arg_parser, config_file):
+    url = arg_parser.server_url
+    if url:
+        # Users used to using rb are accustomed to providing the server without
+        # the protocol string. In that case, assume https.
+        if not url.startswith('http'):
+            url = 'https://' + url
+    else:
+        with open(config_file, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith('#'):
+                    continue
+                k, v = line.split('=')
+                k = k.strip()
+                v = v.strip()
+                if k == 'REVIEWBOARD_URL':
+                    # Strip off surrounding quotes, either single or double
+                    if (v[0] == v[-1]) and v.startswith(("'", '"')):
+                        v = v[1:-1]
+                url = v
+                break
+
+    if url is None:
+        raise RBError(
+            "No server url found. Either set in your .reviewboardrc file or pass it with --server option.")
+    return url
+
+
 def main():
     try:
         arg_parser = RBArgParser(sys.argv)
@@ -669,10 +892,21 @@ def main():
         arg_parser.print_help()
         raise SystemExit(0)
 
-    p4 = P4()
+    # Check the users configuration files. It's not an error
+    # if there are none.
+    user_home = os.path.expanduser("~")
+    try:
+        check_config(user_home)
+    except RBError, e:
+        print e
+        raise SystemExit(CONFIG_ERROR)
+
+
     # TODO: Need to properly handle url
     url = arg_parser.server_url
-    f5_review = F5Review(arg_parser, url, p4)
+
+    p4 = P4()
+    f5_review = F5Review(url, arg_parser, p4)
     if arg_parser.action == 'diff':
         run_diff(f5_review)
     elif arg_parser.action == 'edit':
