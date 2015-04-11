@@ -13,6 +13,7 @@ from rbtools.api.errors import APIError
 
 
 
+
 # TODO: do we need this here?
 ACTIONS = ['create', 'edit', 'submit', 'diff']
 
@@ -854,6 +855,12 @@ def check_config(user_home):
 
 
 def get_url(arg_parser, config_file):
+    """Return url to ReviewBoard server
+
+    If the --server option was passed, that is returned.
+    If not, look for the url in the user configuration file.
+    Return None if nothing is found.
+    """
     url = arg_parser.server_url
     if url:
         # Users used to using rb are accustomed to providing the server without
@@ -901,10 +908,7 @@ def main():
         print e
         raise SystemExit(CONFIG_ERROR)
 
-
-    # TODO: Need to properly handle url
-    url = arg_parser.server_url
-
+    url = get_url(arg_parser, os.path.join(user_home, '.reviewboardrc'))
     p4 = P4()
     f5_review = F5Review(url, arg_parser, p4)
     if arg_parser.action == 'diff':
