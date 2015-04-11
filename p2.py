@@ -11,20 +11,13 @@ from rbtools.commands import close
 from rbtools.api.client import RBClient
 from rbtools.api.errors import APIError
 
-
-
-
-
-
-
-
-
 # TODO: do we need this here?
 ACTIONS = ['create', 'edit', 'submit', 'diff']
 
-# Newer versions of Python are more strict about ssl verfication
-# and need to have verification turnred off
+# Newer versions of Python are more strict about ssl verification
+# and need to have verification turned off
 if hasattr(ssl, '_create_unverified_context'):
+    # noinspection PyProtectedMember
     ssl._create_default_https_context = ssl._create_unverified_context
 
 POST_VERSION = "2.0"
@@ -316,6 +309,7 @@ class P4:
             raise P4Error("Perforce command '%s' failed.\n" % cmd)
         return data
 
+    # noinspection PyPep8Naming
     def run_G(self, cmd, args=None, p4_input=0):
         """
         Run perforce command and marshal the IO. Returns stdout as a  dict.
@@ -515,7 +509,7 @@ class P4:
         # Check each dict in the output until we find submittedChange
         submitted_change = None
         for line in output:
-            if line.has_key("submittedChange"):
+            if "submittedChange" in line:
                 submitted_change = int(line['submittedChange'])
                 break
         if submitted_change is None:
@@ -569,13 +563,13 @@ class P4:
         p4set = self.set()
         if os.name == "nt":
             editor = "notepad"
-        elif p4set.has_key("P4EDITOR"):
+        elif "P4EDITOR" in p4set:
             editor = p4set["P4EDITOR"]
 
             # If the editor is set in a p4.config file, the entry will end with (config)
             if editor.endswith(" (config)"):
                 editor = editor[0:-9]
-        elif os.environ.has_key("EDITOR"):
+        elif "EDITOR" in os.environ:
             editor = os.environ["EDITOR"]
         else:
             editor = "vi"
@@ -621,7 +615,6 @@ class F5Review:
         self.rbt_args = arg_parser.rbt_args
         self.rbt_api = RBClient(url).get_root()
 
-
     @property
     def review_request(self):
         """
@@ -630,7 +623,7 @@ class F5Review:
         We always get the latest version of the review from the server, we never store
         it in our object.
         """
-        review_request = None
+        #review_request = None
         try:
             if not self.rid:
                 if self.change_number:
@@ -713,7 +706,6 @@ class F5Review:
     def _get_ship_its(self):
         pass
 
-
     def get_review_id_from_changenum(self, change_number):
         """Find review board id associated with change list number.
 
@@ -785,8 +777,7 @@ def migrate_rbrc_file(old_rc_file, new_rc_file):
     if server_url:
         try:
             with open(new_rc_file, "w") as f:
-                f = open(new_rc_file, "w")
-                f.write('REVIEWBOARD_URL = "%s"\n' % server_url)
+                 f.write('REVIEWBOARD_URL = "%s"\n' % server_url)
         except EnvironmentError, e:
             raise RBError("Failed to write %s\n%s" % (new_rc_file, e))
 
@@ -821,6 +812,7 @@ def get_url(arg_parser, config_file):
     if url:
         # Users used to using rb are accustomed to providing the server without
         # the protocol string. In that case, assume https.
+        # noinspection PyAugmentAssignment
         if not url.startswith('http'):
             url = 'https://' + url
     else:
@@ -855,7 +847,7 @@ def main():
         raise SystemExit(0)
 
     # Check the users configuration files. It's not an error
-    # if there are none.
+    # if there are none, but it is if we can't access it.
     user_home = os.path.expanduser("~")
     try:
         check_config(user_home)
