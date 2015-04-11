@@ -14,6 +14,7 @@ from rbtools.api.errors import APIError
 
 
 
+
 # TODO: do we need this here?
 ACTIONS = ['create', 'edit', 'submit', 'diff']
 
@@ -877,9 +878,8 @@ def get_url(arg_parser, config_file):
                 k = k.strip()
                 v = v.strip()
                 if k == 'REVIEWBOARD_URL':
-                    # Strip off surrounding quotes, either single or double
-                    if (v[0] == v[-1]) and v.startswith(("'", '"')):
-                        v = v[1:-1]
+                    # Remove any quotes that may be surrounding the value
+                    v = v.strip("\.\"")
                 url = v
                 break
 
