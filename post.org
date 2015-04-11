@@ -1,4 +1,5 @@
 * Sprint
+** Code cleanup and refactor
 ** Dev can submit the review and it will block if no ship its or self ship its only
 ** Dev can submit even without ship its using the --force option
      
