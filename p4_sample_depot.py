@@ -7,14 +7,13 @@ import time
 
 
 class SampleDepot:
-
     def __init__(self, tarball, parent_dir, p4port=1492):
         self.parent_dir = os.path.abspath(parent_dir)
         self.p4root = os.path.join(self.parent_dir, "PerforceSample")
         self.p4port = p4port
         self.tarball = tarball
         self.p4d = "/usr/local/bin/p4d -r %s" % self.p4root
-        self.p4  = "/usr/local/bin/p4 -p %d" % self.p4port
+        self.p4 = "/usr/local/bin/p4 -p %d" % self.p4port
         self.start_cmd = "%s -p %d -d" % (self.p4d, self.p4port)
         self.stop_cmd = "%s admin stop" % self.p4
 
@@ -49,7 +48,8 @@ class SampleDepot:
                     print "Deleting %s" % p4root
                     shutil.rmtree(p4root)
                 else:
-                    raise RuntimeError("p4root '%s' exists, but is not a file or directory! What the heck is it?" % p4root)
+                    raise RuntimeError(
+                        "p4root '%s' exists, but is not a file or directory! What the heck is it?" % p4root)
 
 
     def server_install(self):

@@ -938,7 +938,7 @@ def parse_options(parser):
         print_version()
         raise SystemExit(0)
 
-    # if len(args) == 0:
+        # if len(args) == 0:
         # parser.print_help()
         # raise SystemExit(0)
 
@@ -992,7 +992,7 @@ def create_review(change_list, server, p4):
     try:
         review_id = get_review_id_from_changenum(server, change_list)
     except:
-        #  Good, we didn't find a review for this change list
+        # Good, we didn't find a review for this change list
         pass
     if review_id:
         raise RBError("Change list %s already associated with review %s.\nDid you intend to 'edit' the review?" % (
@@ -1143,7 +1143,7 @@ def main():
     # because it sets global variables that we need for our operations.
     # We don't care about the return value of post's parse_options.
     # options, args, action = parse_options(parser)
-    #post.parse_options(args)
+    # post.parse_options(args)
     # post.main(args)
     print "DONE!"
     raise SystemExit(0)

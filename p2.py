@@ -15,6 +15,10 @@ from rbtools.api.errors import APIError
 
 
 
+
+
+
+
 # TODO: do we need this here?
 ACTIONS = ['create', 'edit', 'submit', 'diff']
 
@@ -709,22 +713,6 @@ class F5Review:
     def _get_ship_its(self):
         pass
 
-    def _get_url(self):
-        raise NotImplementedError()
-        server_url = None
-        if self.arg_parser.server:
-            # Users used to using rb are accustomed to providing the server without
-            # the protocol string. In that case, assume https.
-            if not self.arg_parser.server.startswith('http'):
-                server_url = 'https://' + self.arg_parser.server
-            else:
-                server_url = self.arg_parser.server
-                # else:
-                # if user_config and user_config.has_key("REVIEWBOARD_URL"):
-                # server_url = user_config["REVIEWBOARD_URL"]
-                # else:
-                #     raise RBError(
-                #         "No server url found. Either set in your .reviewboardrc file or pass it with --server option.")
 
     def get_review_id_from_changenum(self, change_number):
         """Find review board id associated with change list number.
@@ -742,39 +730,6 @@ class F5Review:
             raise RBError("Error: found %d reviews associated with %d" % (len(rr), self.change_number))
         return str(rr[0].id)
 
-
-'''
-def create_review(change_list, f5_review, p4):
-    if change_list is None:
-        change_list = p4.new_change()
-    else:
-        p4.verify_owner(change_list)
-
-    # If user is asking to create a review with a change already
-    # associated with a review, don't allow it.
-    review_id = None
-    try:
-        review_id = f5_review
-    except:
-        #  Good, we didn't find a review for this change list
-        pass
-    if review_id:
-        raise RBError("Change list %s already associated with review %s.\nDid you intend to 'edit' the review?" % (
-            change_list, review_id))
-
-    if f5_review.shelve:
-        print "Shelving files for change %s." % change_list
-        p4.shelve(change_list)
-
-    bugs_closed = p4.get_jobs(change_list)
-    review = F5Review(server, change_list, review_id, bugs_closed)
-
-    review.post_review()
-    if not options.output_diff_only:
-        print "Changelist: %s" % review.change_list
-        if not options.publish:
-            print "Don't forget to publish your review."
-'''
 
 def create_review(f5_review):
     f5_review.post()

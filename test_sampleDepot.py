@@ -1,9 +1,10 @@
 from unittest import TestCase
-from p4_sample_depot import SampleDepot
 import os
 
-class TestSampleDepot(TestCase):
+from p4_sample_depot import SampleDepot
 
+
+class TestSampleDepot(TestCase):
     def setUp(self):
         self.p4root = os.path.join(os.getcwd(), "foobar", "PerforceSample")
 
