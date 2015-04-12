@@ -11,6 +11,8 @@ from rbtools.commands import close
 from rbtools.api.client import RBClient
 from rbtools.api.errors import APIError
 
+
+
 # TODO: do we need this here?
 ACTIONS = ['create', 'edit', 'submit', 'diff']
 
@@ -283,15 +285,14 @@ class P4:
         Create an object to interact with perforce using the user, port and client
         settings provided. If any are missing, use those from the environment.
         """
+        self.user = user
+        self.port = port
+        self.client = client
         if not all([user, port, client]):
             p4_info = self.info()
             self.user = p4_info['userName']
             self.port = p4_info['serverAddress']
             self.client = p4_info['clientName']
-        else:
-            self.user = user
-            self.port = port
-            self.client = client
 
     def info(self):
         p4_info = self.run_G("info")
@@ -321,7 +322,15 @@ class P4:
         I modified it slightly for error checking.
         """
 
-        c = "p4 -G " + cmd
+        # Use the user, port, client settings in self if not None
+        c = "p4 -G "
+        if self.user is not None:
+            c += "-u %s " % self.user
+        if self.port is not None:
+            c += "-p %s " % self.port
+        if self.client is not None:
+            c += "-c %s " % self.client
+        c += cmd
 
         # All input to this method should be internal to this program, so
         # if we don't have either None or a list, something is very wrong.
@@ -615,6 +624,9 @@ class F5Review:
         self.rbt_args = arg_parser.rbt_args
         self.rbt_api = RBClient(url).get_root()
 
+        # TODO: Do something with username
+        self.username = None
+
     @property
     def review_request(self):
         """
@@ -704,7 +716,7 @@ class F5Review:
         c.run_from_argv(self.rbt_args)
 
     def _get_ship_its(self):
-        pass
+        return []
 
     def get_review_id_from_changenum(self, change_number):
         """Find review board id associated with change list number.
