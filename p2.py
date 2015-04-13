@@ -13,6 +13,7 @@ from rbtools.api.errors import APIError
 
 
 
+
 # TODO: do we need this here?
 ACTIONS = ['create', 'edit', 'submit', 'diff']
 
@@ -23,6 +24,7 @@ if hasattr(ssl, '_create_unverified_context'):
     ssl._create_default_https_context = ssl._create_unverified_context
 
 POST_VERSION = "2.0"
+RBTOOLS_RC_FILENAME = ".reviewboardrc"
 
 # PDTools usage tracking
 LOGHOST = ("REMOVED", "FIXME")
@@ -214,7 +216,8 @@ class RBArgParser:
                           help="Display debug output.")
         parser.add_option("--server",
                           dest="server", metavar="<server_name>",
-                          help="Use specified server. Default is the REVIEWBOARD_URL entry in .reviewboardrc file.")
+                          help="Use specified server. Default is the REVIEWBOARD_URL entry in your "
+                               + RBTOOLS_RC_FILENAME + " file.")
 
         submit_group = optparse.OptionGroup(parser, "Submit Options")
         submit_group.add_option("-f", "--force",
@@ -806,7 +809,7 @@ def check_config(user_home):
     """
 
     rbrc_file = os.path.join(user_home, ".rbrc")
-    reviewboardrc_file = os.path.join(user_home, ".reviewboardrc")
+    reviewboardrc_file = os.path.join(user_home, RBTOOLS_RC_FILENAME)
     if os.path.isfile(rbrc_file) and not os.path.isfile(reviewboardrc_file):
         print "Found legacy %s file." % rbrc_file
         print "Migrating to %s" % reviewboardrc_file
@@ -844,7 +847,7 @@ def get_url(arg_parser, config_file):
 
     if url is None:
         raise RBError(
-            "No server url found. Either set in your .reviewboardrc file or pass it with --server option.")
+            "No server url found. Either set in your " + RBTOOLS_RC_FILENAME + " file or pass it with --server option.")
     return url
 
 
@@ -867,7 +870,7 @@ def main():
         print e
         raise SystemExit(CONFIG_ERROR)
 
-    url = get_url(arg_parser, os.path.join(user_home, '.reviewboardrc'))
+    url = get_url(arg_parser, os.path.join(user_home, RBTOOLS_RC_FILENAME))
     p4 = P4()
     f5_review = F5Review(url, arg_parser, p4)
     if arg_parser.action == 'diff':
