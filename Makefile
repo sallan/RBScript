@@ -1,9 +1,11 @@
 .PHONY: tags
 
+all: unit-test p4-repo rb-site func-test
+
 unit-test:
 	@./test_post.py
 
-func-test: p4-repo rb-site
+func-test: 
 	./func_tests.py
 
 p4-repo:

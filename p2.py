@@ -13,7 +13,6 @@ from rbtools.api.errors import APIError
 
 
 
-
 # TODO: do we need this here?
 ACTIONS = ['create', 'edit', 'submit', 'diff']
 
@@ -73,6 +72,7 @@ n
 
 """ % (RBTOOLS_MAX_VERSION_STR, PYTHON_VERSION_STR, RBTOOLS_MAX_VERSION_STR, RBTOOLS_URL)
 try:
+    # noinspection PyUnresolvedReferences
     from rbtools.commands import post
     from rbtools import VERSION
     from rbtools.clients import perforce
@@ -303,11 +303,14 @@ class P4:
             raise P4Error("Could not talk to the perforce server.")
         return p4_info[0]
 
+    # noinspection PyAugmentAssignment
     def run(self, cmd):
         """Run perforce cmd and return output as a list of output lines."""
         cmd = "p4 " + cmd
         child = os.popen(cmd)
         data = child.read().splitlines()
+
+        # TODO: inspector says child.close doesn't return anything. Check this.
         err = child.close()
         if err:
             raise P4Error("Perforce command '%s' failed.\n" % cmd)
@@ -638,7 +641,7 @@ class F5Review:
         We always get the latest version of the review from the server, we never store
         it in our object.
         """
-        #review_request = None
+        # review_request = None
         try:
             if not self.rid:
                 if self.change_number:
@@ -700,7 +703,7 @@ class F5Review:
                 raise RBError("Review %s has no 'Ship It' reviews. Use --force to submit anyway." % self.rid)
 
             # The list of ship_its contains unique elements, so check the case where only 1.
-            if len(ship_its) == 1 and 'Review Bot' in ship_its:
+            if len(ship_its) == 1 and 'reviewbot' == ship_its[0].username:
                 raise RBError("Review %s has only a Review Bot 'Ship It'. Use --force to submit anyway." % self.rid)
 
         if self.edit_changelist:
@@ -719,7 +722,9 @@ class F5Review:
         c.run_from_argv(self.rbt_args)
 
     def _get_ship_its(self):
-        return []
+        reviews = self.review_request.get_reviews()
+        reviewers = [r.get_user() for r in reviews]
+        return reviewers
 
     def get_review_id_from_changenum(self, change_number):
         """Find review board id associated with change list number.
@@ -792,7 +797,7 @@ def migrate_rbrc_file(old_rc_file, new_rc_file):
     if server_url:
         try:
             with open(new_rc_file, "w") as f:
-                 f.write('REVIEWBOARD_URL = "%s"\n' % server_url)
+                f.write('REVIEWBOARD_URL = "%s"\n' % server_url)
         except EnvironmentError, e:
             raise RBError("Failed to write %s\n%s" % (new_rc_file, e))
 

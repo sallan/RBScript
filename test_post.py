@@ -287,7 +287,11 @@ class TestBlockShipIts(TestCase):
         return []
 
     def rbot_ship_it_only(self):
-        return ['Review Bot']
+        class rbot_review:
+            def __init__(self):
+                self.username = 'reviewbot'
+
+        return [rbot_review()]
 
     def test_no_ship_its(self):
         self.f5_review._get_ship_its = self.no_ship_its
@@ -298,6 +302,7 @@ class TestBlockShipIts(TestCase):
         self.f5_review._get_ship_its = self.rbot_ship_it_only
         with self.assertRaises(post.RBError):
             self.f5_review.submit()
+
 
 class TestConfigFile(TestCase):
     RC_FILE = 'reviewboardrc'
