@@ -12,6 +12,7 @@ from rbtools.api.client import RBClient
 from rbtools.api.errors import APIError
 
 
+
 # TODO: do we need this here?
 ACTIONS = ['create', 'edit', 'submit', 'diff']
 
@@ -538,14 +539,11 @@ class P4:
 
         ship_it_line = "Reviewed by: %s" % (", ".join(ship_its))
         change = self.get_change(change_number)
-        change_orig = self.get_change(change_number)
-
         change_description = change['Description'].splitlines()
 
         # Look for a 'Reviewed by:' field in the description so we don't
         # end up with multiple entries.
         found = False
-        # TODO: replace with enumerate()
         for lineno in range(0, len(change_description)):
             if change_description[lineno].startswith("Reviewed by:"):
                 change_description[lineno] = ship_it_line
@@ -898,17 +896,26 @@ def main():
         print e
         raise SystemExit(CONFIG_ERROR)
 
-    url = get_url(arg_parser, os.path.join(user_home, RBTOOLS_RC_FILENAME))
-    p4 = P4()
-    f5_review = F5Review(url, arg_parser, p4)
-    if arg_parser.action == 'diff':
-        run_diff(f5_review)
-    elif arg_parser.action == 'edit':
-        edit_review(f5_review)
-    elif arg_parser.action == 'create':
-        create_review(f5_review)
-    elif arg_parser.action == 'submit':
-        submit_review(f5_review)
+    try:
+        url = get_url(arg_parser, os.path.join(user_home, RBTOOLS_RC_FILENAME))
+        p4 = P4()
+        f5_review = F5Review(url, arg_parser, p4)
+        if arg_parser.action == 'diff':
+            f5_review.diff()
+        elif arg_parser.action == 'edit':
+            if f5_review.change_number is None:
+                raise RBError("The edit command requires a change list number.")
+            f5_review.post()
+        elif arg_parser.action == 'create':
+            f5_review.post()
+        elif arg_parser.action == 'submit':
+            f5_review.submit()
+    except P4Error as e:
+        print e
+        raise SystemExit(P4_EXCEPTION)
+    except RBError as e:
+        print e
+        raise SystemExit(RB_EXCEPTION)
 
 
 if __name__ == '__main__':

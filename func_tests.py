@@ -125,7 +125,6 @@ class FuncTests(TestCase):
         args = ["./p2.py", "submit", "--server", self.rb_url, str(cl)]
         with self.assertRaises(subprocess.CalledProcessError):
             subprocess.check_call(args)
-        # args.append("-f")
 
         # Now add a ship it and submit again
         review = rr.get_reviews().create()
