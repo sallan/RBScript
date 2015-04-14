@@ -1,8 +1,24 @@
 * Sprint
-** Code cleanup and refactor
-** Dev can submit the review and it will block if no ship its or Review Bot its only
+** DONE Code cleanup and refactor
+** DONE Dev can submit the review and it will block if no ship its or Review Bot its only
 ** DONE Dev can submit even without ship its using the --force option
+** Dev should be able to shelve a change when creating or editing a review
+*** Use cases
+**** New review without --publish option
+     In this case, create the shelve and add a comment to the review about the shelve
+**** New review with the --publish option
+     Here we need to not pass --publish (already tested). We create
+     the shelve and the new review, then we add the shelve comment,
+     then we need to publish the review.
+**** Update review with --shelve option
+     Same idea as the 2 above.
+**** Update review without --shelve option
+     This is a new case. I think we should be able to auto-detect a
+     shelved change and automatically update the shelve for the
+     user. There is no good reason I can think of for having a review
+     with a shelve that is out of date.
      
+
 * Product Backlog
 ** Dev should be able to shelve a change when creating or editing a review
 *** Use cases

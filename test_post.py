@@ -115,6 +115,11 @@ class TestArgParser(TestCase):
         self.assertEqual(['999'], arg_parser.rbt_args[2:])
         self.assertTrue(arg_parser.shelve)
 
+        test_args = ['post', 'edit', '--shelve', '999']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(['999'], arg_parser.rbt_args[2:])
+        self.assertTrue(arg_parser.shelve)
+
         test_args = ['post', 'create', '--force', '999']
         arg_parser = post.RBArgParser(test_args)
         self.assertEqual(['999'], arg_parser.rbt_args[2:])

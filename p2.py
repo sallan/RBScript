@@ -16,6 +16,7 @@ from rbtools.api.errors import APIError
 
 
 
+
 # TODO: do we need this here?
 ACTIONS = ['create', 'edit', 'submit', 'diff']
 
@@ -673,7 +674,22 @@ class F5Review:
         p = post.Post()
         if self.debug:
             print self.rbt_args
-        p.run_from_argv(self.rbt_args)
+
+        # TODO: Figure out which exceptions we need to catch here
+        # run_from_argv calls sys.exit() so we have to catch that
+        # in order to post-process the review.
+        try:
+            p.run_from_argv(self.rbt_args)
+        except:
+            pass
+
+        if self.shelve:
+            shelve_message = "This change has been shelved in changeset %s. " % self.change_number
+            shelve_message += "To unshelve this change into your workspace:\n\n\tp4 unshelve -s %s" % self.change_number
+            print shelve_message
+            review = self.review_request.get_reviews().create()
+            review.update(body_top=shelve_message, public=True)
+
 
     def diff(self):
         """Print diff for review to stdout"""

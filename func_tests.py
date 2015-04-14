@@ -139,6 +139,26 @@ class FuncTests(TestCase):
         change = self.p4.fetch_change(cl)
         self.assertEqual(test_string + "\n\nReviewed by: sallan\n", change['Description'])
 
+    def test_handling_shelves(self):
+        self.p4.run_edit(self.readme)
+        test_string = 'Test creating a shelve.'
+        self.append_line(self.readme, test_string)
+        change = self.p4.fetch_change()
+        change['Description'] = test_string + "\n"
+        change_output = self.p4.save_change(change)
+        cl = int(change_output[0].split()[1])
+        subprocess.call("./p2.py create --shelve --server %s --target-people sallan %d" %
+                        (self.rb_url, cl), shell=True)
+        rr = self.get_rr_from_cl(cl)
+        expected_comment = "This change has been shelved in changeset %s. " % cl
+        expected_comment += "To unshelve this change into your workspace:\n\n\tp4 unshelve -s %s" % cl
+        shelve_comment = rr.get_reviews()[0].body_top
+        self.assertEqual(expected_comment, shelve_comment)
+        draft = rr.get_draft()
+        self.assertFalse(draft.public)
+        draft.update(public=True)
+        subprocess.check_call("./p2.py submit --server %s -f %s" % (self.rb_url, cl), shell=True)
+
 
 if __name__ == '__main__':
     main()
