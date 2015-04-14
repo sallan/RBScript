@@ -14,6 +14,7 @@ from rbtools.api.errors import APIError
 
 
 
+
 # TODO: do we need this here?
 ACTIONS = ['create', 'edit', 'submit', 'diff']
 
@@ -44,34 +45,20 @@ RB_EXCEPTION = 8
 # Required Versions
 PYTHON_VERSION = (2, 6)
 PYTHON_VERSION_STR = '2.6'
-RBTOOLS_MIN_VERSION = (0, 4, 0)
-RBTOOLS_MIN_VERSION_STR = '0.4.0'
-RBTOOLS_MAX_VERSION = (0, 5, 2)
-RBTOOLS_MAX_VERSION_STR = '0.5.2'
-RBTOOLS_URL = 'http://www.reviewboard.org/docs/manual/1.7/users/tools/post-review/'
+RBTOOLS_MIN_VERSION = (0, 6, 0)
+RBTOOLS_MIN_VERSION_STR = '0.6.0'
 RBTOOLS_VERSION_MSG = """
 Use of this script requires:
 
-  RBTools version %s (0.6 is not yet supported)
+  RBTools version %s or greater
   Python %s or greater
 
-To install the preferred version of RBTools:
+To install the latest version of RBTools:
 
-    $ sudo easy_install -U RBTools==%s
+    $ sudo easy_install -U RBTools
 
-For detailed installation instructions, please see this page:
+""" % (RBTOOLS_MIN_VERSION_STR, PYTHON_VERSION_STR)
 
-  %s
-
-IMPORTANT:
-
-If you're on a linux system with an older python, updating python
-could break your package management system and is not advised.
-If that's the case, please use
-n
-  /build/cm/bin/rb2
-
-""" % (RBTOOLS_MAX_VERSION_STR, PYTHON_VERSION_STR, RBTOOLS_MAX_VERSION_STR, RBTOOLS_URL)
 try:
     # noinspection PyUnresolvedReferences
     from rbtools.commands import post
@@ -902,4 +889,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    print RBTOOLS_VERSION_MSG
+    # main()
