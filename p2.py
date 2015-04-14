@@ -15,6 +15,7 @@ from rbtools.api.errors import APIError
 
 
 
+
 # TODO: do we need this here?
 ACTIONS = ['create', 'edit', 'submit', 'diff']
 
@@ -889,5 +890,4 @@ def main():
 
 
 if __name__ == '__main__':
-    print RBTOOLS_VERSION_MSG
-    # main()
+    main()
