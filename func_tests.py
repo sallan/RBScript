@@ -136,6 +136,10 @@ class FuncTests(TestCase):
         rr = self.get_rr_from_cl(cl)
         self.assertEqual('submitted', rr.status)
 
+        # Look for change to CL description
+        change = self.p4.fetch_change(cl)
+        self.assertEqual(test_string + "\n\nReviewed by: sallan\n", change['Description'])
+
 
 if __name__ == '__main__':
     main()

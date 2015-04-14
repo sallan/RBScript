@@ -146,7 +146,6 @@ class TestArgParser(TestCase):
         arg_parser = post.RBArgParser(test_args)
         self.assertEqual(['--branch', 'v1.0', '999'], arg_parser.rbt_args[2:])
 
-
     def test_create_ui(self):
         test_args = ['post', 'create']
         arg_parser = post.RBArgParser(test_args)
@@ -284,22 +283,18 @@ class TestBlockShipIts(TestCase):
         self.f5_review.rid = 1
 
     def no_ship_its(self):
-        return []
+        return {}
 
     def rbot_ship_it_only(self):
-        class rbot_review:
-            def __init__(self):
-                self.username = 'reviewbot'
-
-        return [rbot_review()]
+        return {'reviewbot': 'Review Bot'}
 
     def test_no_ship_its(self):
-        self.f5_review._get_ship_its = self.no_ship_its
+        self.f5_review.get_ship_its = self.no_ship_its
         with self.assertRaises(post.RBError):
             self.f5_review.submit()
 
     def test_rbot_ship_it_only(self):
-        self.f5_review._get_ship_its = self.rbot_ship_it_only
+        self.f5_review.get_ship_its = self.rbot_ship_it_only
         with self.assertRaises(post.RBError):
             self.f5_review.submit()
 

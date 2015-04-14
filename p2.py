@@ -12,7 +12,6 @@ from rbtools.api.client import RBClient
 from rbtools.api.errors import APIError
 
 
-
 # TODO: do we need this here?
 ACTIONS = ['create', 'edit', 'submit', 'diff']
 
@@ -531,19 +530,22 @@ class P4:
             raise P4Error("Failed to determine submitted change list number.")
         return submitted_change
 
-    def add_reviewboard_shipits(self, review, ship_its):
+    def add_reviewboard_shipits(self, change_number, ship_its):
         """
         Add list of users who approved the review to the change list.
 
         """
 
         ship_it_line = "Reviewed by: %s" % (", ".join(ship_its))
-        change = self.get_change(review.change_list)
+        change = self.get_change(change_number)
+        change_orig = self.get_change(change_number)
+
         change_description = change['Description'].splitlines()
 
         # Look for a 'Reviewed by:' field in the description so we don't
         # end up with multiple entries.
         found = False
+        # TODO: replace with enumerate()
         for lineno in range(0, len(change_description)):
             if change_description[lineno].startswith("Reviewed by:"):
                 change_description[lineno] = ship_it_line
@@ -553,6 +555,7 @@ class P4:
             change_description.extend(['', ship_it_line])
 
         change['Description'] = "\n".join(change_description)
+
         self.run_G("change -i", p4_input=change)
 
     def set(self):
@@ -634,6 +637,18 @@ class F5Review:
         self.username = None
 
     @property
+    def rid(self):
+        if not self.rid:
+            if self.change_number:
+                self.rid = self.get_review_id_from_changenum(self.change_number)
+            else:
+                raise RBError("Review has no change list number and no ID number.")
+
+    @rid.setter
+    def rid(self, value):
+        self._rid = value
+
+    @property
     def review_request(self):
         """
         Return the latest version of the review request and update id, changelist.
@@ -641,7 +656,7 @@ class F5Review:
         We always get the latest version of the review from the server, we never store
         it in our object.
         """
-        # review_request = None
+        # TODO: replace some of this with the rid method above
         try:
             if not self.rid:
                 if self.change_number:
@@ -686,44 +701,52 @@ class F5Review:
         Submits the review if it meets all criteria and then marks as
         closed on reviewboard.
         """
-        if self.p4.shelved(self.change_number):
-            if self.force:
-                print "Deleting shelve since --force option used."
-                self.p4.unshelve(self.change_number)
-            else:
-                msg = "Cannot submit a shelved change (%s).\n" % self.change_number
-                msg += "You may use --force to delete the shelved change automatically prior to submit."
-                raise RBError(msg)
 
         # Unless the force option is used, we want to block reviews with no ship it or with
         # only a Review Bot ship it.
-        ship_its = self._get_ship_its()
+        ship_its = self.get_ship_its()
         if not self.force:
             if not ship_its:
                 raise RBError("Review %s has no 'Ship It' reviews. Use --force to submit anyway." % self.rid)
 
             # The list of ship_its contains unique elements, so check the case where only 1.
-            if len(ship_its) == 1 and 'reviewbot' == ship_its[0].username:
+            if len(ship_its) == 1 and 'reviewbot' in ship_its.keys():
                 raise RBError("Review %s has only a Review Bot 'Ship It'. Use --force to submit anyway." % self.rid)
 
+        # If CL is shelved, delete the shelve since the user has already indicated
+        # a clear intention to submit the CL.
+        if self.p4.shelved(self.change_number):
+            self.p4.unshelve(self.change_number)
+
+        # Does the user want to edit the CL before submitting?
         if self.edit_changelist:
             self.p4.edit_change(self.change_number)
 
-        # TODO:
-        # if ship_its:
-        # self.p4.add_reviewboard_shipits(review, ship_its)
+        # Add reviewers who gave ship its
+        ship_it_list = [ship_its[u] or u for u in ship_its.keys()]
+        if ship_its:
+            self.p4.add_reviewboard_shipits(self.change_number, ship_it_list)
 
-        review_request = self.review_request
-        submitted_change = self.p4.submit(self.change_number)
+        self.p4.submit(self.change_number)
         c = close.Close()
-        self.rbt_args.append(str(review_request.id))
+        self.rbt_args.append(self.rid)
         if self.debug:
             print self.rbt_args
         c.run_from_argv(self.rbt_args)
 
-    def _get_ship_its(self):
+    def get_ship_its(self):
+        """Return hash of users who gave review a ship it.
+
+        Hash keys are usernames and values are 'First Last', which
+        may be an empty string (e.g. admin user)
+        """
         reviews = self.review_request.get_reviews()
-        reviewers = [r.get_user() for r in reviews]
+        users = [r.get_user() for r in reviews]
+        reviewers = {}
+        for user in users:
+            # Make sure these are strings and not unicode or we'll run into problems
+            # later when we try to marshall these.
+            reviewers[str(user.username)] = ("%s %s" % (str(user.first_name), str(user.last_name))).strip()
         return reviewers
 
     def get_review_id_from_changenum(self, change_number):
@@ -832,7 +855,7 @@ def get_url(arg_parser, config_file):
     if url:
         # Users used to using rb are accustomed to providing the server without
         # the protocol string. In that case, assume https.
-        # noinspection PyAugmentAssignment
+        # noinspection PyAugmentAssignment,PyAugmentAssignment
         if not url.startswith('http'):
             url = 'https://' + url
     else:
