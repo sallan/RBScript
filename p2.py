@@ -13,6 +13,7 @@ from rbtools.api.errors import APIError
 
 
 
+
 # TODO: do we need this here?
 ACTIONS = ['create', 'edit', 'submit', 'diff']
 
@@ -41,8 +42,8 @@ P4_EXCEPTION = 7
 RB_EXCEPTION = 8
 
 # Required Versions
-PYTHON_VERSION = (2, 5)
-PYTHON_VERSION_STR = '2.5'
+PYTHON_VERSION = (2, 6)
+PYTHON_VERSION_STR = '2.6'
 RBTOOLS_MIN_VERSION = (0, 4, 0)
 RBTOOLS_MIN_VERSION_STR = '0.4.0'
 RBTOOLS_MAX_VERSION = (0, 5, 2)
@@ -722,7 +723,7 @@ class F5Review:
 
         # Add reviewers who gave ship its
         ship_it_list = [ship_its[u] or u for u in ship_its.keys()]
-        if ship_its:
+        if ship_it_list:
             self.p4.add_reviewboard_shipits(self.change_number, ship_it_list)
 
         self.p4.submit(self.change_number)
@@ -762,24 +763,6 @@ class F5Review:
         if len(rr) > 1:
             raise RBError("Error: found %d reviews associated with %d" % (len(rr), self.change_number))
         return str(rr[0].id)
-
-
-def create_review(f5_review):
-    f5_review.post()
-
-
-def edit_review(f5_review):
-    if f5_review.change_number is None:
-        raise RBError("The edit command requires a change list number.")
-    f5_review.post()
-
-
-def submit_review(f5_review):
-    f5_review.submit()
-
-
-def run_diff(f5_review):
-    pass
 
 
 def migrate_rbrc_file(old_rc_file, new_rc_file):
@@ -892,7 +875,7 @@ def main():
     user_home = os.path.expanduser("~")
     try:
         check_config(user_home)
-    except RBError, e:
+    except RBError as e:
         print e
         raise SystemExit(CONFIG_ERROR)
 
