@@ -23,6 +23,8 @@ class FuncTests(TestCase):
         self.relnotes = os.path.join(self.workdir, "relnotes.txt")
 
     def tearDown(self):
+        if self.p4.run_opened():
+            self.p4.run("revert", "...")
         self.p4.disconnect()
 
     def get_rr_from_cl(self, cl):
