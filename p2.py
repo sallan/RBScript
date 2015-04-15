@@ -14,6 +14,7 @@ from rbtools.api.errors import APIError
 
 
 
+
 # Newer versions of Python are more strict about ssl verification
 # and need to have verification turned off
 if hasattr(ssl, '_create_unverified_context'):
@@ -761,7 +762,7 @@ class F5Review(object):
             reviewers[str(user.username)] = ("%s %s" % (str(user.first_name), str(user.last_name))).strip()
         return reviewers
 
-    def get_review_id_from_changenum(self):
+    def get_review_id_from_changenum(self, status="all"):
         """Find review board id associated with change list number.
 
         Query the rb server to see if there is a review associated with the
@@ -770,7 +771,7 @@ class F5Review(object):
         Return the id as a string, or None if not found. If more than 1 found,
         raise RBError.
         """
-        rr = self.rbt_api.get_review_requests(changenum=self.change_number)
+        rr = self.rbt_api.get_review_requests(changenum=self.change_number, status=status)
         if not rr:
             return None
         if len(rr) > 1:
