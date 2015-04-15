@@ -13,6 +13,7 @@ from rbtools.api.errors import APIError
 
 
 
+
 # Newer versions of Python are more strict about ssl verification
 # and need to have verification turned off
 if hasattr(ssl, '_create_unverified_context'):
@@ -627,7 +628,7 @@ class F5Review(object):
             if self.change_number:
                 if self.debug:
                     print "Getting RID using CL %s" % self.change_number
-                self.rid = self.get_review_id_from_changenum(self.change_number)
+                self.rid = self.get_review_id_from_changenum()
             else:
                 raise RBError("Review has no change list number and no ID number.")
         return self._rid
@@ -671,6 +672,11 @@ class F5Review(object):
             self.rbt_args.append(self.change_number)
         if self.shelve:
             self.p4.shelve(self.change_number, update=True)
+
+        # If CL has been shelved add the shelve option automatically.
+        # self.shelve = self.p4.shelved(self.change_number)
+
+        # Extract bugs from change list Jobs and add to argument list
         bugs = self.p4.get_jobs(self.change_number)
         if bugs:
             self.rbt_args[-1:] = ['--bugs-closed', ','.join(bugs), self.change_number]
@@ -755,7 +761,7 @@ class F5Review(object):
             reviewers[str(user.username)] = ("%s %s" % (str(user.first_name), str(user.last_name))).strip()
         return reviewers
 
-    def get_review_id_from_changenum(self, change_number):
+    def get_review_id_from_changenum(self):
         """Find review board id associated with change list number.
 
         Query the rb server to see if there is a review associated with the
@@ -764,7 +770,7 @@ class F5Review(object):
         Return the id as a string, or None if not found. If more than 1 found,
         raise RBError.
         """
-        rr = self.rbt_api.get_review_requests(changenum=change_number)
+        rr = self.rbt_api.get_review_requests(changenum=self.change_number)
         if not rr:
             return None
         if len(rr) > 1:
