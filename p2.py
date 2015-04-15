@@ -13,16 +13,6 @@ from rbtools.api.errors import APIError
 
 
 
-
-
-
-
-
-
-
-# TODO: do we need this here?
-ACTIONS = ['create', 'edit', 'submit', 'diff']
-
 # Newer versions of Python are more strict about ssl verification
 # and need to have verification turned off
 if hasattr(ssl, '_create_unverified_context'):
@@ -79,6 +69,8 @@ else:
         sys.stderr.write(RBTOOLS_VERSION_MSG)
         raise SystemExit(UNSUPPORTED_RBTOOLS)
 
+ACTIONS = ['create', 'edit', 'submit', 'diff']
+
 
 class RBError(Exception):
     pass
@@ -88,7 +80,7 @@ class P4Error(Exception):
     pass
 
 
-class RBArgParser:
+class RBArgParser(object):
     """Manage options and arguments for review requests"""
 
     def __init__(self, args):
@@ -270,7 +262,7 @@ class RBArgParser:
         self.parser.print_help()
 
 
-class P4:
+class P4(object):
     """
     Encapsulate perforce environment and handle calls to the perforce server.
 
@@ -297,7 +289,8 @@ class P4:
         return p4_info[0]
 
     # noinspection PyAugmentAssignment
-    def run(self, cmd):
+    @staticmethod
+    def run(cmd):
         """Run perforce cmd and return output as a list of output lines."""
         cmd = "p4 " + cmd
         child = os.popen(cmd)
@@ -598,7 +591,7 @@ class P4:
             os.system("%s %s" % (editor, file_name))
 
 
-class F5Review:
+class F5Review(object):
     """Handle creation, updating and submitting of Review Requests"""
 
     def __init__(self, url, arg_parser, p4):
@@ -611,7 +604,6 @@ class F5Review:
 
         p4 : A P4 object allowing us to talk to the perforce server.
         """
-
         self.arg_parser = arg_parser
         self.url = url
         self.p4 = p4
@@ -624,17 +616,21 @@ class F5Review:
         self.edit_changelist = arg_parser.edit_changelist
         self.rbt_args = arg_parser.rbt_args
         self.rbt_api = RBClient(url).get_root()
+        self._rid = None
 
         # TODO: Do something with username
         self.username = None
 
     @property
     def rid(self):
-        if not self.rid:
+        if self._rid is None:
             if self.change_number:
+                if self.debug:
+                    print "Getting RID using CL %s" % self.change_number
                 self.rid = self.get_review_id_from_changenum(self.change_number)
             else:
                 raise RBError("Review has no change list number and no ID number.")
+        return self._rid
 
     @rid.setter
     def rid(self, value):
@@ -648,19 +644,14 @@ class F5Review:
         We always get the latest version of the review from the server, we never store
         it in our object.
         """
-        # TODO: replace some of this with the rid method above
         try:
-            if not self.rid:
-                if self.change_number:
-                    self.rid = self.get_review_id_from_changenum(self.change_number)
-                else:
-                    raise RBError("Review has no change list number and no ID number.")
             review_request = self.rbt_api.get_review_request(review_request_id=self.rid)
         except APIError:
             raise RBError("Failed to retrieve review number %s." % self.rid)
         return review_request
 
-    def run(self, client, args):
+    @staticmethod
+    def run(client, args):
         """Call the run_from_argv function and catch SystemExit"""
         try:
             client.run_from_argv(args)
@@ -688,7 +679,7 @@ class F5Review:
             print self.rbt_args
 
         # Call the client run method to post the review
-        self.run(p, self.rbt_args)
+        F5Review.run(p, self.rbt_args)
 
         if self.shelve:
             shelve_message = "This change has been shelved in changeset %s. " % self.change_number
@@ -708,7 +699,7 @@ class F5Review:
         d = diff.Diff()
         if self.debug:
             print self.rbt_args
-        self.run(d, self.rbt_args)
+        F5Review.run(d, self.rbt_args)
 
     def submit(self):
         """Submit the review
@@ -747,7 +738,7 @@ class F5Review:
         self.rbt_args.append(self.rid)
         if self.debug:
             print self.rbt_args
-        self.run(c, self.rbt_args)
+        F5Review.run(c, self.rbt_args)
 
     def get_ship_its(self):
         """Return hash of users who gave review a ship it.
