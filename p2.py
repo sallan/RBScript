@@ -15,6 +15,7 @@ from rbtools.api.errors import APIError
 
 
 
+
 # Newer versions of Python are more strict about ssl verification
 # and need to have verification turned off
 if hasattr(ssl, '_create_unverified_context'):
@@ -121,13 +122,9 @@ class RBArgParser(object):
             raise RBError("Need a change list number")
 
         # The f5_options list holds options that we don't pass on to rbt.
-        # If the shelve option is used, we need to intercept the publish
-        # option so we can add the shelve comment after rbt runs, but
-        # before publishing, so we add it to f5_options.
-        # We also make sure to save the publish option here.
-        self.f5_options = ['shelve', 'force', 'edit_changelist']
-        if self.opts.shelve:
-            self.f5_options.append('publish')
+        self.f5_options = ['shelve', 'publish', 'force', 'edit_changelist']
+
+        # TODO: Why is this needed? Why doesn't it get set below in the loop?
         self.publish = self.opts.publish
 
         # These options used by us and rbt
@@ -675,7 +672,7 @@ class F5Review(object):
             self.p4.shelve(self.change_number, update=True)
 
         # If CL has been shelved add the shelve option automatically.
-        # self.shelve = self.p4.shelved(self.change_number)
+        self.shelve = self.p4.shelved(self.change_number)
 
         # Extract bugs from change list Jobs and add to argument list
         bugs = self.p4.get_jobs(self.change_number)
@@ -691,15 +688,17 @@ class F5Review(object):
         if self.shelve:
             shelve_message = "This change has been shelved in changeset %s. " % self.change_number
             shelve_message += "To unshelve this change into your workspace:\n\n\tp4 unshelve -s %s" % self.change_number
-            print shelve_message
+            if self.debug:
+                print shelve_message
             review = self.review_request.get_reviews().create()
             review.update(body_top=shelve_message, public=True)
 
+            # TODO: remove comments
             # We intercept the publish option when shelving so user doesn't
             # get 2 emails, so we need to do the publish step here.
-            if self.publish:
-                draft = self.review_request.get_draft()
-                draft.update(public=True)
+        if self.publish:
+            draft = self.review_request.get_draft()
+            draft.update(public=True)
 
     def diff(self):
         """Print diff for review to stdout"""

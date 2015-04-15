@@ -187,6 +187,44 @@ class FuncTests(TestCase):
         self.assertTrue(rr.public)
         subprocess.check_call("./p2.py submit --server %s -f %s" % (self.rb_url, cl), shell=True)
 
+    def test_editing_review_with_shelve(self):
+        self.p4.run_edit(self.readme)
+        test_string = 'Test editing a review with a shelve.'
+        self.append_line(self.readme, test_string)
+        change = self.p4.fetch_change()
+        change['Description'] = test_string + "\n"
+        change_output = self.p4.save_change(change)
+        cl = int(change_output[0].split()[1])
+        subprocess.call("./p2.py create --publish --shelve --server %s --target-people sallan %d" %
+                        (self.rb_url, cl), shell=True)
+
+        # Should now have 1 review
+        rr = self.get_rr_from_cl(cl)
+        self.assertEqual(1, len(rr.get_reviews()))
+
+        # Edit file and review using the --shelve option
+        self.append_line(self.readme, "Second change to this file. Update with --shelve")
+        subprocess.call("./p2.py edit --publish --shelve --server %s %d" %
+                        (self.rb_url, cl), shell=True)
+
+        # Should now have 2 reviews
+        rr = self.get_rr_from_cl(cl)
+        self.assertEqual(2, len(rr.get_reviews()))
+
+        # Edit file and review without the --shelve option
+        self.append_line(self.readme, "Third change to this file. Update without --shelve")
+        subprocess.call("./p2.py edit --publish --server %s %d" %
+                        (self.rb_url, cl), shell=True)
+
+        # Should now have 3 reviews
+        rr = self.get_rr_from_cl(cl)
+        self.assertEqual(3, len(rr.get_reviews()))
+
+        # Submit
+        subprocess.check_call("./p2.py submit --server %s -f %s" % (self.rb_url, cl), shell=True)
+
+
+
 
 if __name__ == '__main__':
     main()

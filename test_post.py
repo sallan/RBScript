@@ -129,12 +129,12 @@ class TestArgParser(TestCase):
         # publish so we can add the shelve comment first. Otherwise let it go.
         test_args = ['post', 'create', '--publish', '999']
         arg_parser = post.RBArgParser(test_args)
-        self.assertEqual(['--publish', '999'], arg_parser.rbt_args[2:])
+        self.assertEqual(['999'], arg_parser.rbt_args[2:])
         self.assertTrue(arg_parser.publish)
 
         test_args = ['post', 'create', '-p', '999']
         arg_parser = post.RBArgParser(test_args)
-        self.assertEqual(['--publish', '999'], arg_parser.rbt_args[2:])
+        self.assertEqual(['999'], arg_parser.rbt_args[2:])
         self.assertTrue(arg_parser.publish)
 
         test_args = ['post', 'create', '--publish', '999', '--shelve']
@@ -212,14 +212,14 @@ class TestArgParser(TestCase):
         arg_parser = post.RBArgParser(test_args)
         self.assertEqual("edit", arg_parser.action)
         self.assertTrue(arg_parser.publish)
-        self.assertEqual(arg_parser.rbt_args[2:], ['--debug', '--publish', '999'])
+        self.assertEqual(['--debug', '999'], arg_parser.rbt_args[2:])
 
         test_args = ['post', '-d', 'edit', '--shelve', '999', '-p']
         arg_parser = post.RBArgParser(test_args)
         self.assertEqual("edit", arg_parser.action)
         self.assertTrue(arg_parser.publish)
         self.assertTrue(arg_parser.shelve)
-        self.assertEqual(arg_parser.rbt_args[2:], ['--debug', '999'])
+        self.assertEqual(['--debug', '999'], arg_parser.rbt_args[2:])
 
     def test_submit_ui(self):
         test_args = ['post', 'submit']
