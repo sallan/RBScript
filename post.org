@@ -4,7 +4,7 @@
 ** DONE Dev can submit even without ship its using the --force option
 ** Dev should be able to shelve a change when creating or editing a review
 *** Use cases
-**** New review without --publish option
+**** DONE New review without --publish option
      In this case, create the shelve and add a comment to the review about the shelve
 **** New review with the --publish option
      Here we need to not pass --publish (already tested). We create
@@ -39,7 +39,45 @@
 ** Dev should be able to have review automatically open in browser
 
 ** The developer should not have to use the --shelve option if the CL has already been shelved.
-    
+
+** The developer should be able to 'submit' a review that was never published
+
+   Though a corner case, the developer should not see this ugly output
+   if they try to do a submit on a rr they never published:
+
+   % ./p2.py submit 819
+   CRITICAL:root:HTTP 500
+   CRITICAL: HTTP 500
+   
+   % p4 opened
+   p4 opened
+   File(s) not opened on this client.
+
+   It's coming from rbt itself:
+   % rbt close -d 819
+>>> RBTools 0.7.2
+>>> Python 2.7.5 (default, Nov  3 2014, 14:26:24) 
+[GCC 4.8.3 20140911 (Red Hat 4.8.3-7)]
+>>> Running on Linux-3.18.9-100.fc20.x86_64-x86_64-with-fedora-20-Heisenbug
+>>> Home = /home/sallan
+>>> Current directory = /home/sallan/Projects/RBScript
+>>> Making HTTP GET request to http://localhost/api/
+>>> Making HTTP GET request to http://localhost/api/review-requests/819/
+>>> Got API Error 100 (HTTP code 404): Object does not exist
+>>> Error data: {u'stat': u'fail', u'err': {u'msg': u'Object does not exist', u'code': 100}}
+Traceback (most recent call last):
+  File "/usr/bin/rbt", line 9, in <module>
+    load_entry_point('RBTools==0.7.2', 'console_scripts', 'rbt')()
+  File "/usr/lib/python2.7/site-packages/RBTools-0.7.2-py2.7.egg/rbtools/commands/main.py", line 133, in main
+    command.run_from_argv([RB_MAIN, command_name] + args)
+  File "/usr/lib/python2.7/site-packages/RBTools-0.7.2-py2.7.egg/rbtools/commands/__init__.py", line 555, in run_from_argv
+    exit_code = self.main(*args) or 0
+  File "/usr/lib/python2.7/site-packages/RBTools-0.7.2-py2.7.egg/rbtools/commands/close.py", line 56, in main
+    request = get_review_request(request_id, api_root)
+  File "/usr/lib/python2.7/site-packages/RBTools-0.7.2-py2.7.egg/rbtools/utils/commands.py", line 29, in get_review_request
+    % (review_request_id, e))
+rbtools.commands.CommandError: Error getting review request 819: Object does not exist (HTTP 404, API Error 100)    
+
 
 * Done
 ** DONE Dev should be able to enter options and args in any order (unlike with rbt)

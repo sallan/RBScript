@@ -18,6 +18,7 @@ from rbtools.api.errors import APIError
 
 
 
+
 # TODO: do we need this here?
 ACTIONS = ['create', 'edit', 'submit', 'diff']
 
@@ -618,6 +619,7 @@ class F5Review:
         self.debug = arg_parser.debug
         self.shelve = arg_parser.shelve
         self.force = arg_parser.force
+        self.publish = arg_parser.publish
         self.edit_changelist = arg_parser.edit_changelist
         self.rbt_args = arg_parser.rbt_args
         self.rbt_api = RBClient(url).get_root()
@@ -691,9 +693,11 @@ class F5Review:
             review = self.review_request.get_reviews().create()
             review.update(body_top=shelve_message, public=True)
 
+            # We intercept the publish option when shelving so user doesn't
+            # get 2 emails, so we need to do the publish step here.
             if self.publish:
-                self.review_request.update(public=True)
-
+                draft = self.review_request.get_draft()
+                draft.update(public=True)
 
     def diff(self):
         """Print diff for review to stdout"""
