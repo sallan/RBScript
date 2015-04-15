@@ -17,6 +17,7 @@ from rbtools.api.errors import APIError
 
 
 
+
 # TODO: do we need this here?
 ACTIONS = ['create', 'edit', 'submit', 'diff']
 
@@ -689,6 +690,9 @@ class F5Review:
             print shelve_message
             review = self.review_request.get_reviews().create()
             review.update(body_top=shelve_message, public=True)
+
+            if self.publish:
+                self.review_request.update(public=True)
 
 
     def diff(self):
