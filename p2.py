@@ -19,6 +19,7 @@ from rbtools.api.errors import APIError
 
 
 
+
 # TODO: do we need this here?
 ACTIONS = ['create', 'edit', 'submit', 'diff']
 
@@ -659,6 +660,14 @@ class F5Review:
             raise RBError("Failed to retrieve review number %s." % self.rid)
         return review_request
 
+    def run(self, client, args):
+        """Call the run_from_argv function and catch SystemExit"""
+        try:
+            client.run_from_argv(args)
+        except SystemExit as e:
+            if e.code != 0:
+                raise RBError(e)
+
     def post(self):
         """Post a review to the review board server
 
@@ -678,13 +687,8 @@ class F5Review:
         if self.debug:
             print self.rbt_args
 
-        # TODO: Figure out which exceptions we need to catch here
-        # run_from_argv calls sys.exit() so we have to catch that
-        # in order to post-process the review.
-        try:
-            p.run_from_argv(self.rbt_args)
-        except:
-            pass
+        # Call the client run method to post the review
+        self.run(p, self.rbt_args)
 
         if self.shelve:
             shelve_message = "This change has been shelved in changeset %s. " % self.change_number
@@ -704,7 +708,7 @@ class F5Review:
         d = diff.Diff()
         if self.debug:
             print self.rbt_args
-        d.run_from_argv(self.rbt_args)
+        self.run(d, self.rbt_args)
 
     def submit(self):
         """Submit the review
@@ -743,7 +747,7 @@ class F5Review:
         self.rbt_args.append(self.rid)
         if self.debug:
             print self.rbt_args
-        c.run_from_argv(self.rbt_args)
+        self.run(c, self.rbt_args)
 
     def get_ship_its(self):
         """Return hash of users who gave review a ship it.
