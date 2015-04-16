@@ -33,6 +33,11 @@
    rid and the CL, but since that's how they're creating it, it's not
    to weird.
 
+   Ah, but the other problem is when you use the --publish option.
+   How does rbt handle that?  Handles it fine, because it uses the
+   rid. You should too.
+
+
    Now, for the million dollar question - should you update the CL
    when you submit?  I think so.
 
