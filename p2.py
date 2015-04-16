@@ -167,7 +167,7 @@ class RBArgParser(object):
             'branch': '--branch',
             'testing_done': '--testing-done',
             'testing_file': '--testing-done-file',
-            'rid': '--rid',
+            'rid': '--review-request-id',
             'username': '--username',
         }
         args = [option_string[opt]]

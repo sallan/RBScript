@@ -94,12 +94,12 @@ class TestArgParser(TestCase):
         test_args = ['post', 'create', '--rid', '12345', '999']
         arg_parser = post.RBArgParser(test_args)
         self.assertEqual('12345', arg_parser.rid)
-        self.assertEqual(['--rid', '12345', '999'], arg_parser.rbt_args[2:])
+        self.assertEqual(['--review-request-id', '12345', '999'], arg_parser.rbt_args[2:])
 
         test_args = ['post', 'create', '-r', '12345', '999']
         arg_parser = post.RBArgParser(test_args)
         self.assertEqual('12345', arg_parser.rid)
-        self.assertEqual(['--rid', '12345', '999'], arg_parser.rbt_args[2:])
+        self.assertEqual(['--review-request-id', '12345', '999'], arg_parser.rbt_args[2:])
 
         test_args = ['post', 'edit', '--update-diff', '999']
         arg_parser = post.RBArgParser(test_args)
