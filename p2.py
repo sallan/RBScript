@@ -1,4 +1,5 @@
 #!/usr/bin/python
+import getpass
 import os
 import subprocess
 from subprocess import CalledProcessError
@@ -11,12 +12,7 @@ import ssl
 from rbtools.commands import diff
 from rbtools.commands import close
 from rbtools.api.client import RBClient
-from rbtools.api.errors import APIError
-
-
-
-
-
+from rbtools.api.errors import APIError, AuthorizationError
 
 
 # Newer versions of Python are more strict about ssl verification
@@ -131,6 +127,7 @@ class RBArgParser(object):
         # These options used by us and rbt
         self.rid = self.opts.rid
         self.debug = self.opts.debug
+        self.username = self.opts.username
 
         # Process the options separating those we handle and those we pass to rbt
         self.rbt_args = ['rbt', self.action]
@@ -619,13 +616,36 @@ class F5Review(object):
         self.shelve = arg_parser.shelve
         self.force = arg_parser.force
         self.publish = arg_parser.publish
+        self.username = arg_parser.username
         self.edit_changelist = arg_parser.edit_changelist
         self.rbt_args = arg_parser.rbt_args
-        self.rbt_api = RBClient(url).get_root()
+
+        # rid will be accessed through property methods
         self._rid = None
 
-        # TODO: Do something with username
-        self.username = None
+        # Get api root object
+        self.rbt_api = self._get_rbt_api()
+
+
+    def _get_rbt_api(self):
+        # Login if needed and return the api root
+        rbclient = RBClient(self.url)
+        try:
+            rbt_api = rbclient.get_root()
+        except AuthorizationError as e:
+            try:
+                self._rblogin(rbclient)
+                rbt_api = rbclient.get_root()
+            except AuthorizationError as e:
+                raise RBError("Authentication failed for %s on %s" % (self.username, self.url))
+        return rbt_api
+
+    def _rblogin(self, rbclient):
+        # Prompt user for name if not already provided and password
+        if self.username is None:
+            self.username = raw_input("User: ")
+        password = getpass.getpass("Pass: ")
+        rbclient.login(self.username, password)
 
     @property
     def rid(self):
