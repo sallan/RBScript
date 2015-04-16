@@ -27,6 +27,14 @@
    For this, we need to handle the --username option.
 
 ** Dev should be able to post to an existing review using rid with a different CL
+   One bit of complication here is that rbt does not update the CL in
+   the review with a new CL number.  So, if someone tries to do a
+   submit using the new CL, that will fail.  They'll need to use the
+   rid and the CL, but since that's how they're creating it, it's not
+   to weird.
+
+   Now, for the million dollar question - should you update the CL
+   when you submit?  I think so.
 
 ** Dev should be able to have review automatically open in browser
 
