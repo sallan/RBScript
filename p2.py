@@ -96,6 +96,7 @@ class RBArgParser(object):
         self.shelve = False
         self.force = False
         self.debug = False
+        self.publish = False
         self.parser = RBArgParser._option_parser()
         self.opts, self.args = self.parser.parse_args(args[1:])
         self.server_url = self.opts.server
@@ -126,9 +127,6 @@ class RBArgParser(object):
 
         # The f5_options list holds options that we don't pass on to rbt.
         self.f5_options = ['shelve', 'publish', 'force', 'edit_changelist']
-
-        # TODO: Why is this needed? Why doesn't it get set below in the loop?
-        self.publish = self.opts.publish
 
         # These options used by us and rbt
         self.rid = self.opts.rid
