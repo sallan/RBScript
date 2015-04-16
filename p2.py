@@ -1,5 +1,7 @@
 #!/usr/bin/python
 import os
+import subprocess
+from subprocess import CalledProcessError
 import sys
 import optparse
 import tempfile
@@ -10,6 +12,7 @@ from rbtools.commands import diff
 from rbtools.commands import close
 from rbtools.api.client import RBClient
 from rbtools.api.errors import APIError
+
 
 
 
@@ -287,19 +290,25 @@ class P4(object):
             raise P4Error("Could not talk to the perforce server.")
         return p4_info[0]
 
-    # noinspection PyAugmentAssignment
-    @staticmethod
-    def run(cmd):
+    def run(self, cmd):
         """Run perforce cmd and return output as a list of output lines."""
-        cmd = "p4 " + cmd
-        child = os.popen(cmd)
-        data = child.read().splitlines()
 
-        # TODO: inspector says child.close doesn't return anything. Check this.
-        err = child.close()
-        if err:
-            raise P4Error("Perforce command '%s' failed.\n" % cmd)
-        return data
+        # Use the user, port, client settings in self if not None
+        c = "p4 "
+        if self.user is not None:
+            c += "-u %s " % self.user
+        if self.port is not None:
+            c += "-p %s " % self.port
+        if self.client is not None:
+            c += "-c %s " % self.client
+        c += cmd
+
+        try:
+            output = subprocess.check_output(c, shell=True)
+        except CalledProcessError as e:
+            raise P4Error("Perforce command '%s' failed\n%s" % (c, e))
+
+        return output.splitlines()
 
     # noinspection PyPep8Naming
     def run_G(self, cmd, args=None, p4_input=0):
@@ -693,9 +702,6 @@ class F5Review(object):
             review = self.review_request.get_reviews().create()
             review.update(body_top=shelve_message, public=True)
 
-            # TODO: remove comments
-            # We intercept the publish option when shelving so user doesn't
-            # get 2 emails, so we need to do the publish step here.
         if self.publish:
             draft = self.review_request.get_draft()
             draft.update(public=True)
@@ -753,7 +759,7 @@ class F5Review(object):
         may be an empty string (e.g. admin user)
         """
         reviews = self.review_request.get_reviews()
-        users = [r.get_user() for r in reviews]
+        users = [r.get_user() for r in reviews if r.ship_it]
         reviewers = {}
         for user in users:
             # Make sure these are strings and not unicode or we'll run into problems

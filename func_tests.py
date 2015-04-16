@@ -224,6 +224,25 @@ class FuncTests(TestCase):
         subprocess.check_call("./p2.py submit --server %s -f %s" % (self.rb_url, cl), shell=True)
 
 
+    def test_submitting_with_shelve_and_no_shipit(self):
+        self.p4.run_edit(self.readme)
+        test_string = 'Test submitting a review with a shelve and no ship its.'
+        self.append_line(self.readme, test_string)
+        change = self.p4.fetch_change()
+        change['Description'] = test_string + "\n"
+        change_output = self.p4.save_change(change)
+        cl = int(change_output[0].split()[1])
+        subprocess.call("./p2.py create --publish --shelve --server %s --target-people sallan %d" %
+                        (self.rb_url, cl), shell=True)
+
+        # Should now have 1 review
+        rr = self.get_rr_from_cl(cl)
+        self.assertEqual(1, len(rr.get_reviews()))
+
+        # Try to submit without a ship it
+        args = ["./p2.py", "submit", "--server", self.rb_url, str(cl)]
+        with self.assertRaises(subprocess.CalledProcessError):
+            subprocess.check_call(args)
 
 
 if __name__ == '__main__':
