@@ -1,31 +1,4 @@
 * Sprint
-** DONE Code cleanup and refactor
-** DONE Dev can submit the review and it will block if no ship its or Review Bot ship its only
-** DONE Dev can submit even without ship its using the --force option
-** DONE Dev should be able to shelve a change when creating or editing a review
-*** Use cases
-**** DONE New review without --publish option
-     In this case, create the shelve and add a comment to the review about the shelve
-**** DONE New review with the --publish option
-     Here we need to not pass --publish (already tested). We create
-     the shelve and the new review, then we add the shelve comment,
-     then we need to publish the review.
-**** DONE Update review with --shelve option
-     Same idea as the 2 above.
-**** DONE Update review without --shelve option
-     This is a new case. I think we should be able to auto-detect a
-     shelved change and automatically update the shelve for the
-     user. There is no good reason I can think of for having a review
-     with a shelve that is out of date.
-
-** DONE The developer should not have to use the --shelve option if the CL has already been shelved.     
-
-** DONE Dev should be able to submit a review with a shelve
-
-* Product Backlog
-** Dev should be able to post a review from the mergeit account
-   For this, we need to handle the --username option.
-
 ** Dev should be able to post to an existing review using rid with a different CL
    One bit of complication here is that rbt does not update the CL in
    the review with a new CL number.  So, if someone tries to do a
@@ -40,6 +13,24 @@
 
    Now, for the million dollar question - should you update the CL
    when you submit?  I think so.
+
+*** TODO Email rbtools list about having rid option update cl in review
+*** TODO Dev creates a new CL and posts it to an open review
+    This works out of the box with p2 because we pass rid along.
+*** TODO Dev creates a new CL and posts it to an open review with publish option
+    This fails because we now have a CL mismatch and we're not using
+    the rid for some reason.
+*** TODO Dev creates a new CL and posts it to a closed review
+    What does rbt do in this case? It doesn't allow it. It tells you
+    to reopen it if you really want to do this.
+*** TODO Dev submits one of these beasties and we update the CL in RB
+    We should really just do this on all review even though RB does
+    it for the standard use cases. The reason is because our update
+    will be immediate and won't require special case code for this.
+
+* Product Backlog
+** Dev should be able to post a review from the mergeit account
+   For this, we need to handle the --username option.
 
 ** Dev should be able to have review automatically open in browser
 
@@ -83,6 +74,27 @@ rbtools.commands.CommandError: Error getting review request 819: Object does not
 
 
 * Done
+** DONE Dev should be able to submit a review with a shelve
+
+** DONE The developer should not have to use the --shelve option if the CL has already been shelved.     
+** DONE Dev should be able to shelve a change when creating or editing a review
+*** Use cases
+**** DONE New review without --publish option
+     In this case, create the shelve and add a comment to the review about the shelve
+**** DONE New review with the --publish option
+     Here we need to not pass --publish (already tested). We create
+     the shelve and the new review, then we add the shelve comment,
+     then we need to publish the review.
+**** DONE Update review with --shelve option
+     Same idea as the 2 above.
+**** DONE Update review without --shelve option
+     This is a new case. I think we should be able to auto-detect a
+     shelved change and automatically update the shelve for the
+     user. There is no good reason I can think of for having a review
+     with a shelve that is out of date.
+
+** DONE Dev can submit even without ship its using the --force option
+** DONE Dev can submit the review and it will block if no ship its or Review Bot ship its only
 ** DONE Dev should be able to enter options and args in any order (unlike with rbt)
     We always require 1 argument - an action. Most of the time we also
     require a change list number, though it's optional if the action
@@ -137,4 +149,4 @@ rbtools.commands.CommandError: Error getting review request 819: Object does not
     difficult and visual inspection was sufficient. Besides,I don't
     want to spend a lot of time testing rbt functionality.
 
-
+** DONE Code cleanup and refactor
