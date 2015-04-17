@@ -320,5 +320,29 @@ class TestConfigFile(TestCase):
         self.assertEqual("http://localhost", url)
 
 
+class TestRidAccessor(TestCase):
+    def no_rbt_api(self):
+        pass
+
+    def no_rid_from_cl(self):
+        return None
+
+    def testNoRidPassed(self):
+        args = ['post', 'create', '999']
+        arg_parser = post.RBArgParser(args)
+        post.F5Review._get_rbt_api = self.no_rbt_api
+        post.F5Review.get_review_id_from_changenum = self.no_rid_from_cl
+        f5_review = post.F5Review("http://localhost", arg_parser, None)
+        self.assertIsNone(f5_review.rid)
+
+    def testRidPassed(self):
+        args = ['post', 'create', '-rid', '15' '999']
+        post.F5Review._get_rbt_api = self.no_rbt_api
+        post.F5Review.get_review_id_from_changenum = self.no_rid_from_cl
+        arg_parser = post.RBArgParser(args)
+        f5_review = post.F5Review("http://localhost", arg_parser, None)
+        self.assertEqual("15", f5_review.rid)
+
+
 if __name__ == '__main__':
     main()
