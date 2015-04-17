@@ -317,7 +317,7 @@ class TestConfigFile(TestCase):
         test_args = ['post', 'create']
         arg_parser = post.RBArgParser(test_args)
         url = post.get_url(arg_parser, self.RC_FILE)
-        self.assertEqual("http://rb", url)
+        self.assertEqual("http://localhost", url)
 
 
 if __name__ == '__main__':

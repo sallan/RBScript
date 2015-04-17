@@ -887,9 +887,9 @@ def get_url(arg_parser, config_file):
                 v = v.strip()
                 if k == 'REVIEWBOARD_URL':
                     # Remove any quotes that may be surrounding the value
-                    v = v.strip("\.\"")
-                url = v
-                break
+                    v = v.strip("\'\"")
+                    url = v
+                    break
 
     if url is None:
         raise RBError(
