@@ -642,9 +642,12 @@ class F5Review(object):
 
     def _rblogin(self, rbclient):
         # Prompt user for name if not already provided and password
+        # We should actually never get here because rbt should handle this
+        # for us.
+        print "(p2.py): Please log in to the Review Board server at %s." % self.url
         if self.username is None:
-            self.username = raw_input("User: ")
-        password = getpass.getpass("Pass: ")
+            self.username = raw_input("Username: ")
+        password = getpass.getpass("Password: ")
         rbclient.login(self.username, password)
 
     @property
