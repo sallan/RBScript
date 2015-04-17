@@ -244,6 +244,9 @@ class FuncTests(TestCase):
         with self.assertRaises(subprocess.CalledProcessError):
             subprocess.check_call(args)
 
+        args.append("-f")
+        subprocess.check_call(args)
+
 
 if __name__ == '__main__':
     main()

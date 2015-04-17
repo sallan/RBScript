@@ -49,7 +49,23 @@ cl1 = ask_for_cl()
 check_call("p2.py edit --shelve -p %s" % cl1, shell=True)
 pause()
 
-announce("Attempting to submit without a ship it.")
+announce("Creating a second review with a branch.")
+p4_open(file2)
+append_line(file2, "Review with a branch")
+check_call("p2.py create --target-people sallan --branch 'my branch' -p", shell=True)
+pause()
+announce("Now adding 2 jobs")
+cl2 = ask_for_cl()
+jobs = ['job000010', 'job000011']
+for job in jobs:
+    check_call("p4 fix -c %s %s" % (cl2, job), shell=True)
+check_call("p2.py edit -p %s" % cl2, shell=True)
+pause()
+announce("Submit the second review first so first review will get a new CL number")
+check_call("p2.py submit --force %s" % cl2, shell=True)
+pause()
+
+announce("Attempting to submit first review without a ship it.")
 try:
     check_call("p2.py submit %s" % cl1, shell=True)
 except CalledProcessError as e:
@@ -58,6 +74,7 @@ announce("Please go give me a ship it.")
 pause()
 announce("Attempting to submit with a ship it.")
 check_call("p2.py submit %s" % cl1, shell=True)
+announce("See if the CL number changed for the first review.")
 
 # Before leaving, restore original rbtools cookie file
 if os.path.isfile(rb_cookies_file_backup):
