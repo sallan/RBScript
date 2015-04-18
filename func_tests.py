@@ -247,6 +247,50 @@ class FuncTests(TestCase):
         args.append("-f")
         subprocess.check_call(args)
 
+    def test_editing_with_rid(self):
+        self.p4.run_edit(self.readme)
+        test_string = 'Test editing a review with a different CL using rid.'
+        self.append_line(self.readme, test_string)
+        change = self.p4.fetch_change()
+        change['Description'] = test_string + "\n"
+        change_output = self.p4.save_change(change)
+        cl1 = int(change_output[0].split()[1])
+        subprocess.call("./p2.py create --publish --server %s --target-people sallan %d" %
+                        (self.rb_url, cl1), shell=True)
+
+        rr = self.get_rr_from_cl(cl1)
+        rid = rr.id
+        self.assertGreater(rid, 0)
+
+        diffs = rr.get_diffs()
+        self.assertEqual(1, len(diffs))
+
+        # TODO: if you want to compare patches, you need to remove the time and date
+        # patch1 = diffs[0].get_patch()
+        # expected_patch = '--- //depot/Jam/MAIN/src/README\t//depot/Jam/MAIN/src/README#32\n+++ //depot/Jam/MAIN/src/README\t2015-04-18 09:26:49\n@@ -156,3 +156,4 @@ Test proper handling of ship its.\n First test case\n Better change\n Test submitting a review with a shelve and no ship its.\n+Test editing a review with a different CL using rid.\n'
+        # actual_path = patch1.data
+        # self.assertEqual(expected_patch, actual_path)
+
+        # Move file to a new change list
+        change = self.p4.fetch_change()
+        change['Description'] = "Use this CL to update %s instead of CL %d" % (rid, cl1)
+        change_output = self.p4.save_change(change)
+        cl2 = int(change_output[0].split()[1])
+        self.p4.run_reopen("-c", cl2, self.readme)
+        self.append_line(self.readme, "Moving to CL %s" % cl2)
+
+        # Update using rid
+        subprocess.call("./p2.py edit -r %s --publish --server %s %d" %
+                        (rid, self.rb_url, cl2), shell=True)
+
+        rr = self.rbapi_root.get_review_request(review_request_id=rid)
+        diffs = rr.get_diffs()
+        self.assertEqual(2, len(diffs))
+
+
+        # args = ["./p2.py", "submit", "--server", self.rb_url, str(cl)]
+        # args.append("-f")
+        # subprocess.check_call(args)
 
 if __name__ == '__main__':
     main()
