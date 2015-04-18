@@ -15,6 +15,7 @@ from rbtools.api.client import RBClient
 from rbtools.api.errors import APIError, AuthorizationError
 
 
+
 # Newer versions of Python are more strict about ssl verification
 # and need to have verification turned off
 if hasattr(ssl, '_create_unverified_context'):
@@ -611,7 +612,6 @@ class F5Review(object):
         self.url = url
         self.p4 = p4
         self.change_number = arg_parser.change_number
-        self.rid = arg_parser.rid
         self.debug = arg_parser.debug
         self.shelve = arg_parser.shelve
         self.force = arg_parser.force
@@ -621,7 +621,7 @@ class F5Review(object):
         self.rbt_args = arg_parser.rbt_args
 
         # rid will be accessed through property methods
-        self._rid = None
+        self.rid = arg_parser.rid
 
         # Get api root object
         self.rbt_api = self._get_rbt_api()

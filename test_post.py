@@ -336,12 +336,19 @@ class TestRidAccessor(TestCase):
         self.assertIsNone(f5_review.rid)
 
     def testRidPassed(self):
-        args = ['post', 'create', '-rid', '15' '999']
+        args = ['post', 'create', '--rid', '15', '999']
         post.F5Review._get_rbt_api = self.no_rbt_api
         post.F5Review.get_review_id_from_changenum = self.no_rid_from_cl
         arg_parser = post.RBArgParser(args)
         f5_review = post.F5Review("http://localhost", arg_parser, None)
         self.assertEqual("15", f5_review.rid)
+
+        args = ['post', 'create', '-r', '16', '999']
+        post.F5Review._get_rbt_api = self.no_rbt_api
+        post.F5Review.get_review_id_from_changenum = self.no_rid_from_cl
+        arg_parser = post.RBArgParser(args)
+        f5_review = post.F5Review("http://localhost", arg_parser, None)
+        self.assertEqual("16", f5_review.rid)
 
 
 if __name__ == '__main__':
