@@ -16,6 +16,7 @@ from rbtools.api.errors import APIError, AuthorizationError
 
 
 
+
 # Newer versions of Python are more strict about ssl verification
 # and need to have verification turned off
 if hasattr(ssl, '_create_unverified_context'):
@@ -798,10 +799,11 @@ class F5Review(object):
         raise RBError.
         """
         rr = self.rbt_api.get_review_requests(changenum=self.change_number, status=status)
-        if not rr:
-            return None
+        if len(rr) == 0:
+            raise RBError("Error: No reviews found associated with CL %s.\n"
+                          "Either create a new review or use the --rid option." % self.change_number)
         if len(rr) > 1:
-            raise RBError("Error: found %d reviews associated with %d" % (len(rr), self.change_number))
+            raise RBError("Error: found %d reviews associated with CL %s" % (len(rr), self.change_number))
         return str(rr[0].id)
 
 
