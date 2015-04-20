@@ -265,12 +265,6 @@ class FuncTests(TestCase):
         diffs = rr.get_diffs()
         self.assertEqual(1, len(diffs))
 
-        # TODO: if you want to compare patches, you need to remove the time and date
-        # patch1 = diffs[0].get_patch()
-        # expected_patch = '--- //depot/Jam/MAIN/src/README\t//depot/Jam/MAIN/src/README#32\n+++ //depot/Jam/MAIN/src/README\t2015-04-18 09:26:49\n@@ -156,3 +156,4 @@ Test proper handling of ship its.\n First test case\n Better change\n Test submitting a review with a shelve and no ship its.\n+Test editing a review with a different CL using rid.\n'
-        # actual_path = patch1.data
-        # self.assertEqual(expected_patch, actual_path)
-
         # Move file to a new change list
         change = self.p4.fetch_change()
         change['Description'] = "Use this CL to update %s instead of CL %d" % (rid, cl1)
@@ -287,10 +281,6 @@ class FuncTests(TestCase):
         diffs = rr.get_diffs()
         self.assertEqual(2, len(diffs))
 
-
-        # args = ["./p2.py", "submit", "--server", self.rb_url, str(cl)]
-        # args.append("-f")
-        # subprocess.check_call(args)
 
 if __name__ == '__main__':
     main()
