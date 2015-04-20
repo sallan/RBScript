@@ -17,6 +17,7 @@ from rbtools.api.errors import APIError, AuthorizationError
 
 
 
+
 # Newer versions of Python are more strict about ssl verification
 # and need to have verification turned off
 if hasattr(ssl, '_create_unverified_context'):
@@ -32,6 +33,7 @@ USERNAME = os.environ.get('LOGNAME', os.environ.get('USER', 'UNKNOWN'))
 MSG_FMT = '%s:[PDTOOLS TRACKING]:%%s:%s:%%s' % (USERNAME, os.path.realpath(sys.argv[0]))
 
 # Error codes
+NO_ACTION = 0  # not an error, just print help
 MISSING_RBTOOLS = 1
 UNSUPPORTED_RBTOOLS = 2
 UNSUPPORTED_OS = 3
@@ -40,6 +42,7 @@ CONFIG_ERROR = 5
 UNKNOWN_ACTION = 6
 P4_EXCEPTION = 7
 RB_EXCEPTION = 8
+ARG_PARSER = 9
 
 # Required Versions
 PYTHON_VERSION = (2, 6)
@@ -599,7 +602,7 @@ class P4(object):
 class F5Review(object):
     """Handle creation, updating and submitting of Review Requests"""
 
-    def __init__(self, url, arg_parser, p4):
+    def __init__(self, url, arg_parser):
         """Instantiate F5Review object
 
         url : The url for the server
@@ -610,14 +613,15 @@ class F5Review(object):
         p4 : A P4 object allowing us to talk to the perforce server.
         """
         self.arg_parser = arg_parser
+        self.action = arg_parser.action
         self.url = url
-        self.p4 = p4
         self.change_number = arg_parser.change_number
         self.debug = arg_parser.debug
         self.shelve = arg_parser.shelve
         self.force = arg_parser.force
         self.publish = arg_parser.publish
         self.username = arg_parser.username
+        self.bugs = None
         self.edit_changelist = arg_parser.edit_changelist
         self.rbt_args = arg_parser.rbt_args
 
@@ -696,19 +700,16 @@ class F5Review(object):
         If not a new review will be created.
 
         """
-        if self.change_number is None:
-            self.change_number = self.p4.new_change()
-            self.rbt_args.append(self.change_number)
-        if self.shelve:
-            self.p4.shelve(self.change_number, update=True)
+        extra_args = []
+        if self.bugs:
+            extra_args.extend(['--bugs-closed', ','.join(self.bugs)])
 
-        # If CL has been shelved add the shelve option automatically.
-        self.shelve = self.p4.shelved(self.change_number)
+        if self.action != 'create':
+            extra_args.extend(['--review-request-id', self.rid])
 
-        # Extract bugs from change list Jobs and add to argument list
-        bugs = self.p4.get_jobs(self.change_number)
-        if bugs:
-            self.rbt_args[-1:] = ['--bugs-closed', ','.join(bugs), self.change_number]
+        # Squeeze the extra args in right before the change list number
+        self.rbt_args[-1:-1] = extra_args
+
         p = post.Post()
         if self.debug:
             print self.rbt_args
@@ -735,44 +736,17 @@ class F5Review(object):
             print self.rbt_args
         F5Review.run(d, self.rbt_args)
 
-    def submit(self):
-        """Submit the review
-
-        Submits the review if it meets all criteria and then marks as
-        closed on reviewboard.
-        """
-
-        # Unless the force option is used, we want to block reviews with no ship it or with
-        # only a Review Bot ship it.
-        ship_its = self.get_ship_its()
-        if not self.force:
-            if not ship_its:
-                raise RBError("Review %s has no 'Ship It' reviews. Use --force to submit anyway." % self.rid)
-
-            # The list of ship_its contains unique elements, so check the case where only 1.
-            if len(ship_its) == 1 and 'reviewbot' in ship_its.keys():
-                raise RBError("Review %s has only a Review Bot 'Ship It'. Use --force to submit anyway." % self.rid)
-
-        # If CL is shelved, delete the shelve since the user has already indicated
-        # a clear intention to submit the CL.
-        if self.p4.shelved(self.change_number):
-            self.p4.unshelve(self.change_number)
-
-        # Does the user want to edit the CL before submitting?
-        if self.edit_changelist:
-            self.p4.edit_change(self.change_number)
-
-        # Add reviewers who gave ship its
-        ship_it_list = [ship_its[u] or u for u in ship_its.keys()]
-        if ship_it_list:
-            self.p4.add_reviewboard_shipits(self.change_number, ship_it_list)
-
-        self.p4.submit(self.change_number)
+    def close(self, submitted_change_list=None):
+        """Close the review in Review Board"""
         c = close.Close()
         self.rbt_args.append(self.rid)
         if self.debug:
             print self.rbt_args
         F5Review.run(c, self.rbt_args)
+
+        if submitted_change_list:
+            # TODO: Need to update the change list number in the review
+            pass
 
     def get_ship_its(self):
         """Return hash of users who gave review a ship it.
@@ -787,7 +761,8 @@ class F5Review(object):
             # Make sure these are strings and not unicode or we'll run into problems
             # later when we try to marshall these.
             reviewers[str(user.username)] = ("%s %s" % (str(user.first_name), str(user.last_name))).strip()
-        return reviewers
+        ship_it_list = [reviewers[u] or u for u in reviewers.keys()]
+        return ship_it_list
 
     def get_review_id_from_changenum(self, status="all"):
         """Find review board id associated with change list number.
@@ -902,15 +877,82 @@ def get_url(arg_parser, config_file):
     return url
 
 
+def create_review(f5_review):
+    """Main function for creating a new review request"""
+    p4 = P4()
+    if f5_review.change_number is None:
+        f5_review.change_number = p4.new_change()
+        f5_review.rbt_args.append(f5_review.change_number)
+
+    if f5_review.shelve:
+        p4.shelve(f5_review.change_number, update=True)
+
+    # Extract bugs from change list if any
+    f5_review.bugs = p4.get_jobs(f5_review.change_number)
+
+    f5_review.post()
+
+
+def edit_review(f5_review):
+    """Main function for editing an existing review"""
+    if f5_review.change_number is None:
+        raise RBError("The edit command requires a change list number.")
+
+    # If CL has been shelved add the shelve option automatically.
+    p4 = P4()
+    f5_review.shelve = p4.shelved(f5_review.change_number)
+
+    # Extract bugs from change list if any
+    f5_review.bugs = p4.get_jobs(f5_review.change_number)
+
+    f5_review.post()
+
+
+def submit_review(f5_review):
+    """Main function for submitting change list and closing review."""
+
+    # Unless the force option is used, we want to block reviews with no ship it or with
+    # only a Review Bot ship it.
+    ship_it_list = f5_review.get_ship_its()
+    if not f5_review.force:
+        if not ship_it_list:
+            raise RBError("Review %s has no 'Ship It' reviews. Use --force to submit anyway." % f5_review.rid)
+
+        # The list of ship_its contains unique elements, so check the case where only 1.
+        if len(ship_it_list) == 1 and 'Review Bot' in ship_it_list:
+            raise RBError("Review %s has only a Review Bot 'Ship It'. Use --force to submit anyway." % f5_review.rid)
+
+    # If CL is shelved, delete the shelve since the user has already indicated
+    # a clear intention to submit the CL.
+    p4 = P4()
+    if p4.shelved(f5_review.change_number):
+        p4.unshelve(f5_review.change_number)
+
+    # Does the user want to edit the CL before submitting?
+    if f5_review.edit_changelist:
+        p4.edit_change(f5_review.change_number)
+
+    # Add reviewers who gave ship its
+    if ship_it_list:
+        p4.add_reviewboard_shipits(f5_review.change_number, ship_it_list)
+
+    submitted_change_list = p4.submit(f5_review.change_number)
+    f5_review.close(submitted_change_list)
+
+
+def diff_changes(f5_review):
+    """Print diff to stdout"""
+    raise NotImplementedError
+
 def main():
     try:
         arg_parser = RBArgParser(sys.argv)
     except RBError as e:
         print e.message
-        raise SystemExit(1)
+        raise SystemExit(ARG_PARSER)
     if arg_parser.action is None:
         arg_parser.print_help()
-        raise SystemExit(0)
+        raise SystemExit(NO_ACTION)
 
     # Check the users configuration files. It's not an error
     # if there are none, but it is if we can't access it.
@@ -921,20 +963,21 @@ def main():
         print e
         raise SystemExit(CONFIG_ERROR)
 
+    actions = {
+        "create": create_review,
+        "edit": edit_review,
+        "submit": submit_review,
+        "diff": diff_changes,
+    }
+
+    if arg_parser.action not in actions:
+        print "Unknown action: %s. Try -h for usage." % arg_parser.action
+        raise SystemExit(UNKNOWN_ACTION)
+
     try:
         url = get_url(arg_parser, os.path.join(user_home, RBTOOLS_RC_FILENAME))
-        p4 = P4()
-        f5_review = F5Review(url, arg_parser, p4)
-        if arg_parser.action == 'diff':
-            f5_review.diff()
-        elif arg_parser.action == 'edit':
-            if f5_review.change_number is None:
-                raise RBError("The edit command requires a change list number.")
-            f5_review.post()
-        elif arg_parser.action == 'create':
-            f5_review.post()
-        elif arg_parser.action == 'submit':
-            f5_review.submit()
+        f5_review = F5Review(url, arg_parser)
+        actions[arg_parser.action](f5_review)
     except P4Error as e:
         print e
         raise SystemExit(P4_EXCEPTION)

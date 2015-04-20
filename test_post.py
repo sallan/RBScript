@@ -280,11 +280,13 @@ class TestFindBugs(TestCase):
         self.assertEqual(expected, found)
 
 
+# TODO: Move to functional test suite
+'''
 class TestBlockShipIts(TestCase):
     def setUp(self):
         self.p4 = post.P4(user="sallan", port="localhost:1492", client="sallan-rbscript-test-depot")
         self.arg_parser = post.RBArgParser(['post', 'submit', '999'])
-        self.f5_review = post.F5Review('http://localhost', self.arg_parser, self.p4)
+        self.f5_review = post.F5Review('http://localhost', self.arg_parser)
         self.f5_review.rid = 1
 
     def no_ship_its(self):
@@ -302,7 +304,7 @@ class TestBlockShipIts(TestCase):
         self.f5_review.get_ship_its = self.rbot_ship_it_only
         with self.assertRaises(post.RBError):
             self.f5_review.submit()
-
+'''
 
 class TestConfigFile(TestCase):
     RC_FILE = 'reviewboardrc'
@@ -332,7 +334,7 @@ class TestRidAccessor(TestCase):
         arg_parser = post.RBArgParser(args)
         post.F5Review._get_rbt_api = self.no_rbt_api
         post.F5Review.get_review_id_from_changenum = self.no_rid_from_cl
-        f5_review = post.F5Review("http://localhost", arg_parser, None)
+        f5_review = post.F5Review("http://localhost", arg_parser)
         self.assertIsNone(f5_review.rid)
 
     def testRidPassed(self):
@@ -340,14 +342,14 @@ class TestRidAccessor(TestCase):
         post.F5Review._get_rbt_api = self.no_rbt_api
         post.F5Review.get_review_id_from_changenum = self.no_rid_from_cl
         arg_parser = post.RBArgParser(args)
-        f5_review = post.F5Review("http://localhost", arg_parser, None)
+        f5_review = post.F5Review("http://localhost", arg_parser)
         self.assertEqual("15", f5_review.rid)
 
         args = ['post', 'create', '-r', '16', '999']
         post.F5Review._get_rbt_api = self.no_rbt_api
         post.F5Review.get_review_id_from_changenum = self.no_rid_from_cl
         arg_parser = post.RBArgParser(args)
-        f5_review = post.F5Review("http://localhost", arg_parser, None)
+        f5_review = post.F5Review("http://localhost", arg_parser)
         self.assertEqual("16", f5_review.rid)
 
 
