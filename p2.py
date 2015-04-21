@@ -19,6 +19,7 @@ from rbtools.api.errors import APIError, AuthorizationError
 
 
 
+
 # Newer versions of Python are more strict about ssl verification
 # and need to have verification turned off
 if hasattr(ssl, '_create_unverified_context'):
@@ -129,6 +130,11 @@ class RBArgParser(object):
 
         # The f5_options list holds options that we don't pass on to rbt.
         self.f5_options = ['shelve', 'publish', 'force', 'edit_changelist']
+
+        # rbt uses rid when closing a review instead of cl, so we need
+        # a special case for that.
+        if self.action == "submit":
+            self.f5_options.append("rid")
 
         # These options used by us and rbt
         self.rid = self.opts.rid

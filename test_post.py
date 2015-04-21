@@ -253,6 +253,11 @@ class TestArgParser(TestCase):
         self.assertTrue(arg_parser.edit_changelist)
         self.assertEqual([], arg_parser.rbt_args[2:])
 
+        test_args = ['post', 'submit', '--rid', '12345', '999']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual('12345', arg_parser.rid)
+        self.assertEqual([], arg_parser.rbt_args[2:])
+
     def test_diff_ui(self):
         test_args = ['post', 'diff', '999']
         arg_parser = post.RBArgParser(test_args)

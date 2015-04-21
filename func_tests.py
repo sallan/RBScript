@@ -286,43 +286,9 @@ class FuncTests(TestCase):
         args.append("-f")
         subprocess.check_call(args)
 
-    def test_editing_with_different_cl_and_using_rid(self):
+    def test_editing_and_submitting_with_different_cl(self):
         self.p4.run_edit(self.readme)
-        test_string = 'Test editing a review with a different CL using rid.'
-        self.append_line(self.readme, test_string)
-        change = self.p4.fetch_change()
-        change['Description'] = test_string + "\n"
-        change_output = self.p4.save_change(change)
-        cl1 = int(change_output[0].split()[1])
-        subprocess.call("./p2.py create --publish --server %s --target-people sallan %d" %
-                        (self.rb_url, cl1), shell=True)
-
-        rr = self.get_rr_from_cl(cl1)
-        rid = rr.id
-        self.assertGreater(rid, 0)
-
-        diffs = rr.get_diffs()
-        self.assertEqual(1, len(diffs))
-
-        # Move file to a new change list
-        change = self.p4.fetch_change()
-        change['Description'] = "Use this CL to update %s instead of CL %d" % (rid, cl1)
-        change_output = self.p4.save_change(change)
-        cl2 = int(change_output[0].split()[1])
-        self.p4.run_reopen("-c", cl2, self.readme)
-        self.append_line(self.readme, "Moving to CL %s" % cl2)
-
-        # Update using rid
-        subprocess.call("./p2.py edit -r %s --publish --server %s %d" %
-                        (rid, self.rb_url, cl2), shell=True)
-
-        rr = self.rbapi_root.get_review_request(review_request_id=rid)
-        diffs = rr.get_diffs()
-        self.assertEqual(2, len(diffs))
-
-    def test_editing_with_different_cl_and_no_rid(self):
-        self.p4.run_edit(self.readme)
-        test_string = 'Test editing a review with a different CL without using rid.'
+        test_string = 'Test editing a review with a different CL with and without rid.'
         self.append_line(self.readme, test_string)
         change = self.p4.fetch_change()
         change['Description'] = test_string + "\n"
@@ -350,6 +316,24 @@ class FuncTests(TestCase):
         args = ["./p2.py", "edit", "--server", self.rb_url, str(cl2)]
         with self.assertRaises(subprocess.CalledProcessError):
             subprocess.check_call(args)
+
+        # Update using rid
+        subprocess.call("./p2.py edit -r %s --publish --server %s %d" %
+                        (rid, self.rb_url, cl2), shell=True)
+
+        rr = self.rbapi_root.get_review_request(review_request_id=rid)
+        diffs = rr.get_diffs()
+        self.assertEqual(2, len(diffs))
+
+        # Now attempt to submit without an rid which should fail
+        # The important thing here is the CL should not get submitted.
+        args = ["./p2.py", "submit", "--force", "--server", self.rb_url, str(cl2)]
+        with self.assertRaises(subprocess.CalledProcessError):
+            subprocess.check_call(args)
+
+        # Now try with the rid which should succeed
+        args = ["./p2.py", "submit", "--force", "--rid", str(rid), "--server", self.rb_url, str(cl2)]
+        subprocess.check_call(args)
 
 
 if __name__ == '__main__':
