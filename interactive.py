@@ -112,6 +112,7 @@ announce("Now we'll try editing a review with a new CL.")
 announce("Please re-open review %s" % rid)
 p4_open(file1)
 append_line(file1, "This file needs more work. How did it ever get approved?")
+check_call("p4 change", shell=True)
 announce("First try editing with rid - we should get a helpful message.")
 cl = ask_for_cl()
 try:

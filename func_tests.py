@@ -41,7 +41,7 @@ class FuncTests(TestCase):
         self.p4.run_edit(self.readme)
 
         # Create first review request
-        test_string = 'First test case'
+        test_string = 'Test creating review with jobs and branch.'
         self.append_line(self.readme, test_string)
         change = self.p4.fetch_change()
         change['Description'] = test_string + "\n"
@@ -68,7 +68,7 @@ class FuncTests(TestCase):
         self.assertTrue(rr1.public)
 
         # Create a second review request
-        test_string = 'New release note.'
+        test_string = 'Test creating with 2 jobs.'
         test_jobs = ['job000011', 'job000012']
         self.p4.run_edit(self.relnotes)
         self.append_line(self.relnotes, test_string)
