@@ -4,7 +4,7 @@
    the review with a new CL number.  So, if someone tries to do a
    submit using the new CL, that will fail.  They'll need to use the
    rid and the CL, but since that's how they're creating it, it's not
-   to weird.
+   too weird.
 
    Ah, but the other problem is when you use the --publish option.
    How does rbt handle that?  Handles it fine, because it uses the
@@ -14,13 +14,13 @@
    Now, for the million dollar question - should you update the CL
    when you submit?  I think so.
 
-*** TODO Email rbtools list about having rid option update cl in review
-*** TODO Dev creates a new CL and posts it to an open review
+*** WAITING Email rbtools list about having rid option update cl in review
+*** DONE Dev creates a new CL and posts it to an open review
     This works out of the box with p2 because we pass rid along.
-*** TODO Dev creates a new CL and posts it to an open review with publish option
+*** DONE Dev creates a new CL and posts it to an open review with publish option
     This fails because we now have a CL mismatch and we're not using
     the rid for some reason.
-*** TODO Dev creates a new CL and posts it to a closed review
+*** DONE Dev creates a new CL and posts it to a closed review
     What does rbt do in this case? It doesn't allow it. It tells you
     to reopen it if you really want to do this.
 *** TODO Dev submits one of these beasties and we update the CL in RB
