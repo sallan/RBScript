@@ -18,6 +18,7 @@ from rbtools.api.errors import APIError, AuthorizationError
 
 
 
+
 # Newer versions of Python are more strict about ssl verification
 # and need to have verification turned off
 if hasattr(ssl, '_create_unverified_context'):
@@ -898,8 +899,11 @@ def edit_review(f5_review):
     if f5_review.change_number is None:
         raise RBError("The edit command requires a change list number.")
 
-    # If CL has been shelved add the shelve option automatically.
     p4 = P4()
+    if f5_review.shelve:
+        p4.shelve(f5_review.change_number, update=True)
+
+    # If CL has been shelved add the shelve option automatically.
     f5_review.shelve = p4.shelved(f5_review.change_number)
 
     # Extract bugs from change list if any

@@ -280,32 +280,6 @@ class TestFindBugs(TestCase):
         self.assertEqual(expected, found)
 
 
-# TODO: Move to functional test suite
-'''
-class TestBlockShipIts(TestCase):
-    def setUp(self):
-        self.p4 = post.P4(user="sallan", port="localhost:1492", client="sallan-rbscript-test-depot")
-        self.arg_parser = post.RBArgParser(['post', 'submit', '999'])
-        self.f5_review = post.F5Review('http://localhost', self.arg_parser)
-        self.f5_review.rid = 1
-
-    def no_ship_its(self):
-        return {}
-
-    def rbot_ship_it_only(self):
-        return {'reviewbot': 'Review Bot'}
-
-    def test_no_ship_its(self):
-        self.f5_review.get_ship_its = self.no_ship_its
-        with self.assertRaises(post.RBError):
-            self.f5_review.submit()
-
-    def test_rbot_ship_it_only(self):
-        self.f5_review.get_ship_its = self.rbot_ship_it_only
-        with self.assertRaises(post.RBError):
-            self.f5_review.submit()
-'''
-
 class TestConfigFile(TestCase):
     RC_FILE = 'reviewboardrc'
 
