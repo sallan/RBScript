@@ -28,6 +28,9 @@
     it for the standard use cases. The reason is because our update
     will be immediate and won't require special case code for this.
 
+    This may not be so easy to do. I may have to leave this one in the
+    hands of the RBTools folks.
+
 * Product Backlog
 ** Dev should be able to post a review from the mergeit account
    For this, we need to handle the --username option.
