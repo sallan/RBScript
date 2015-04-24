@@ -25,7 +25,7 @@ class SampleDepot:
 
     def server_stop(self):
         try:
-            self.info()
+            # self.info()
             subprocess.call(["/usr/local/bin/p4", "-p", "1492", "admin", "stop"])
             # TODO: should probably check error code here
             print "Server stopped on port: %s " % self.p4port
@@ -88,7 +88,7 @@ def main():
     p4 = SampleDepot(tarfile, destination)
     p4.server_install()
     p4.server_start()
-    p4.info()
+#    p4.info()
 
 
 if __name__ == "__main__":
