@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 from rbtools.api.client import RBClient
 
 client = RBClient("http://localhost")
