@@ -14,7 +14,6 @@ class FuncTests(TestCase):
         os.environ['P4CONFIG'] = 'p4.config'
         self.p4 = P4()
         self.p4.port = "localhost:1492"
-        self.p4.port = "giles:1492"
         self.p4.user = "sallan"
         self.p4.client = "sallan-rbscript-test-depot"
         self.p4.connect()
