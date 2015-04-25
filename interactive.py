@@ -63,17 +63,21 @@ check_call("p2.py edit --shelve -p %s" % cl1, shell=True)
 pause()
 
 announce("Creating a second review with a branch.")
+
+# Some complications arise when you play with jobs in our production
+# environment.  May turn this on later.
+# announce("Try adding a few Jobs too.")
 p4_open(file2)
-append_line(file2, "Review with a branch")
+append_line(file2, "Review with a branch and maybe some jobs")
 check_call("p2.py create --target-people sallan --branch 'my branch' -p", shell=True)
 pause()
-announce("Now adding 2 jobs")
-cl2 = ask_for_cl()
-jobs = ['job000010', 'job000011']
-for job in jobs:
-    check_call("p4 fix -c %s %s" % (cl2, job), shell=True)
-check_call("p2.py edit -p %s" % cl2, shell=True)
-pause()
+# announce("Now adding 2 jobs")
+# cl2 = ask_for_cl()
+# jobs = ['job000010', 'job000011']
+# for job in jobs:
+#     check_call("p4 fix -c %s %s" % (cl2, job), shell=True)
+# check_call("p2.py edit -p %s" % cl2, shell=True)
+# pause()
 announce("Submit the second review first so first review will get a new CL number")
 check_call("p2.py submit --force %s" % cl2, shell=True)
 pause()
