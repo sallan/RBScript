@@ -15,11 +15,6 @@ from rbtools.api.client import RBClient
 from rbtools.api.errors import APIError, AuthorizationError
 
 
-
-
-
-
-
 # Newer versions of Python are more strict about ssl verification
 # and need to have verification turned off
 if hasattr(ssl, '_create_unverified_context'):
@@ -297,6 +292,30 @@ class P4(object):
             raise P4Error("Could not talk to the perforce server.")
         return p4_info[0]
 
+    def check_output_26(*popenargs, **kwargs):
+        r"""Run command with arguments and return its output as a byte string.
+
+        Backported from Python 2.7 as it's implemented as pure python on stdlib.
+
+        >>> check_output(['/usr/bin/python', '--version'])
+        Python 2.6.2
+
+        I took this code from this repo on git hub:
+        https://gist.github.com/1027906.git
+
+        """
+        process = subprocess.Popen(stdout=subprocess.PIPE, *popenargs, **kwargs)
+        output, unused_err = process.communicate()
+        retcode = process.poll()
+        if retcode:
+            cmd = kwargs.get("args")
+            if cmd is None:
+                cmd = popenargs[0]
+            error = subprocess.CalledProcessError(retcode, cmd)
+            error.output = output
+            raise error
+        return output
+
     def run(self, cmd):
         """Run perforce cmd and return output as a list of output lines."""
 
@@ -311,10 +330,12 @@ class P4(object):
         c += cmd
 
         try:
-            output = subprocess.check_output(c, shell=True)
+            if sys.version_info < (2, 7):
+                output = self.check_output_26(c, shell=True)
+            else:
+                output = subprocess.check_output(c, shell=True)
         except CalledProcessError as e:
             raise P4Error("Perforce command '%s' failed\n%s" % (c, e))
-
         return output.splitlines()
 
     # noinspection PyPep8Naming
@@ -638,7 +659,6 @@ class F5Review(object):
         # Get api root object
         self.rbt_api = self._get_rbt_api()
 
-
     def _get_rbt_api(self):
         # Login if needed and return the api root
         rbclient = RBClient(self.url)
@@ -953,6 +973,7 @@ def submit_review(f5_review):
 def diff_changes(f5_review):
     """Print diff to stdout"""
     raise NotImplementedError
+
 
 def main():
     try:
