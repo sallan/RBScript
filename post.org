@@ -1,12 +1,12 @@
 * Sprint
-** Port all code to python 2.6 and be able to demonstrate
-** Test previous failed case on production server
+** DONE Port all code to python 2.6 and be able to demonstrate
+** TODO Test previous failed case on production server
    When you tested a post to dory with some old config file changes,
    the .gnus file caused an exception. Try that again to verify the
    problem and then try it with RBTools 7. It'd also be nice to know
    why it's failing, though if it goes away with rbt7, I may have to
    let it go.
-** Dev should be able to post a review from the mergeit account
+** TODO Dev should be able to post a review from the mergeit account
    For this, we need to handle the --username option.
 
 ** Working via the rid

@@ -15,6 +15,7 @@ from rbtools.api.client import RBClient
 from rbtools.api.errors import APIError, AuthorizationError
 
 
+
 # Newer versions of Python are more strict about ssl verification
 # and need to have verification turned off
 if hasattr(ssl, '_create_unverified_context'):
@@ -292,7 +293,8 @@ class P4(object):
             raise P4Error("Could not talk to the perforce server.")
         return p4_info[0]
 
-    def check_output_26(self, *popenargs, **kwargs):
+    @staticmethod
+    def check_output_26(*popenargs, **kwargs):
         r"""Run command with arguments and return its output as a byte string.
 
         Backported from Python 2.7 as it's implemented as pure python on stdlib.
@@ -331,7 +333,7 @@ class P4(object):
 
         try:
             if sys.version_info < (2, 7):
-                output = self.check_output_26(c, shell=True)
+                output = P4.check_output_26(c, shell=True)
             else:
                 output = subprocess.check_output(c, shell=True)
         except CalledProcessError as e:
