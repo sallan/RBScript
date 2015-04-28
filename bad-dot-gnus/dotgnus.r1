@@ -1,0 +1,144 @@
+(setq gnus-select-method '(nntp "text.giganews.com"))
+(setq user-full-name "Steve Allan")
+
+;; (setq user-mail-address "seallan50@giganews.com")
+;; (setq mail-host-address "giganews.com")
+;; (setq gnus-local-domain "giganews.com")
+
+;; IMAP settings
+;; With stock gnus, I keep getting 'imap-parse-body 2' errors when I
+;; try reading mail. Using the latest Gnus from git solved the issue.
+;(setq imap-enable-exchange-bug-workaround t)
+;; (setq user-mail-address "sallan@f5.com")
+;; (setq mail-host-address "f5.com")
+;; (setq gnus-local-domain "f5.com")
+
+;; This doesn't work either. Basically, Gnus and IMAP suck together.
+;; Frontier uses your full email address as the user name. Once I made
+;; that change, it now works - pretty nice in fact.
+(setq gnus-secondary-select-methods
+      '((nnimap "Frontier"
+		(nnimap-address "imap.frontier.com")
+		(nnimap-server-port 993)
+		(nnimap-stream ssl))
+	(nnimap "F5"
+ 		(nnimap-address "owa.f5.com")
+		(nnimap-server-port 993)
+ 		(nnimap-stream ssl))))
+
+	;; (nnimap "Gmail"
+	;; 	(nnimap-address "imap.gmail.com")
+	;; 	(nnimap-server-port 993)
+	;; 	(nnimap-stream ssl))))
+
+
+;; (setq gnus-secondary-select-methods
+;;       '((nnimap "F5"
+;;  		(nnimap-address "owa.f5.com")
+;; 		(nnimap-server-port 993)
+;;  		(nnimap-stream ssl))
+;; 	(nnimap "Gmail"
+;; 		(nnimap-address "imap.gmail.com")
+;; 		(nnimap-server-port 993)
+;; 		(nnimap-stream ssl))))
+
+;; (setq gnus-secondary-select-methods
+;;       '((nnimap "F5"
+;;  		(nnimap-address "owa.f5.com")
+;; 		(nnimap-server-port 993)
+;;  		(nnimap-stream ssl))))
+
+
+;;; Spent most of the afternoon trying to get this to work - no luck.
+;;; I think I'm close, but I can't get dovecot to do anything.
+;; Trying offlineimap which syncs imap folders to maildir folders.
+;; (setq gnus-secondary-select-methods
+;;       '((nnmaildir "F5"
+;; 		   (directory "~/Maildir"))))
+
+;; Trying offlineimap with dovecot
+;; (setq gnus-secondary-select-methods
+;;       '((nnimap "F5"
+;;   		(nnimap-address "localhost")
+;;   		(nnimap-stream network)
+;; 		(nnimap-authenticator login))))
+(setq gnus-posting-styles 
+      '((".*"
+	 (name "Steve Allan")
+	 (address "sallan@f5.com")
+	 (organization "F5 Networks"))))
+
+;; Store sent mail locally instead of on server. I rarely use it anyway.
+;;(setq gnus-message-archive-group "nnimap+F5:Sent Items")
+
+;; SMTP settings
+;; (setenv "SMTPHOST" "owa.f5.com")
+;; (setenv "SMTPSERVER" "owa.f5.com")
+;; (setq smtpmail-smtp-server "automail.f5.com")
+;; (setq smtpmail-smtp-service "smtp")
+;; (setq send-mail-function 'smtpmail-send-it)
+;; (setq message-send-mail-function 'smtpmail-send-it)
+(setq message-send-mail-function 'smtpmail-send-it
+      smtpmail-default-smtp-server "owa.f5.com"
+      smtpmail-mail-address "sallan@f5.com")
+      
+      
+;; Cache ticked articles so they don't get expired
+(setq gnus-use-cache t)
+
+;; movement
+(setq gnus-summary-goto-unread nil)
+
+;: turn on topic mode
+(add-hook 'gnus-group-mode-hook 'gnus-topic-mode)
+
+;; don't read active file on startup
+(setq gnus-read-active-file 'some)
+
+;; Customize summary format
+;; I've resisted spending the time to grok all these format specifiers
+;; and instead of stolen these from the web.
+;;
+;; The default string is: %U%R%z%I%(%[%4L: %-20,20n%]%) %s\n
+
+;; This one is compact and clean
+(setq gnus-summary-line-format 
+      "%-1R %-1U  %-15,15n | %2,2~(cut 4)o/%2,2~(cut 6)o %2,2~(cut 9)o:%2,2~(cut 11)o | %I%(%0,80s%)\n"
+      gnus-summary-same-subject ">>>"
+      gnus-summary-mode-line-format "%V: %%b")
+
+;; The black and white, bold fonts make this one hard on the eyes.
+;; (setq gnus-summary-line-format
+;;       (concat
+;;        "%0{%U%R%z%}"
+;;        "%3{│%}" "%1{%~(pad-right 9)&user-date;%}" "%3{│%}" ;; date
+;;        "  "
+;;        "%4{%-20,20f%}"               ;; name
+;;        "  "
+;;        "%3{│%}"
+;;        " "
+;;        "%1{%B%}"
+;;        "%s\n"))
+
+;; what to do with html messages
+(setq mm-text-html-renderer 'w3m
+      mm-inline-text-html-with-images t
+      mm-inline-large-images nil)
+
+;; Use abook for email addresses
+(require 'external-abook)
+(setq external-abook-command "abook --mutt-query '%s'")
+(eval-after-load "message" 
+  '(progn 
+     (add-to-list 'message-mode-hook 
+		  '(lambda ()
+		     (auto-fill-mode)
+		     (define-key message-mode-map (kbd "C-c a")
+		       'external-abook-try-expand)))))
+
+;; Get mail for group 1 automatically
+(gnus-demon-add-handler 'gnus-group-get-new-news 1 t)
+(gnus-demon-init)
+
+;; Compile user settings to speed things up a bit.
+(gnus-compile)
