@@ -4,7 +4,7 @@ import subprocess
 from unittest import TestCase
 from unittest import main
 
-from P4 import P4
+from P4 import P4, P4Exception
 from rbtools.api.client import RBClient
 
 
@@ -310,6 +310,68 @@ class FuncTests(TestCase):
         # Now try with the rid which should succeed
         args = ["./p2.py", "submit", "--force", "--rid", str(rid), "--server", self.rb_url, str(cl2)]
         subprocess.check_call(args)
+
+    def Xtest_post_as_different_user(self):
+        # We can't create a new user on RB via the API, so instead we'll create
+        # a change list as a different p4 user.  This more closely matches the
+        # mergeit case anyway. Plus it avoids authentication issues during the test.
+
+        # Create new client workspace for mergeit
+        client_root = os.path.join(self.workdir, "mergeit")
+        p4_mergeit = P4()
+        p4_mergeit.user = 'mergeit'
+        p4_mergeit.port = self.p4.port
+        p4_mergeit.client = 'mergeit-rbscript-test-depot'
+        try:
+            p4_mergeit.connect()
+            client = p4_mergeit.fetch_client("-t", self.p4.client)
+            client._root = client_root
+            p4_mergeit.save_client(client)
+            p4_mergeit.run_sync()
+        except P4Exception:
+            # we don't care about warnings, just errors
+            if p4_mergeit.errors:
+                for e in p4_mergeit.errors:
+                    print e
+                self.fail("P4 errors killed test.")
+
+        # Now edit file and create CL
+        filename = os.path.join(client_root, "readme.txt")
+        p4_mergeit.run_edit(filename)
+        test_string = 'Test creating review with p4 user set to mergeit.'
+        self.append_line(filename, test_string)
+        change = p4_mergeit.fetch_change()
+        change['Description'] = test_string + "\n"
+        change_output = p4_mergeit.save_change(change)
+        change_number = int(change_output[0].split()[1])
+        subprocess.call("./p2.py create --username sallan --server %s --target-people sallan %d -p" %
+                        (self.rb_url, change_number), shell=True)
+        rr1 = self.get_rr_from_cl(change_number)
+        self.assertEqual('sallan', rr1.get_submitter().username)
+        self.assertEqual(test_string, rr1.summary)
+        self.assertEqual(change_number, rr1.changenum)
+        self.assertEqual('pending', rr1.status)
+        self.assertTrue(rr1.public)
+
+        '''
+        # Edit first rr
+        self.append_line(self.readme, 'Better change')
+        subprocess.call("./p2.py edit --server %s %s" % (self.rb_url, cl1), shell=True)
+        draft = rr1.get_draft()
+        self.assertFalse(draft.public)
+        draft.update(public=True)
+        rr1 = self.get_rr_from_cl(cl1)
+        self.assertTrue(rr1.public)
+        '''
+
+        # Submit
+        subprocess.call("./p2.py submit --username sallan --server %s %s -f" % (self.rb_url, change_number), shell=True)
+        rr1 = self.get_rr_from_cl(change_number)
+        self.assertEqual('sallan', rr1.get_submitter().username)
+        self.assertTrue(rr1.public)
+        self.assertEqual('submitted', rr1.status)
+
+        p4_mergeit.disconnect()
 
 
 if __name__ == '__main__':
