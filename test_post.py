@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 from unittest import TestCase
 from unittest import main
@@ -16,12 +16,11 @@ class TestArgParser(TestCase):
         test_args = ['post', 'create']
         arg_parser = post.RBArgParser(test_args)
         self.assertEqual('create', arg_parser.action)
-        self.assertIsNone(arg_parser.change_number)
+        self.assertEqual(None, arg_parser.change_number)
 
         # Any other action without CL raises exception
         test_args = ['post', 'edit']
-        with self.assertRaises(post.RBError):
-            post.RBArgParser(test_args)
+        self.assertRaises(post.RBError, post.RBArgParser, test_args)
 
         # Action and CL can be in any order
         test_args = ['post', 'create', '999']
@@ -36,11 +35,9 @@ class TestArgParser(TestCase):
 
         # What if we get multiple change lists or actions?
         test_args = ['post', 'edit', '999', 'create']
-        with self.assertRaises(post.RBError):
-            post.RBArgParser(test_args)
+        self.assertRaises(post.RBError, post.RBArgParser, test_args)
         test_args = ['post', '999', 'create', '123']
-        with self.assertRaises(post.RBError):
-            post.RBArgParser(test_args)
+        self.assertRaises(post.RBError, post.RBArgParser, test_args)
 
     def test_options_only(self):
         # NOTE: Need to pass an action and change list to avoid exception.
@@ -155,7 +152,7 @@ class TestArgParser(TestCase):
         test_args = ['post', 'create']
         arg_parser = post.RBArgParser(test_args)
         self.assertEqual("create", arg_parser.action)
-        self.assertIsNone(arg_parser.change_number)
+        self.assertEqual(None, arg_parser.change_number)
 
         test_args = ['post', 'create', '999']
         arg_parser = post.RBArgParser(test_args)
@@ -199,8 +196,7 @@ class TestArgParser(TestCase):
         self.assertEqual(arg_parser.rbt_args[2:], ['--debug', '999'])
 
         test_args = ['create', '999', '--server', 'http://rb', '999', '--debug', '999']
-        with self.assertRaises(post.RBError):
-            post.RBArgParser(test_args)
+        self.assertRaises(post.RBError, post.RBArgParser, test_args)
 
     def test_edit_ui(self):
         test_args = ['post', 'edit', '999']
@@ -223,8 +219,7 @@ class TestArgParser(TestCase):
 
     def test_submit_ui(self):
         test_args = ['post', 'submit']
-        with self.assertRaises(post.RBError):
-            post.RBArgParser(test_args)
+        self.assertRaises(post.RBError, post.RBArgParser, test_args)
 
         test_args = ['post', 'submit', '999']
         arg_parser = post.RBArgParser(test_args)
@@ -314,7 +309,7 @@ class TestRidAccessor(TestCase):
         post.F5Review._get_rbt_api = self.no_rbt_api
         post.F5Review.get_review_id_from_changenum = self.no_rid_from_cl
         f5_review = post.F5Review("http://localhost", arg_parser)
-        self.assertIsNone(f5_review.rid)
+        self.assertEqual(None, f5_review.rid)
 
     def testRidPassed(self):
         args = ['post', 'create', '--rid', '15', '999']

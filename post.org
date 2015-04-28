@@ -1,40 +1,28 @@
 * Sprint
-** Dev should be able to post to an existing review using rid with a different CL
-   One bit of complication here is that rbt does not update the CL in
-   the review with a new CL number.  So, if someone tries to do a
-   submit using the new CL, that will fail.  They'll need to use the
-   rid and the CL, but since that's how they're creating it, it's not
-   too weird.
+** Port all code to python 2.6 and be able to demonstrate
+** Test previous failed case on production server
+   When you tested a post to dory with some old config file changes,
+   the .gnus file caused an exception. Try that again to verify the
+   problem and then try it with RBTools 7. It'd also be nice to know
+   why it's failing, though if it goes away with rbt7, I may have to
+   let it go.
+** Dev should be able to post a review from the mergeit account
+   For this, we need to handle the --username option.
 
-   Ah, but the other problem is when you use the --publish option.
-   How does rbt handle that?  Handles it fine, because it uses the
-   rid. You should too.
-
-
-   Now, for the million dollar question - should you update the CL
-   when you submit?  I think so.
-
-*** WAITING Email rbtools list about having rid option update cl in review
-*** DONE Dev creates a new CL and posts it to an open review
-    This works out of the box with p2 because we pass rid along.
-*** DONE Dev creates a new CL and posts it to an open review with publish option
-    This fails because we now have a CL mismatch and we're not using
-    the rid for some reason.
-*** DONE Dev creates a new CL and posts it to a closed review
-    What does rbt do in this case? It doesn't allow it. It tells you
-    to reopen it if you really want to do this.
-*** TODO Dev submits one of these beasties and we update the CL in RB
+** Working via the rid
+*** TODO Dev submits a review with a different CL using rid and we update the CL in RB
     We should really just do this on all review even though RB does
     it for the standard use cases. The reason is because our update
     will be immediate and won't require special case code for this.
 
     This may not be so easy to do. I may have to leave this one in the
     hands of the RBTools folks.
+**** TODO This may be fixed by the upstream rbtools project. Need to file a bug
+     But you don't know how long it will take them to fix it, so you
+     may still want to see if you can update the CL yourself.
 
 * Product Backlog
-** Dev should be able to post a review from the mergeit account
-   For this, we need to handle the --username option.
-
+** Dev should be able to create new review from submitted CL or range of CLs
 ** Dev should be able to have review automatically open in browser
 
 ** The developer should be able to 'submit' a review that was never published
@@ -77,6 +65,31 @@ rbtools.commands.CommandError: Error getting review request 819: Object does not
 
 
 * Done
+** DONE Dev should be able to post to an existing review using rid with a different CL
+   One bit of complication here is that rbt does not update the CL in
+   the review with a new CL number.  So, if someone tries to do a
+   submit using the new CL, that will fail.  They'll need to use the
+   rid and the CL, but since that's how they're creating it, it's not
+   too weird.
+
+   Ah, but the other problem is when you use the --publish option.
+   How does rbt handle that?  Handles it fine, because it uses the
+   rid. You should too.
+
+
+   Now, for the million dollar question - should you update the CL
+   when you submit?  I think so.
+
+*** DONE Email rbtools list about having rid option update cl in review
+*** DONE Dev creates a new CL and posts it to an open review
+    This works out of the box with p2 because we pass rid along.
+*** DONE Dev creates a new CL and posts it to an open review with publish option
+    This fails because we now have a CL mismatch and we're not using
+    the rid for some reason.
+*** DONE Dev creates a new CL and posts it to a closed review
+    What does rbt do in this case? It doesn't allow it. It tells you
+    to reopen it if you really want to do this.
+
 ** DONE Dev should be able to submit a review with a shelve
 
 ** DONE The developer should not have to use the --shelve option if the CL has already been shelved.     
