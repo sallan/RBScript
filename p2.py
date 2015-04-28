@@ -292,7 +292,7 @@ class P4(object):
             raise P4Error("Could not talk to the perforce server.")
         return p4_info[0]
 
-    def check_output_26(*popenargs, **kwargs):
+    def check_output_26(self, *popenargs, **kwargs):
         r"""Run command with arguments and return its output as a byte string.
 
         Backported from Python 2.7 as it's implemented as pure python on stdlib.
