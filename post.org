@@ -6,10 +6,28 @@
    problem and then try it with RBTools 7. It'd also be nice to know
    why it's failing, though if it goes away with rbt7, I may have to
    let it go.
-** TODO Dev should be able to post a review from the mergeit account
+
+   I've reproduced this on rb2.0.15 with rbtools 0.7.  Need to file a
+   bug report.  Also need to see if the old post/rb2 has the same
+   problem. If so, I can punt it.
+
+   - [ ] RBTools 0.5, RB 1.7
+   - [ ] RBTools 0.7  RB 1.7
+   - [ ] RBtools 0.7  RB 2.0
+
+
+** DONE Dev should be able to post a review from the mergeit account
    For this, we need to handle the --username option.
 
-** Working via the rid
+   This works pretty much out of the box.  A few oddities:
+
+   - Even if you have a valid cookie, you will always be prompted when you use --username
+   - If you have a valid cookie, you can provide anything for a password and it will work
+
+That last item is a bug which you need to file with rbtools.  But to
+the extent that you properly pass username to rbt, this is done.
+
+** TODO Working via the rid
 *** TODO Dev submits a review with a different CL using rid and we update the CL in RB
     We should really just do this on all review even though RB does
     it for the standard use cases. The reason is because our update
