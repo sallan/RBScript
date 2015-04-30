@@ -1,6 +1,6 @@
 * Sprint
 ** DONE Port all code to python 2.6 and be able to demonstrate
-** TODO Test previous failed case on production server
+** DONE Test previous failed case on production server
    When you tested a post to dory with some old config file changes,
    the .gnus file caused an exception. Try that again to verify the
    problem and then try it with RBTools 7. It'd also be nice to know
@@ -18,9 +18,15 @@
 
 
    So, now you're going to have to consider pairing up RB 2.0 with
-   RBTools 0.6.3 until this bug is fixed.
+   RBTools 0.6.3 until this bug is fixed.  
 
-** DONE Dev should be able to post a review from the mergeit account
+   I've tested RBTools 0.6.3 successfully against 1.7.28 and
+   2.0.15. We should plan to roll out the new rbt with RBTools 0.6.3
+   while 1.7.28 is still in service. Then we can concentrate on 2.0
+   updgrade issues.
+
+
+** TODO Dev should be able to post a review from the mergeit account
    For this, we need to handle the --username option.
 
    This works pretty much out of the box.  A few oddities:
@@ -28,8 +34,29 @@
    - Even if you have a valid cookie, you will always be prompted when you use --username
    - If you have a valid cookie, you can provide anything for a password and it will work
 
-That last item is a bug which you need to file with rbtools.  But to
-the extent that you properly pass username to rbt, this is done.
+   That last item is a bug which you need to file with rbtools.  But to
+   the extent that you properly pass username to rbt, this is done.
+
+   On second thought, this needs more baking. In particular, I want to
+   test out the --submit-as option more thoroughly.  Try this
+
+*** TODO Create new linux user mergeit with no RB account
+
+*** TODO Try posting from there as sallan with the --submit-as option
+
+*** TODO Create new user buffy with an RB account
+
+*** TODO Have buffy try posting as uid mergeit WITHOUT the --submit-as option.
+
+*** TODO Have buffy try posting as uid mergeit with the --submit-as option.
+
+    Depending on the results of those tests, we may want to consider
+    some alternatives, such as
+
+    - Create a mergeit account in RB
+    - Write a wrapper script for post merges as mergeit that handles
+      the authentication. Maybe review the old post-merge-review script.
+
 
 ** TODO Working via the rid
 *** TODO Dev submits a review with a different CL using rid and we update the CL in RB
