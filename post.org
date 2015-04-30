@@ -11,10 +11,14 @@
    bug report.  Also need to see if the old post/rb2 has the same
    problem. If so, I can punt it.
 
-   - [ ] RBTools 0.5, RB 1.7
-   - [ ] RBTools 0.7  RB 1.7
-   - [ ] RBtools 0.7  RB 2.0
+   - RBTools 0.5, RB 1.7 :: good
+   - RBTools 0.6.3 RB 1.7 :: good
+   - RBTools 0.7.1  RB 1.7 :: bad
+   - RBtools 0.7.2  RB 1.7 :: bad
 
+
+   So, now you're going to have to consider pairing up RB 2.0 with
+   RBTools 0.6.3 until this bug is fixed.
 
 ** DONE Dev should be able to post a review from the mergeit account
    For this, we need to handle the --username option.
