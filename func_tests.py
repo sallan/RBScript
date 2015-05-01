@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+import shutil
 import subprocess
 from unittest import TestCase
 from unittest import main
@@ -38,7 +39,6 @@ class FuncTests(TestCase):
             f.write(line + "\n")
 
     def create_new_change(self, filename, test_string):
-        self.append_line(filename, test_string)
         change = self.p4.fetch_change()
         change['Description'] = test_string + "\n"
         change_output = self.p4.save_change(change)
@@ -50,6 +50,7 @@ class FuncTests(TestCase):
 
         # Create first review request
         test_string = 'Test creating review with jobs and branch.'
+        self.append_line(self.readme, test_string)
         cl1 = self.create_new_change(self.readme, test_string)
         self.p4.run('fix', '-c', cl1, 'job000010')
         subprocess.call("./p2.py create --server %s --target-people sallan %d -p --branch mybranch" %
@@ -75,6 +76,7 @@ class FuncTests(TestCase):
         test_string = 'Test creating with 2 jobs.'
         test_jobs = ['job000011', 'job000012']
         self.p4.run_edit(self.relnotes)
+        self.append_line(self.relnotes, test_string)
         cl2 = self.create_new_change(self.relnotes, test_string)
         for job in test_jobs:
             self.p4.run('fix', '-c', cl2, job)
@@ -111,6 +113,7 @@ class FuncTests(TestCase):
     def test_handling_ship_its(self):
         self.p4.run_edit(self.readme)
         test_string = 'Test proper handling of ship its.'
+        self.append_line(self.readme, test_string)
         cl = self.create_new_change(self.readme, test_string)
         subprocess.call("./p2.py create --server %s --target-people sallan %d -p --branch mybranch" %
                         (self.rb_url, cl), shell=True)
@@ -127,7 +130,7 @@ class FuncTests(TestCase):
         args = ["./p2.py", "submit", "--server", self.rb_url, str(cl)]
         self.assertRaises(subprocess.CalledProcessError, subprocess.check_call, args)
         # with self.assertRaises(subprocess.CalledProcessError):
-        #     subprocess.check_call(args)
+        # subprocess.check_call(args)
 
         # Now add a ship it and submit again
         review = rr.get_reviews().create()
@@ -146,6 +149,7 @@ class FuncTests(TestCase):
     def test_handling_shelves_without_publish(self):
         self.p4.run_edit(self.readme)
         test_string = 'Test creating a shelve.'
+        self.append_line(self.readme, test_string)
         cl = self.create_new_change(self.readme, test_string)
         subprocess.call("./p2.py create --shelve --server %s --target-people sallan %d" %
                         (self.rb_url, cl), shell=True)
@@ -167,6 +171,7 @@ class FuncTests(TestCase):
     def test_handling_shelves_with_publish(self):
         self.p4.run_edit(self.readme)
         test_string = 'Test creating and publishing a shelve.'
+        self.append_line(self.readme, test_string)
         cl = self.create_new_change(self.readme, test_string)
         subprocess.call("./p2.py create --publish --shelve --server %s --target-people sallan %d" %
                         (self.rb_url, cl), shell=True)
@@ -183,6 +188,7 @@ class FuncTests(TestCase):
     def test_creating_and_editing_review_with_shelve(self):
         self.p4.run_edit(self.readme)
         test_string = 'Test creating and editing a review with a shelve.'
+        self.append_line(self.readme, test_string)
         cl = self.create_new_change(self.readme, test_string)
         subprocess.call("./p2.py create --publish --shelve --server %s --target-people sallan %d" %
                         (self.rb_url, cl), shell=True)
@@ -215,6 +221,7 @@ class FuncTests(TestCase):
     def test_adding_shelve_to_review_without_a_shelve(self):
         self.p4.run_edit(self.readme)
         test_string = 'Test adding a shelve to a review with no shelve.'
+        self.append_line(self.readme, test_string)
         cl = self.create_new_change(self.readme, test_string)
         subprocess.call("./p2.py create --publish --server %s --target-people sallan %d" %
                         (self.rb_url, cl), shell=True)
@@ -249,6 +256,7 @@ class FuncTests(TestCase):
     def test_submitting_with_shelve_and_no_shipit(self):
         self.p4.run_edit(self.readme)
         test_string = 'Test submitting a review with a shelve and no ship its.'
+        self.append_line(self.readme, test_string)
         cl = self.create_new_change(self.readme, test_string)
         subprocess.call("./p2.py create --publish --shelve --server %s --target-people sallan %d" %
                         (self.rb_url, cl), shell=True)
@@ -261,7 +269,7 @@ class FuncTests(TestCase):
         args = ["./p2.py", "submit", "--server", self.rb_url, str(cl)]
         self.assertRaises(subprocess.CalledProcessError, subprocess.check_call, args)
         # with self.assertRaises(subprocess.CalledProcessError):
-        #     subprocess.check_call(args)
+        # subprocess.check_call(args)
 
         args.append("-f")
         subprocess.check_call(args)
@@ -269,6 +277,7 @@ class FuncTests(TestCase):
     def test_editing_and_submitting_with_different_cl(self):
         self.p4.run_edit(self.readme)
         test_string = 'Test editing a review with a different CL with and without rid.'
+        self.append_line(self.readme, test_string)
         cl1 = self.create_new_change(self.readme, test_string)
         subprocess.call("./p2.py create --publish --server %s --target-people sallan %d" %
                         (self.rb_url, cl1), shell=True)
@@ -282,6 +291,7 @@ class FuncTests(TestCase):
 
         # Move file to a new change list
         test_string = "Use this CL to update %s instead of CL %d" % (rid, cl1)
+        self.append_line(self.readme, test_string)
         cl2 = self.create_new_change(self.readme, test_string)
         self.p4.run_reopen("-c", cl2, self.readme)
         self.append_line(self.readme, "Moving to CL %s" % cl2)
@@ -290,7 +300,7 @@ class FuncTests(TestCase):
         args = ["./p2.py", "edit", "--server", self.rb_url, str(cl2)]
         self.assertRaises(subprocess.CalledProcessError, subprocess.check_call, args)
         # with self.assertRaises(subprocess.CalledProcessError):
-        #     subprocess.check_call(args)
+        # subprocess.check_call(args)
 
         # Update using rid
         subprocess.call("./p2.py edit -r %s --publish --server %s %d" %
@@ -310,6 +320,40 @@ class FuncTests(TestCase):
         # Now try with the rid which should succeed
         args = ["./p2.py", "submit", "--force", "--rid", str(rid), "--server", self.rb_url, str(cl2)]
         subprocess.check_call(args)
+
+    def test_unicode_ord_value_bug(self):
+        # RBTools 0.7.0-2 have a bug where an attempt to post a review can sometimes
+        # trigger this error:
+        #
+        # CRITICAL:root:'ascii' codec can't decode byte 0xe2 in position 4186: ordinal not in range(128)
+        # CRITICAL: 'ascii' codec can't decode byte 0xe2 in position 4186: ordinal not in range(128)
+        #
+        # This test passes with RBTools 0.6.3, and will hopefully pass in a newer version of 0.7.
+        #
+        # It's issue number 3843, long ugly link below:
+        # https://code.google.com/p/reviewboard/issues/detail?id=3843&q=allan&colspec=ID%20Type%20Status%20Priority%20Component%20Owner%20Summary%20Milestone
+
+        # Add dotgnus rev 1 to perforce - remove old one if it exists
+        dot_gnus_file = os.path.join(self.workdir, "dotgnus")
+        if os.path.isfile(dot_gnus_file):
+            os.remove(dot_gnus_file)
+        shutil.copyfile(os.path.join(self.workdir, "bad-dot-gnus", "dotgnus.r1"), dot_gnus_file)
+        self.p4.run_add(dot_gnus_file)
+        self.p4.run_submit("-d", "dotgnus file")
+
+        # Edit with rev 2
+        self.p4.run_edit(dot_gnus_file)
+        shutil.copyfile(os.path.join(self.workdir, "bad-dot-gnus", "dotgnus.r2"), dot_gnus_file)
+        cl = self.create_new_change(dot_gnus_file, "Test unicode ord value bug")
+
+        # post review
+        subprocess.call("./p2.py create --server %s --target-people sallan %d -p" %
+                        (self.rb_url, cl), shell=True)
+
+        # See if we get a rr
+        rr = self.get_rr_from_cl(cl)
+        self.assertEqual(cl, rr.changenum)
+        subprocess.call("./p2.py submit --server %s %d -f" % (self.rb_url, cl), shell=True)
 
     def Xtest_post_as_different_user(self):
         # We can't create a new user on RB via the API, so instead we'll create

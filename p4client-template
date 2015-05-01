@@ -20,4 +20,5 @@ LineEnd:	local
 View:
 	//depot/Jam/MAIN/src/README //sallan-rbscript-test-depot/readme.txt
 	//depot/Jam/MAIN/src/RELNOTES //sallan-rbscript-test-depot/relnotes.txt
+	//depot/Jam/MAIN/src/dotgnus //sallan-rbscript-test-depot/dotgnus
 
