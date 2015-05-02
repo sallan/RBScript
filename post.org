@@ -1,5 +1,15 @@
 * Sprint
 ** TODO Dev should be able to post a review from the mergeit account
+
+   Okay, the stuff below is the running dialog.  Here's what I decided
+   to do: Whenever the --username is used, have post delete the
+   .rbtools-cookies file.
+
+   I decided to use --username instead of --submit-as because that's
+   what people are used to using with post-review.
+
+*** Whiteboard:
+   
    For this, we need to handle the --username option.
 
    This works pretty much out of the box.  A few oddities:
@@ -26,6 +36,7 @@
      - Write a wrapper script for post merges as mergeit that handles
        the authentication. Maybe review the old post-merge-review
        script.
+
 
 ** Working via the rid
 *** TODO Dev submits a review with a different CL using rid and we update the CL in RB
