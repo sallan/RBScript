@@ -33,9 +33,13 @@ def setup_ws(user, ws_name, dirname):
         p4.user = user
         p4.port = P4_PORT
         p4.client = ws_name
+        p4.connect()
         try:
-            p4.connect()
             p4.run_client("-f", "-d", ws_name)
+        except P4Exception:
+            # I don't care if the old client wasn't deleted.
+            pass
+        try:
             client = p4.fetch_client("-t", "sallan-rbscript-test-depot")
             client._root = dirname
             p4.save_client(client)
