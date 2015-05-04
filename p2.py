@@ -16,6 +16,7 @@ from rbtools.api.errors import APIError, AuthorizationError
 
 
 
+
 # Newer versions of Python are more strict about ssl verification
 # and need to have verification turned off
 if hasattr(ssl, '_create_unverified_context'):
@@ -24,6 +25,8 @@ if hasattr(ssl, '_create_unverified_context'):
 
 POST_VERSION = "2.0"
 RBTOOLS_RC_FILENAME = ".reviewboardrc"
+RBTOOLS_COOKIE_FILENAME = ".rbtools-cookies"
+SHARED_USER_ACCOUNTS = ['mergeit']
 
 # PDTools usage tracking
 LOGHOST = ("REMOVED", "FIXME")
@@ -661,6 +664,11 @@ class F5Review(object):
         # Get api root object
         self.rbt_api = self._get_rbt_api()
 
+        # Get user name running this script
+        self.running_as = getpass.getuser()
+        self.rbtools_cookies_file = os.path.join(
+            os.path.expanduser("~" + self.running_as), RBTOOLS_COOKIE_FILENAME)
+
     def _get_rbt_api(self):
         # Login if needed and return the api root
         rbclient = RBClient(self.url)
@@ -713,14 +721,20 @@ class F5Review(object):
             raise RBError("Failed to retrieve review number %s." % self.rid)
         return review_request
 
-    @staticmethod
-    def run(client, args):
+    def run(self, client, args):
         """Call the run_from_argv function and catch SystemExit"""
         try:
             client.run_from_argv(args)
         except SystemExit as e:
             if e.code != 0:
                 raise RBError(e)
+        finally:
+            # If this is a shared account, we don't want to leave
+            # an authentication cookie behind so delete the cookie
+            # file.
+            if self.running_as in SHARED_USER_ACCOUNTS:
+                if os.path.isfile(self.rbtools_cookies_file):
+                    os.remove(self.rbtools_cookies_file)
 
     def post(self):
         """Post a review to the review board server
@@ -744,7 +758,7 @@ class F5Review(object):
             print self.rbt_args
 
         # Call the client run method to post the review
-        F5Review.run(p, self.rbt_args)
+        self.run(p, self.rbt_args)
 
         if self.shelve:
             shelve_message = "This change has been shelved in changeset %s. " % self.change_number
@@ -763,7 +777,7 @@ class F5Review(object):
         d = diff.Diff()
         if self.debug:
             print self.rbt_args
-        F5Review.run(d, self.rbt_args)
+        self.run(d, self.rbt_args)
 
     def close(self, submitted_change_list=None):
         """Close the review in Review Board"""
@@ -771,7 +785,7 @@ class F5Review(object):
         self.rbt_args.append(self.rid)
         if self.debug:
             print self.rbt_args
-        F5Review.run(c, self.rbt_args)
+        self.run(c, self.rbt_args)
 
         if submitted_change_list:
             # TODO: Need to update the change list number in the review

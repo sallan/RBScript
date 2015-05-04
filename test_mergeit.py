@@ -69,7 +69,8 @@ def create_review(user, ws, ws_name, filename):
     with open(filename, 'a') as f:
         f.write(test_string)
     cl = create_new_change(p4, test_string)
-    subprocess.check_call("rbt post --server %s --submit-as %s %s" % (RB_URL, user, cl), shell=True)
+    # subprocess.check_call("rbt post --server %s --submit-as %s %s" % (RB_URL, user, cl), shell=True)
+    subprocess.check_call("p2.py create --server %s --username %s %s" % (RB_URL, user, cl), shell=True)
 
 
 if __name__ == "__main__":
@@ -88,8 +89,13 @@ if __name__ == "__main__":
 
     print "Creating review as buffy"
     create_review("buffy", buffy_ws, 'buffy-as-mergeit', os.path.join(buffy_ws, 'readme.txt'))
+    print "Ensuring that the cookies file is gone."
+    assert not os.path.isfile(rbcookies_file)
+
     print "Creating review as sallan"
     create_review("sallan", sallan_ws, 'sallan-as-mergeit', os.path.join(sallan_ws, 'relnotes.txt'))
+    print "Ensuring that the cookies file is gone."
+    assert not os.path.isfile(rbcookies_file)
 
     print "See if buffy and sallan both have reviews"
 
