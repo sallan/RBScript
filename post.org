@@ -1,5 +1,5 @@
 * Sprint
-** TODO Dev should be able to post a review from the mergeit account
+** DONE Dev should be able to post a review from the mergeit account
 
    Okay, the stuff below is the running dialog.  Here's what I decided
    to do: Whenever the --username is used, have post delete the
@@ -23,11 +23,11 @@
    On second thought, this needs more baking. In particular, I want to
    test out the --submit-as option more thoroughly.  Try this
 
-   - [ ] Create new linux user mergeit with no RB account
-   - [ ] Try posting from there as sallan with the --submit-as option
-   - [ ] Create new user buffy with an RB account
-   - [ ] Have buffy try posting as uid mergeit WITHOUT the --submit-as option.
-   - [ ] Have buffy try posting as uid mergeit with the --submit-as option.
+   - [X] Create new linux user mergeit with no RB account
+   - [X] Try posting from there as sallan with the --submit-as option
+   - [X] Create new user buffy with an RB account
+   - [X] Have buffy try posting as uid mergeit WITHOUT the --submit-as option.
+   - [X] Have buffy try posting as uid mergeit with the --submit-as option.
 
     Depending on the results of those tests, we may want to consider
     some alternatives, such as
