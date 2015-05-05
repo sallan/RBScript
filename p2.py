@@ -14,9 +14,6 @@ from rbtools.commands import close
 from rbtools.api.client import RBClient
 from rbtools.api.errors import APIError, AuthorizationError
 
-
-
-
 # Newer versions of Python are more strict about ssl verification
 # and need to have verification turned off
 if hasattr(ssl, '_create_unverified_context'):
@@ -674,11 +671,11 @@ class F5Review(object):
         rbclient = RBClient(self.url)
         try:
             rbt_api = rbclient.get_root()
-        except AuthorizationError as e:
+        except AuthorizationError:
             try:
                 self._rblogin(rbclient)
                 rbt_api = rbclient.get_root()
-            except AuthorizationError as e:
+            except AuthorizationError:
                 raise RBError("Authentication failed for %s on %s" % (self.username, self.url))
         return rbt_api
 
