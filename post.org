@@ -40,6 +40,7 @@
 ** TODO Dev should be able to create new review from submitted CL or range of CLs
 
 * Product Backlog
+** Dev should be able to just print diff and not create/edit review
 ** Support the coverity tool
 ** Dev should be able to have review automatically open in browser
 
