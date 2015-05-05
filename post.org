@@ -37,18 +37,10 @@
        the authentication. Maybe review the old post-merge-review
        script.
 
-
-** Working via the rid
-*** TODO Dev submits a review with a different CL using rid and we update the CL in RB
-    We should really just do this on all review even though RB does
-    it for the standard use cases. The reason is because our update
-    will be immediate and won't require special case code for this.
-
-    This may not be so easy to do. I may have to leave this one in the
-    hands of the RBTools folks.
+** TODO Dev should be able to create new review from submitted CL or range of CLs
 
 * Product Backlog
-** Dev should be able to create new review from submitted CL or range of CLs
+** Support the coverity tool
 ** Dev should be able to have review automatically open in browser
 
 ** The developer should be able to 'submit' a review that was never published
@@ -88,6 +80,18 @@ Traceback (most recent call last):
   File "/usr/lib/python2.7/site-packages/RBTools-0.7.2-py2.7.egg/rbtools/utils/commands.py", line 29, in get_review_request
     % (review_request_id, e))
 rbtools.commands.CommandError: Error getting review request 819: Object does not exist (HTTP 404, API Error 100)    
+
+** Working via the rid
+*** Dev submits a review with a different CL using rid and we update the CL in RB
+    We should really just do this on all review even though RB does
+    it for the standard use cases. The reason is because our update
+    will be immediate and won't require special case code for this.
+
+    This may not be so easy to do. I may have to leave this one in the
+    hands of the RBTools folks.
+
+    Update - I'm still unable to figure out how to do this.  I've
+    filed a bug: Issue 3855
 
 
 * Done
