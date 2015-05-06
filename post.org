@@ -37,7 +37,10 @@
        the authentication. Maybe review the old post-merge-review
        script.
 
-** TODO Dev should be able to create new review from submitted CL or range of CLs
+** TODO Dev should be able to create or edit a review from submitted CL or range of CLs
+*** TODO Create new review with range
+*** Edit existing review with range
+*** Close review without submitting any CL
 
 * Product Backlog
 ** Dev should be able to just print diff and not create/edit review
