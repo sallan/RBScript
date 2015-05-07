@@ -18,9 +18,18 @@ class TestArgParser(TestCase):
         self.assertEqual('create', arg_parser.action)
         self.assertEqual(None, arg_parser.change_number)
 
-        # Any other action without CL raises exception
-        test_args = ['post', 'edit']
-        self.assertRaises(post.RBError, post.RBArgParser, test_args)
+        # Create review from submitted change(s)
+        depot_paths = [
+            '//depot/foo/...@10,@20',
+            '//depot/foo/bar.c#1,#4'
+            '//depot/foo/bar.c@123'
+        ]
+        for depot_path in depot_paths:
+            test_args = ['post', 'create', depot_path]
+            arg_parser = post.RBArgParser(test_args)
+            self.assertEqual('create', arg_parser.action)
+            self.assertEqual(None, arg_parser.change_number)
+            self.assertEqual(depot_path, arg_parser.depot_path)
 
         # Action and CL can be in any order
         test_args = ['post', 'create', '999']
@@ -148,6 +157,27 @@ class TestArgParser(TestCase):
         arg_parser = post.RBArgParser(test_args)
         self.assertEqual(['--branch', 'v1.0', '999'], arg_parser.rbt_args[2:])
 
+        # Test use of depot path instead of CL
+        depot_paths = [
+            '//depot/foo/...@10,@20',
+            '//depot/foo/bar.c#1,#4',
+            '//depot/foo/bar.c@123',
+            '//depot/foo/bar.c#7',
+        ]
+        for depot_path in depot_paths:
+            test_args = ['post', 'create', depot_path, '--branch', 'v1.0']
+            arg_parser = post.RBArgParser(test_args)
+            self.assertEqual(arg_parser.depot_path, depot_path)
+            self.assertEqual(['--branch', 'v1.0', depot_path], arg_parser.rbt_args[2:])
+
+        test_args = ['post', 'create', '999', '--description', 'Best change ever!']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(['--description', 'Best change ever!', '999'], arg_parser.rbt_args[2:])
+
+        test_args = ['post', 'create', '999', '--summary', 'Best change ever!']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(['--summary', 'Best change ever!', '999'], arg_parser.rbt_args[2:])
+
     def test_create_ui(self):
         test_args = ['post', 'create']
         arg_parser = post.RBArgParser(test_args)
@@ -217,10 +247,13 @@ class TestArgParser(TestCase):
         self.assertTrue(arg_parser.shelve)
         self.assertEqual(['--debug', '999'], arg_parser.rbt_args[2:])
 
-    def test_submit_ui(self):
-        test_args = ['post', 'submit']
-        self.assertRaises(post.RBError, post.RBArgParser, test_args)
+        test_args = ['post', 'edit', '--summary', 'Editing with a range', '-r' '12345']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual("edit", arg_parser.action)
+        self.assertEqual(['--review-request-id', '12345', '--summary', 'Editing with a range'],
+                         arg_parser.rbt_args[2:])
 
+    def test_submit_ui(self):
         test_args = ['post', 'submit', '999']
         arg_parser = post.RBArgParser(test_args)
         self.assertEqual(arg_parser.action, 'submit')
@@ -325,6 +358,21 @@ class TestRidAccessor(TestCase):
         arg_parser = post.RBArgParser(args)
         f5_review = post.F5Review("http://localhost", arg_parser)
         self.assertEqual("16", f5_review.rid)
+
+class TestUseOfDepotPaths(TestCase):
+    def no_rbt_api(self):
+        pass
+
+    def no_rid_from_cl(self):
+        return None
+
+    def testNoRidPassed(self):
+        depot_path = "//depot/foo/...@100,200"
+        args = ['post', 'create', depot_path]
+        arg_parser = post.RBArgParser(args)
+        post.F5Review._get_rbt_api = self.no_rbt_api
+        f5_review = post.F5Review("http://localhost", arg_parser)
+        self.assertEqual(f5_review.depot_path, depot_path)
 
 
 if __name__ == '__main__':

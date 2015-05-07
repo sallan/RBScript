@@ -117,15 +117,24 @@ class RBArgParser(object):
             self.action = self.action[0]
         if len(self.args) > 1:
             raise RBError("Please provide 1 action and at most 1 change list number")
+
+        # Determine if we have a change list number or a depot path
+        self.change_number = None
+        self.depot_path = None
         if len(self.args) == 1:
-            self.change_number = self.args[0]
-        else:
-            self.change_number = None
-        if self.change_number is None and self.action != 'create':
-            raise RBError("Need a change list number")
+            arg = self.args[0]
+            try:
+                self.change_number = str(int(arg))
+            except ValueError:
+                self.depot_path = arg
 
         # The f5_options list holds options that we don't pass on to rbt.
-        self.f5_options = ['shelve', 'publish', 'force', 'edit_changelist']
+        self.f5_options = ['shelve', 'force', 'edit_changelist']
+
+        # We handle publish when using a change list, but not if we have
+        # a depot path because.
+        if self.depot_path is None:
+            self.f5_options.append('publish')
 
         # rbt uses rid when closing a review instead of cl, so we need
         # a special case for that.
@@ -146,10 +155,17 @@ class RBArgParser(object):
                 else:
                     self.rbt_args.extend(RBArgParser._opt_to_string(opt, value))
 
-        # The close function from rbt takes a rid, not a cl so leave the cl off
-        # and add the rid later when we actually have an rid
-        if self.action != 'submit' and self.change_number is not None:
-            self.rbt_args.append(self.change_number)
+        # If we got a depot path, add that to the end of the rbt arg list
+        if self.depot_path is not None:
+            self.rbt_args.append(self.depot_path)
+        else:
+            # If instead we got a cl number, add that unless we're submitting.
+            # The close function from rbt takes a rid, not a cl so leave the cl off
+            # and add the rid later when we actually have an rid
+            if self.action != 'submit' and self.change_number is not None:
+                self.rbt_args.append(self.change_number)
+
+
 
     @staticmethod
     def _opt_to_string(opt, value):
@@ -170,7 +186,9 @@ class RBArgParser(object):
             'branch': '--branch',
             'testing_done': '--testing-done',
             'testing_file': '--testing-done-file',
-            'rid': '--review-request-id',
+            'review_description': '--description',
+            'review_summary': '--summary',
+           'rid': '--review-request-id',
             'username': '--username',
         }
         args = [option_string[opt]]
@@ -249,6 +267,12 @@ class RBArgParser(object):
         edit_group.add_option("--testing-done-file",
                               dest="testing_file", metavar="<filename>",
                               help="Text file containing description of testing done.")
+        edit_group.add_option("--summary",
+                              dest="review_summary", metavar="<string>",
+                              help="Alternate text to use for summary field on Review Board.")
+        edit_group.add_option("--description",
+                              dest="review_description", metavar="<string>",
+                              help="Alternate text to use for description field on Review Board.")
         edit_group.add_option("-r", "--rid",
                               dest="rid", metavar="<ID>",
                               help="Upload changes to specific review by ID. Use this if your change list is different from the one associated with ID.")
@@ -646,6 +670,7 @@ class F5Review(object):
         self.action = arg_parser.action
         self.url = url
         self.change_number = arg_parser.change_number
+        self.depot_path = arg_parser.depot_path
         self.debug = arg_parser.debug
         self.shelve = arg_parser.shelve
         self.force = arg_parser.force
@@ -919,34 +944,42 @@ def get_url(arg_parser, config_file):
 
 def create_review(f5_review):
     """Main function for creating a new review request"""
-    p4 = P4()
-    if f5_review.change_number is None:
-        f5_review.change_number = p4.new_change()
-        f5_review.rbt_args.append(f5_review.change_number)
 
-    if f5_review.shelve:
-        p4.shelve(f5_review.change_number, update=True)
+    # If we have a depot path, just pass it to post. If not, we
+    # need to process the p4 change list
+    if f5_review.depot_path is None:
+        p4 = P4()
+        if f5_review.change_number is None:
+            f5_review.change_number = p4.new_change()
+            f5_review.rbt_args.append(f5_review.change_number)
 
-    # Extract bugs from change list if any
-    f5_review.bugs = p4.get_jobs(f5_review.change_number)
+        if f5_review.shelve:
+            p4.shelve(f5_review.change_number, update=True)
+
+        # Extract bugs from change list if any
+        f5_review.bugs = p4.get_jobs(f5_review.change_number)
 
     f5_review.post()
 
 
 def edit_review(f5_review):
     """Main function for editing an existing review"""
-    if f5_review.change_number is None:
-        raise RBError("The edit command requires a change list number.")
 
-    p4 = P4()
-    if f5_review.shelve:
-        p4.shelve(f5_review.change_number, update=True)
+    # If we have a depot path, just pass it to post. If not, we
+    # need to process the p4 change list
+    if f5_review.depot_path is None:
+        if f5_review.change_number is None:
+            raise RBError("The edit command requires a change list number.")
 
-    # If CL has been shelved add the shelve option automatically.
-    f5_review.shelve = p4.shelved(f5_review.change_number)
+        p4 = P4()
+        if f5_review.shelve:
+            p4.shelve(f5_review.change_number, update=True)
 
-    # Extract bugs from change list if any
-    f5_review.bugs = p4.get_jobs(f5_review.change_number)
+        # If CL has been shelved add the shelve option automatically.
+        f5_review.shelve = p4.shelved(f5_review.change_number)
+
+        # Extract bugs from change list if any
+        f5_review.bugs = p4.get_jobs(f5_review.change_number)
 
     f5_review.post()
 

@@ -362,6 +362,13 @@ class FuncTests(TestCase):
         self.assertEqual(cl, rr.changenum)
         subprocess.call("./p2.py submit --server %s %d -f" % (self.rb_url, cl), shell=True)
 
+    def test_create_with_submitted_cl_range(self):
+        depot_path = '//depot/Jam/MAIN/src/...@130,@140'
+        summary = "Post a range of submitted change lists"
+        args = ["./p2.py", "create", "--description", summary, "--summary",
+                summary, depot_path, "--target-people", "sallan", "-p"]
+        subprocess.check_call(args)
+
 
 if __name__ == '__main__':
     main()
