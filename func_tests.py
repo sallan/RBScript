@@ -369,6 +369,11 @@ class FuncTests(TestCase):
                 summary, depot_path, "--target-people", "sallan", "-p"]
         subprocess.check_call(args)
 
+    def test_create_with_file_and_rev_range(self):
+        depot_path = '//depot/Jam/MAIN/src/README#4,#5'
+        args = ["./p2.py", "create", "--target-people", "sallan",
+                "--summary", "Single file with rev range", depot_path, "-p"]
+        subprocess.check_call(args)
 
 if __name__ == '__main__':
     main()
