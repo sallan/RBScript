@@ -42,6 +42,7 @@
 * Product Backlog
 ** Dev should be able to just print diff and not create/edit review
 ** Support the coverity tool
+** Support the new --depends-on option in rbt
 ** Dev should be able to have review automatically open in browser
 
 ** The developer should be able to 'submit' a review that was never published
