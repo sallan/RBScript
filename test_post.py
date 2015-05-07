@@ -359,6 +359,7 @@ class TestRidAccessor(TestCase):
         f5_review = post.F5Review("http://localhost", arg_parser)
         self.assertEqual("16", f5_review.rid)
 
+
 class TestUseOfDepotPaths(TestCase):
     def no_rbt_api(self):
         pass

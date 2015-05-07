@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 import getpass
-import os
 import subprocess
 from subprocess import CalledProcessError
 import sys
@@ -9,10 +8,12 @@ import tempfile
 import marshal
 import ssl
 
+import os
 from rbtools.commands import diff
 from rbtools.commands import close
 from rbtools.api.client import RBClient
 from rbtools.api.errors import APIError, AuthorizationError
+
 
 # Newer versions of Python are more strict about ssl verification
 # and need to have verification turned off
@@ -166,7 +167,6 @@ class RBArgParser(object):
                 self.rbt_args.append(self.change_number)
 
 
-
     @staticmethod
     def _opt_to_string(opt, value):
         # Private method to convert an option name and value back to command line strings
@@ -188,7 +188,7 @@ class RBArgParser(object):
             'testing_file': '--testing-done-file',
             'review_description': '--description',
             'review_summary': '--summary',
-           'rid': '--review-request-id',
+            'rid': '--review-request-id',
             'username': '--username',
         }
         args = [option_string[opt]]

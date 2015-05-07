@@ -1,10 +1,10 @@
 #!/usr/bin/env python
-import os
 import shutil
 import subprocess
 from unittest import TestCase
 from unittest import main
 
+import os
 from P4 import P4
 from rbtools.api.client import RBClient
 from rbtools import VERSION
@@ -316,7 +316,7 @@ class FuncTests(TestCase):
         args = ["./p2.py", "submit", "--force", "--server", self.rb_url, str(cl2)]
         self.assertRaises(subprocess.CalledProcessError, subprocess.check_call, args)
         # with self.assertRaises(subprocess.CalledProcessError):
-        #     subprocess.check_call(args)
+        # subprocess.check_call(args)
 
         # Now try with the rid which should succeed
         args = ["./p2.py", "submit", "--force", "--rid", str(rid), "--server", self.rb_url, str(cl2)]
