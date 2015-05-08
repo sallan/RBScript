@@ -41,10 +41,18 @@
 *** DONE Create new review with range
 *** DONE Edit existing review with range
 *** DONE Create review with single file and rev range    
-*** Close review without submitting any CL
+*** TODO Close review without submitting any CL
+    This is essentially providing support for use of -rid when submitting.
+** TODO Dev should be able to just print diff and not create/edit review
+
+
+* Bugs we can use for testing
+  - 456856 :: The post script needs to be compatible with RBTools 0.6
+  - 475344 :: ReviewBoard does not properly show "p4 move"
 
 * Product Backlog
-** Dev should be able to just print diff and not create/edit review
+** Test with RBTools 0.5.2 and 0.8
+** Update confluence page
 ** Support the coverity tool
 ** Support the new --depends-on option in rbt
 ** Dev should be able to have review automatically open in browser
@@ -98,7 +106,7 @@ rbtools.commands.CommandError: Error getting review request 819: Object does not
 
     Update - I'm still unable to figure out how to do this.  I've
     filed a bug: Issue 3855
-
+    
 
 * Done
 ** DONE Port all code to python 2.6 and be able to demonstrate
