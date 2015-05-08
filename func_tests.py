@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import re
 import shutil
 import subprocess
 from unittest import TestCase
@@ -8,6 +9,30 @@ import os
 from P4 import P4
 from rbtools.api.client import RBClient
 from rbtools import VERSION
+
+def check_output_26(*popenargs, **kwargs):
+    r"""Run command with arguments and return its output as a byte string.
+
+    Backported from Python 2.7 as it's implemented as pure python on stdlib.
+
+    >>> check_output(['/usr/bin/python', '--version'])
+    Python 2.6.2
+
+    I took this code from this repo on git hub:
+    https://gist.github.com/1027906.git
+
+    """
+    process = subprocess.Popen(stdout=subprocess.PIPE, *popenargs, **kwargs)
+    output, unused_err = process.communicate()
+    retcode = process.poll()
+    if retcode:
+        cmd = kwargs.get("args")
+        if cmd is None:
+            cmd = popenargs[0]
+        error = subprocess.CalledProcessError(retcode, cmd)
+        error.output = output
+        raise error
+    return output
 
 
 class FuncTests(TestCase):
@@ -362,18 +387,40 @@ class FuncTests(TestCase):
         self.assertEqual(cl, rr.changenum)
         subprocess.call("./p2.py submit --server %s %d -f" % (self.rb_url, cl), shell=True)
 
-    def test_create_with_submitted_cl_range(self):
+    def test_create_and_edit_with_submitted_cl_range(self):
         depot_path = '//depot/Jam/MAIN/src/...@130,@140'
         summary = "Post a range of submitted change lists"
         args = ["./p2.py", "create", "--description", summary, "--summary",
                 summary, depot_path, "--target-people", "sallan", "-p"]
-        subprocess.check_call(args)
+        output = check_output_26(args)
+        m = re.match("Review request #(\d+) posted\.", output)
+        self.assertNotEqual(m, None)
+        rid = m.group(1)
+        rr = self.rbapi_root.get_review_request(review_request_id=rid)
+        self.assertEqual('sallan', rr.get_submitter().username)
+        self.assertEqual(summary, rr.summary)
+        self.assertEqual(None, rr.changenum)
+        self.assertEqual('pending', rr.status)
+        self.assertTrue(rr.public)
 
     def test_create_with_file_and_rev_range(self):
         depot_path = '//depot/Jam/MAIN/src/README#4,#5'
         args = ["./p2.py", "create", "--target-people", "sallan",
                 "--summary", "Single file with rev range", depot_path, "-p"]
+        output = check_output_26(args)
+        m = re.match("Review request #(\d+) posted\.", output)
+        self.assertNotEqual(None, m)
+        rid = m.group(1)
+        rr = self.rbapi_root.get_review_request(review_request_id=rid)
+        self.assertEqual('sallan', rr.get_submitter().username)
+        self.assertEqual(rr.changenum, None)
+        self.assertEqual('pending', rr.status)
+        self.assertTrue(rr.public)
+
+        depot_path = '//depot/Jam/MAIN/src/README#4,#6'
+        args = ["./p2.py", "edit", "-r", rid, "-p", depot_path]
         subprocess.check_call(args)
+
 
 if __name__ == '__main__':
     main()
