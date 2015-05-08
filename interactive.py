@@ -32,7 +32,7 @@ def ask_for_cl():
 
 def ask_for_rid():
     rid = raw_input("Please enter RB ID number: ")
-    return int(rid)
+    return str(int(rid))
 
 
 def announce(str):
@@ -42,12 +42,13 @@ def announce(str):
 file1 = "readme.txt"
 file2 = "relnotes.txt"
 
-
-# Start of as a brand new user with a clean slate, which
-# means you don't yet have login cookies
-announce("When we create this review, we should get prompted for login.")
 rb_cookies_file = os.path.join(os.path.expanduser(os.environ['HOME']), ".rbtools-cookies")
 rb_cookies_file_backup = rb_cookies_file + ".backup"
+
+# Start of as a brand new user with a clean slate, which
+# means you don't yet have login cookies and should get
+# prompted for a login.
+announce("When we create this review, we should get prompted for login.")
 if os.path.isfile(rb_cookies_file):
     os.rename(rb_cookies_file, rb_cookies_file_backup)
 p4_open(file1)
@@ -56,13 +57,15 @@ check_call("p2.py create --target-people sallan", shell=True)
 announce("Review posted - go publish it.")
 pause()
 
+# Demonstrate editing and shelving
 announce("Going to shelve and publish this change now.")
 append_line(file1, "Okay, add a change and shelve it.")
 cl1 = ask_for_cl()
 check_call("p2.py edit --shelve -p %s" % cl1, shell=True)
 pause()
 
-announce("Creating a second review with a branch.")
+# Demonstrate adding a branch label and possibly jobs
+announce("Creating a second review with a branch.  Add jobs to the change of you want.")
 pause()
 
 p4_open(file2)
@@ -74,6 +77,9 @@ cl2 = ask_for_cl()
 check_call("p2.py submit --force %s" % cl2, shell=True)
 pause()
 
+# Demonstrate submitting without a ship it and the with.
+# You can also see that RB eventually updates the CL with
+# the submitted number.
 announce("Attempting to submit first review without a ship it.")
 try:
     check_call("p2.py submit %s" % cl1, shell=True)
@@ -85,6 +91,7 @@ announce("Attempting to submit with a ship it.")
 check_call("p2.py submit %s" % cl1, shell=True)
 announce("See if the CL number changed for the first review.")
 
+# Demonstrate blocking a review with only a reviewbot ship it
 announce("Show that we can block a review with only a reviewbot ship it.")
 pause()
 p4_open(file1)
@@ -98,7 +105,7 @@ announce("I also need the rid for the next test.")
 rid = ask_for_rid()
 try:
     check_call("p2.py submit %s" % cl, shell=True)
-except CalledProcessError as e:
+except CalledProcessError:
     pass
 announce("Now go and give it a proper ship it.")
 pause()
@@ -106,6 +113,7 @@ announce("Attempting to submit with a ship it.")
 check_call("p2.py submit %s" % cl, shell=True)
 pause()
 
+# Demonstrate editing an existing review with a different CL
 announce("Now we'll try editing a review with a new CL.")
 announce("Please re-open review %s" % rid)
 pause()
@@ -116,7 +124,7 @@ announce("First try editing without rid - we should get a helpful message.")
 cl = ask_for_cl()
 try:
     check_call("p2.py edit %s" % cl, shell=True)
-except CalledProcessError as e:
+except CalledProcessError:
     pass
 pause()
 announce("Now we'll try the rid option.")
@@ -127,12 +135,49 @@ pause()
 announce("When we submit without rid, we should get blocked and CL should remain open")
 try:
     check_call("p2.py submit %s" % cl, shell=True)
-except CalledProcessError as e:
+except CalledProcessError:
     pass
 pause()
 
 announce("Now submit.")
 check_call("p2.py submit -r %s %s" % (rid, cl), shell=True)
+announce("NOTE: This worked without -f because the review already had a ship it.")
+pause()
+
+# Demonstrate creating reviews with submitted change lists
+announce("Now creating a review with submitted change lists")
+pause()
+# example_command = """'p2.py create //depot/Jam/MAIN/src/...@130,@140 --summary "Review from submitted CLs"'"""
+# pause("An example command:\n" + example_command)
+
+path = "//depot/Jam/MAIN/src/...@139,@140"
+description = "Review from submitted CLs"
+command = 'p2.py create  %s --summary "%s" --description "%s" --target-people sallan' \
+          % (path, description, description)
+check_call(command, shell=True)
+announce("Check the diffs")
+pause()
+path = "//depot/Jam/MAIN/src/...@139,@141"
+announce("Now we'll update it. First try without the rid")
+command = 'p2.py edit %s' % path
+try:
+    check_call(command, shell=True)
+except CalledProcessError:
+    pass
+rid = ask_for_rid()
+command += " --publish --rid " + str(rid)
+check_call(command, shell=True)
+announce("Check for the new diff")
+pause()
+announce("Now let's try to submit it - first forgetting the --rid option")
+pause()
+try:
+    check_call("p2.py submit " + rid, shell=True)
+except CalledProcessError:
+    pass
+announce("Now do it right")
+check_call("p2.py submit -r %s -f" % rid, shell=True)
+
 
 
 # Before leaving, restore original rbtools cookie file

@@ -801,17 +801,13 @@ class F5Review(object):
             print self.rbt_args
         self.run(d, self.rbt_args)
 
-    def close(self, submitted_change_list=None):
+    def close(self):
         """Close the review in Review Board"""
         c = close.Close()
         self.rbt_args.append(self.rid)
         if self.debug:
             print self.rbt_args
         self.run(c, self.rbt_args)
-
-        if submitted_change_list:
-            # TODO: Need to update the change list number in the review
-            pass
 
     def get_ship_its(self):
         """Return hash of users who gave review a ship it.
@@ -998,22 +994,26 @@ def submit_review(f5_review):
         if len(ship_it_list) == 1 and 'Review Bot' in ship_it_list:
             raise RBError("Review %s has only a Review Bot 'Ship It'. Use --force to submit anyway." % f5_review.rid)
 
-    # If CL is shelved, delete the shelve since the user has already indicated
-    # a clear intention to submit the CL.
-    p4 = P4()
-    if p4.shelved(f5_review.change_number):
-        p4.unshelve(f5_review.change_number)
+    # We allow reviews of submitted change lists, in which case there's
+    # no CL associated with the review and nothing to do in perforce.
+    if f5_review.change_number is not None:
+        # If CL is shelved, delete the shelve since the user has already indicated
+        # a clear intention to submit the CL.
+        p4 = P4()
+        if p4.shelved(f5_review.change_number):
+            p4.unshelve(f5_review.change_number)
 
-    # Does the user want to edit the CL before submitting?
-    if f5_review.edit_changelist:
-        p4.edit_change(f5_review.change_number)
+        # Does the user want to edit the CL before submitting?
+        if f5_review.edit_changelist:
+            p4.edit_change(f5_review.change_number)
 
-    # Add reviewers who gave ship its
-    if ship_it_list:
-        p4.add_reviewboard_shipits(f5_review.change_number, ship_it_list)
+        # Add reviewers who gave ship its
+        if ship_it_list:
+            p4.add_reviewboard_shipits(f5_review.change_number, ship_it_list)
 
-    submitted_change_list = p4.submit(f5_review.change_number)
-    f5_review.close(submitted_change_list)
+        submitted_change_list = p4.submit(f5_review.change_number)
+
+    f5_review.close()
 
 
 def diff_changes(f5_review):
