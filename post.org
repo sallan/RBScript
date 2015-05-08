@@ -44,6 +44,11 @@
 *** DONE Close review without submitting any CL
     This is essentially providing support for use of -rid when submitting.
 ** TODO Dev should be able to just print diff and not create/edit review
+** TODO Get rid of these INFO messages
+
+   INFO:root:Generating diff for pending changeset
+
+   I think it's because I'm calling run_from_argv() directly.
 
 * Bugs we can use for testing
   - 456856 :: The post script needs to be compatible with RBTools 0.6
