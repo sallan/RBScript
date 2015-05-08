@@ -32,7 +32,7 @@ def check_output_26(*popenargs, **kwargs):
         error = subprocess.CalledProcessError(retcode, cmd)
         error.output = output
         raise error
-    return output
+    return output.splitlines()
 
 
 class FuncTests(TestCase):
@@ -393,9 +393,12 @@ class FuncTests(TestCase):
         args = ["./p2.py", "create", "--description", summary, "--summary",
                 summary, depot_path, "--target-people", "sallan", "-p"]
         output = check_output_26(args)
-        m = re.match("Review request #(\d+) posted\.", output)
-        self.assertNotEqual(m, None)
-        rid = m.group(1)
+        # m = re.match("Review request #(\d+) posted\.", output)
+        # self.assertNotEqual(m, None)
+        # rid = m.group(1)
+        rid = output[2]
+        rid = rid[1:]
+        print "RID: %s" % rid
         rr = self.rbapi_root.get_review_request(review_request_id=rid)
         self.assertEqual('sallan', rr.get_submitter().username)
         self.assertEqual(summary, rr.summary)
@@ -408,9 +411,13 @@ class FuncTests(TestCase):
         args = ["./p2.py", "create", "--target-people", "sallan",
                 "--summary", "Single file with rev range", depot_path, "-p"]
         output = check_output_26(args)
-        m = re.match("Review request #(\d+) posted\.", output)
-        self.assertNotEqual(None, m)
-        rid = m.group(1)
+        # m = re.match("Review request #(\d+) posted\.", output)
+        # self.assertNotEqual(None, m)
+        # rid = m.group(1)
+        # grab rid and strip off the leading '#'
+        rid = output[2]
+        rid = rid[1:]
+        print "RID: %s" % rid
         rr = self.rbapi_root.get_review_request(review_request_id=rid)
         self.assertEqual('sallan', rr.get_submitter().username)
         self.assertEqual(rr.changenum, None)
@@ -425,15 +432,19 @@ class FuncTests(TestCase):
         test_string = 'Test the diff functionality'
         self.p4.run_edit(self.readme)
         self.append_line(self.readme, test_string)
-        args = ['./p2.py', 'diff']
-        subprocess.check_call(args, shell=True)
+        args = ["./p2.py", "diff"]
+        output = check_output_26(args)
+        print "OUTPUT:"
+        print output
+        print "END"
+        self.assertEqual('+' + test_string, output[-2])
 
         change = self.p4.fetch_change()
         change['Description'] = test_string + "\n"
         change_output = self.p4.save_change(change)
         change_number = change_output[0].split()[1]
         args.append(change_number)
-        subprocess.check_call(args, shell=True)
+        subprocess.check_call(args)
 
 if __name__ == '__main__':
     main()

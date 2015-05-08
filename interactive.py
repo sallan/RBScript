@@ -163,6 +163,17 @@ except CalledProcessError:
 announce("Now do it right")
 check_call("p2.py submit -r %s -f" % rid, shell=True)
 
+pause("Now time to show some diffs")
+p4_open(file2)
+append_line(file2, "This is the first diff I want to see")
+check_call("p2.py diff", shell=True)
+pause("Diff ok?")
+pause("Next create a change")
+check_call("p4 change", shell=True)
+announce("Adding another diff")
+append_line(file2, "This is the second diff I want to see")
+cl = ask_for_cl()
+check_call("p2.py diff %s" % cl, shell=True)
 
 
 # Before leaving, restore original rbtools cookie file
