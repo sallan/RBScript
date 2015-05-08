@@ -19,7 +19,9 @@ def p4_open(file):
     p4.run("edit " + file)
 
 
-def pause():
+def pause(msg=None):
+    if msg is not None:
+        print msg
     response = raw_input("Continue? ('q' to quit, any other key to continue): ")
     if response.lower() == 'q':
         raise SystemExit()
@@ -54,8 +56,7 @@ if os.path.isfile(rb_cookies_file):
 p4_open(file1)
 append_line(file1, "When you post this, you should get prompted for login")
 check_call("p2.py create --target-people sallan", shell=True)
-announce("Review posted - go publish it.")
-pause()
+pause("Review posted - go publish it.")
 
 # Demonstrate editing and shelving
 announce("Going to shelve and publish this change now.")
@@ -65,8 +66,7 @@ check_call("p2.py edit --shelve -p %s" % cl1, shell=True)
 pause()
 
 # Demonstrate adding a branch label and possibly jobs
-announce("Creating a second review with a branch.  Add jobs to the change of you want.")
-pause()
+pause("Creating a second review with a branch.  Add jobs to the change of you want.")
 
 p4_open(file2)
 append_line(file2, "Review with a branch and maybe some jobs")
@@ -85,20 +85,16 @@ try:
     check_call("p2.py submit %s" % cl1, shell=True)
 except CalledProcessError as e:
     pass
-announce("Please go give me a ship it.")
-pause()
+pause("Please go give me a ship it.")
 announce("Attempting to submit with a ship it.")
 check_call("p2.py submit %s" % cl1, shell=True)
-announce("See if the CL number changed for the first review.")
 
 # Demonstrate blocking a review with only a reviewbot ship it
-announce("Show that we can block a review with only a reviewbot ship it.")
-pause()
+pause("Show that we can block a review with only a reviewbot ship it.")
 p4_open(file1)
 append_line(file1, "Review that only Review Bot likes.")
 check_call("p2.py create --target-people sallan -p", shell=True)
-announce("Now go and have Review Bot give it a ship it.")
-pause()
+pause("Now go and have Review Bot give it a ship it.")
 announce("Attempting to submit review with only a Review Bot ship it.")
 cl = ask_for_cl()
 announce("I also need the rid for the next test.")
@@ -107,16 +103,14 @@ try:
     check_call("p2.py submit %s" % cl, shell=True)
 except CalledProcessError:
     pass
-announce("Now go and give it a proper ship it.")
-pause()
+pause("Now go and give it a proper ship it.")
 announce("Attempting to submit with a ship it.")
 check_call("p2.py submit %s" % cl, shell=True)
 pause()
 
 # Demonstrate editing an existing review with a different CL
 announce("Now we'll try editing a review with a new CL.")
-announce("Please re-open review %s" % rid)
-pause()
+pause("Please re-open review %s" % rid)
 p4_open(file1)
 append_line(file1, "This file needs more work. How did it ever get approved?")
 check_call("p4 change", shell=True)
@@ -129,8 +123,7 @@ except CalledProcessError:
 pause()
 announce("Now we'll try the rid option.")
 check_call("p2.py edit -r %s %s -p" % (rid, cl), shell=True)
-announce("Check the diff for the updated review.")
-pause()
+pause("Check the diff for the updated review.")
 
 announce("When we submit without rid, we should get blocked and CL should remain open")
 try:
@@ -141,22 +134,16 @@ pause()
 
 announce("Now submit.")
 check_call("p2.py submit -r %s %s" % (rid, cl), shell=True)
-announce("NOTE: This worked without -f because the review already had a ship it.")
-pause()
+pause("NOTE: This worked without -f because the review already had a ship it.")
 
 # Demonstrate creating reviews with submitted change lists
-announce("Now creating a review with submitted change lists")
-pause()
-# example_command = """'p2.py create //depot/Jam/MAIN/src/...@130,@140 --summary "Review from submitted CLs"'"""
-# pause("An example command:\n" + example_command)
-
+pause("Now creating a review with submitted change lists")
 path = "//depot/Jam/MAIN/src/...@139,@140"
 description = "Review from submitted CLs"
 command = 'p2.py create  %s --summary "%s" --description "%s" --target-people sallan' \
           % (path, description, description)
 check_call(command, shell=True)
-announce("Check the diffs")
-pause()
+pause("Check the diffs")
 path = "//depot/Jam/MAIN/src/...@139,@141"
 announce("Now we'll update it. First try without the rid")
 command = 'p2.py edit %s' % path
@@ -167,10 +154,8 @@ except CalledProcessError:
 rid = ask_for_rid()
 command += " --publish --rid " + str(rid)
 check_call(command, shell=True)
-announce("Check for the new diff")
-pause()
-announce("Now let's try to submit it - first forgetting the --rid option")
-pause()
+pause("Check for the new diff")
+pause("Now let's try to submit it - first forgetting the --rid option")
 try:
     check_call("p2.py submit " + rid, shell=True)
 except CalledProcessError:
