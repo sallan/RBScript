@@ -1019,7 +1019,7 @@ def submit_review(f5_review):
 def diff_changes(f5_review):
     """Print diff to stdout"""
     # TODO:
-    raise NotImplementedError
+    raise NotImplementedError()
 
 
 def main():

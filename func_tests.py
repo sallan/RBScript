@@ -421,6 +421,19 @@ class FuncTests(TestCase):
         args = ["./p2.py", "edit", "-r", rid, "-p", depot_path]
         subprocess.check_call(args)
 
+    def test_diff(self):
+        test_string = 'Test the diff functionality'
+        self.p4.run_edit(self.readme)
+        self.append_line(self.readme, test_string)
+        args = ['./p2.py', 'diff']
+        subprocess.check_call(args, shell=True)
+
+        change = self.p4.fetch_change()
+        change['Description'] = test_string + "\n"
+        change_output = self.p4.save_change(change)
+        change_number = change_output[0].split()[1]
+        args.append(change_number)
+        subprocess.check_call(args, shell=True)
 
 if __name__ == '__main__':
     main()
