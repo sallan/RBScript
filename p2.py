@@ -7,7 +7,6 @@ import optparse
 import tempfile
 import marshal
 import ssl
-
 import os
 
 # Newer versions of Python are more strict about ssl verification
@@ -1024,6 +1023,7 @@ def submit_review(f5_review):
 def diff_changes(f5_review):
     """Print diff to stdout"""
     f5_review.diff()
+
 
 def main():
     try:
