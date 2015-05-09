@@ -32,7 +32,7 @@ def check_output_26(*popenargs, **kwargs):
         error = subprocess.CalledProcessError(retcode, cmd)
         error.output = output
         raise error
-    return output.splitlines()
+    return output
 
 
 class FuncTests(TestCase):
@@ -393,12 +393,9 @@ class FuncTests(TestCase):
         args = ["./p2.py", "create", "--description", summary, "--summary",
                 summary, depot_path, "--target-people", "sallan", "-p"]
         output = check_output_26(args)
-        # m = re.match("Review request #(\d+) posted\.", output)
-        # self.assertNotEqual(m, None)
-        # rid = m.group(1)
-        rid = output[2]
-        rid = rid[1:]
-        print "RID: %s" % rid
+        m = re.match("Review request #(\d+) posted\.", output)
+        self.assertNotEqual(m, None)
+        rid = m.group(1)
         rr = self.rbapi_root.get_review_request(review_request_id=rid)
         self.assertEqual('sallan', rr.get_submitter().username)
         self.assertEqual(summary, rr.summary)
@@ -411,13 +408,9 @@ class FuncTests(TestCase):
         args = ["./p2.py", "create", "--target-people", "sallan",
                 "--summary", "Single file with rev range", depot_path, "-p"]
         output = check_output_26(args)
-        # m = re.match("Review request #(\d+) posted\.", output)
-        # self.assertNotEqual(None, m)
-        # rid = m.group(1)
-        # grab rid and strip off the leading '#'
-        rid = output[2]
-        rid = rid[1:]
-        print "RID: %s" % rid
+        m = re.match("Review request #(\d+) posted\.", output)
+        self.assertNotEqual(None, m)
+        rid = m.group(1)
         rr = self.rbapi_root.get_review_request(review_request_id=rid)
         self.assertEqual('sallan', rr.get_submitter().username)
         self.assertEqual(rr.changenum, None)
@@ -433,10 +426,7 @@ class FuncTests(TestCase):
         self.p4.run_edit(self.readme)
         self.append_line(self.readme, test_string)
         args = ["./p2.py", "diff"]
-        output = check_output_26(args)
-        print "OUTPUT:"
-        print output
-        print "END"
+        output = check_output_26(args).splitlines()
         self.assertEqual('+' + test_string, output[-2])
 
         change = self.p4.fetch_change()
