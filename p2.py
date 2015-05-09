@@ -9,11 +9,6 @@ import marshal
 import ssl
 
 import os
-from rbtools.commands import diff
-from rbtools.commands import close
-from rbtools.api.client import RBClient
-from rbtools.api.errors import APIError, AuthorizationError
-
 
 # Newer versions of Python are more strict about ssl verification
 # and need to have verification turned off
@@ -51,21 +46,31 @@ RBTOOLS_MIN_VERSION_STR = '0.6.0'
 RBTOOLS_VERSION_MSG = """
 Use of this script requires:
 
-  RBTools version %s or greater
+  RBTools version %s or greater.
+  Version 0.7.x currently has bugs so 0.6.3 is recommended.
+
   Python %s or greater
 
 To install the latest version of RBTools:
 
     $ sudo easy_install -U RBTools
 
+To install version 0.6.3:
+
+    $ sudo easy_install -U RBTools==0.6.3
+
 """ % (RBTOOLS_MIN_VERSION_STR, PYTHON_VERSION_STR)
 
 try:
     # noinspection PyUnresolvedReferences
+    import rbtools
     from rbtools.commands import post
-    from rbtools import VERSION
-    from rbtools.clients import perforce
-    import rbtools.api.errors
+    from rbtools.commands import diff
+    from rbtools.commands import close
+    # from rbtools.clients import perforce
+    from rbtools.api.client import RBClient
+    from rbtools.api.errors import APIError, AuthorizationError
+    # import rbtools.api.errors
 except ImportError:
     sys.stderr.write(RBTOOLS_VERSION_MSG)
     raise SystemExit(MISSING_RBTOOLS)
