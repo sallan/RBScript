@@ -1,63 +1,24 @@
 * Sprint
-** DONE Dev should be able to post a review from the mergeit account
-
-   Okay, the stuff below is the running dialog.  Here's what I decided
-   to do: Whenever the --username is used, have post delete the
-   .rbtools-cookies file.
-
-   I decided to use --username instead of --submit-as because that's
-   what people are used to using with post-review.
-
-*** Whiteboard:
-   
-   For this, we need to handle the --username option.
-
-   This works pretty much out of the box.  A few oddities:
-
-   - Even if you have a valid cookie, you will always be prompted when you use --username
-   - If you have a valid cookie, you can provide anything for a password and it will work
-
-   That last item is a bug which you need to file with rbtools.  But to
-   the extent that you properly pass username to rbt, this is done.
-
-   On second thought, this needs more baking. In particular, I want to
-   test out the --submit-as option more thoroughly.  Try this
-
-   - [X] Create new linux user mergeit with no RB account
-   - [X] Try posting from there as sallan with the --submit-as option
-   - [X] Create new user buffy with an RB account
-   - [X] Have buffy try posting as uid mergeit WITHOUT the --submit-as option.
-   - [X] Have buffy try posting as uid mergeit with the --submit-as option.
-
-    Depending on the results of those tests, we may want to consider
-    some alternatives, such as
-
-     - Create a mergeit account in RB
-     - Write a wrapper script for post merges as mergeit that handles
-       the authentication. Maybe review the old post-merge-review
-       script.
-
-** DONE Dev should be able to create or edit a review from submitted CL or range of CLs
-*** DONE Create new review with range
-*** DONE Edit existing review with range
-*** DONE Create review with single file and rev range    
-*** DONE Close review without submitting any CL
-    This is essentially providing support for use of -rid when submitting.
-** TODO Dev should be able to just print diff and not create/edit review
-** TODO Get rid of these INFO messages
+** Code  cleanup and refactor
+** Rename to post
+** Get rid of these INFO messages
 
    INFO:root:Generating diff for pending changeset
 
    I think it's because I'm calling run_from_argv() directly.
+
+** Test with RBTools 0.5.2 and 0.8
+
+** Support the coverity tool
+
 
 * Bugs we can use for testing
   - 456856 :: The post script needs to be compatible with RBTools 0.6
   - 475344 :: ReviewBoard does not properly show "p4 move"
 
 * Product Backlog
-** Test with RBTools 0.5.2 and 0.8
 ** Update confluence page
-** Support the coverity tool
+** Write announcement
 ** Support the new --depends-on option in rbt
 ** Dev should be able to have review automatically open in browser
 
@@ -113,6 +74,51 @@ rbtools.commands.CommandError: Error getting review request 819: Object does not
     
 
 * Done
+** DONE Dev should be able to post a review from the mergeit account
+
+   Okay, the stuff below is the running dialog.  Here's what I decided
+   to do: Whenever the --username is used, have post delete the
+   .rbtools-cookies file.
+
+   I decided to use --username instead of --submit-as because that's
+   what people are used to using with post-review.
+
+*** Whiteboard:
+   
+   For this, we need to handle the --username option.
+
+   This works pretty much out of the box.  A few oddities:
+
+   - Even if you have a valid cookie, you will always be prompted when you use --username
+   - If you have a valid cookie, you can provide anything for a password and it will work
+
+   That last item is a bug which you need to file with rbtools.  But to
+   the extent that you properly pass username to rbt, this is done.
+
+   On second thought, this needs more baking. In particular, I want to
+   test out the --submit-as option more thoroughly.  Try this
+
+   - [X] Create new linux user mergeit with no RB account
+   - [X] Try posting from there as sallan with the --submit-as option
+   - [X] Create new user buffy with an RB account
+   - [X] Have buffy try posting as uid mergeit WITHOUT the --submit-as option.
+   - [X] Have buffy try posting as uid mergeit with the --submit-as option.
+
+    Depending on the results of those tests, we may want to consider
+    some alternatives, such as
+
+     - Create a mergeit account in RB
+     - Write a wrapper script for post merges as mergeit that handles
+       the authentication. Maybe review the old post-merge-review
+       script.
+
+** DONE Dev should be able to create or edit a review from submitted CL or range of CLs
+*** DONE Create new review with range
+*** DONE Edit existing review with range
+*** DONE Create review with single file and rev range    
+*** DONE Close review without submitting any CL
+    This is essentially providing support for use of -rid when submitting.
+** DONE Dev should be able to just print diff and not create/edit review
 ** DONE Port all code to python 2.6 and be able to demonstrate
 ** DONE Test previous failed case on production server
    When you tested a post to dory with some old config file changes,
