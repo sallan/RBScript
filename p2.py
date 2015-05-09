@@ -66,10 +66,8 @@ try:
     from rbtools.commands import post
     from rbtools.commands import diff
     from rbtools.commands import close
-    # from rbtools.clients import perforce
     from rbtools.api.client import RBClient
     from rbtools.api.errors import APIError, AuthorizationError
-    # import rbtools.api.errors
 except ImportError:
     sys.stderr.write(RBTOOLS_VERSION_MSG)
     raise SystemExit(MISSING_RBTOOLS)
