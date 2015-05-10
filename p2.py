@@ -8,6 +8,7 @@ import tempfile
 import marshal
 import ssl
 import os
+import logging
 
 # Newer versions of Python are more strict about ssl verification
 # and need to have verification turned off
@@ -1053,6 +1054,8 @@ def main():
         print "Unknown action: %s. Try -h for usage." % arg_parser.action
         raise SystemExit(UNKNOWN_ACTION)
 
+    # Disable the rbt logger INFO messages
+    logging.disable(logging.INFO)
     try:
         url = get_url(arg_parser, os.path.join(user_home, RBTOOLS_RC_FILENAME))
         f5_review = F5Review(url, arg_parser)

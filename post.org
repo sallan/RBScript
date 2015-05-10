@@ -1,7 +1,7 @@
 * Sprint
 ** Code  cleanup and refactor
 ** Rename to post
-** Get rid of these INFO messages
+** DONE Get rid of these INFO messages
 
    INFO:root:Generating diff for pending changeset
 
