@@ -99,10 +99,13 @@ class RBArgParser(object):
         self.shelve = False
         self.force = False
         self.debug = False
+        self.version = False
         self.publish = False
+
+        # Call parse_args
         self.parser = RBArgParser._option_parser()
         self.opts, self.args = self.parser.parse_args(args[1:])
-        self.server_url = self.opts.server
+        self.version = self.opts.version
 
         if not self.args:
             self.action = None
@@ -131,6 +134,9 @@ class RBArgParser(object):
                 self.change_number = str(int(arg))
             except ValueError:
                 self.depot_path = arg
+
+        # Store the server url
+        self.server_url = self.opts.server
 
         # The f5_options list holds options that we don't pass on to rbt.
         self.f5_options = ['shelve', 'force', 'edit_changelist']
@@ -242,9 +248,6 @@ class RBArgParser(object):
         edit_group.add_option("-p", "--publish",
                               dest="publish", action="store_true", default=False,
                               help="Publish the review.")
-        edit_group.add_option("-n", "--output-diff",
-                              dest="output_diff_only", action="store_true", default=False,
-                              help="Output diff to console and exit. Do not post.")
         edit_group.add_option("--target-groups",
                               dest="target_groups", metavar="<group [,groups]>",
                               help="Assign or replace ReviewBoard groups for this review.")
@@ -1023,6 +1026,12 @@ def main():
     except RBError as e:
         print e.message
         raise SystemExit(ARG_PARSER)
+
+    if arg_parser.version:
+        print "post " + POST_VERSION
+        print "RBTools " +  rbtools.get_version_string()
+        raise SystemExit(NO_ACTION)
+
     if arg_parser.action is None:
         arg_parser.print_help()
         raise SystemExit(NO_ACTION)
