@@ -753,13 +753,6 @@ class F5Review(object):
         except SystemExit as e:
             if e.code != 0:
                 raise RBError(e)
-        finally:
-            # If this is a shared account, we don't want to leave
-            # an authentication cookie behind so delete the cookie
-            # file.
-            if self.running_as in SHARED_USER_ACCOUNTS:
-                if os.path.isfile(self.rbtools_cookies_file):
-                    os.remove(self.rbtools_cookies_file)
 
     def post(self):
         """Post a review to the review board server
@@ -1066,6 +1059,13 @@ def main():
     except RBError as e:
         print e
         raise SystemExit(RB_EXCEPTION)
+    finally:
+        # If this is a shared account, we don't want to leave
+        # an authentication cookie behind so delete the cookie
+        # file.
+        if f5_review.running_as in SHARED_USER_ACCOUNTS:
+            if os.path.isfile(f5_review.rbtools_cookies_file):
+                os.remove(f5_review.rbtools_cookies_file)
 
 
 if __name__ == '__main__':

@@ -1,16 +1,30 @@
 * Sprint
 ** Code  cleanup and refactor
-** Rename to post
-** DONE Get rid of these INFO messages
+** DONE Rename to post
+** TODO Get rid of these INFO messages
 
    INFO:root:Generating diff for pending changeset
 
    I think it's because I'm calling run_from_argv() directly.
 
+   I've figured out how to turn them off, but I think it should be
+   conditioned on our -debug option.
+
+** DONE Bug in the deletion of the cookie file
+
+   We delete the cookie file in the run() function, but when we post
+   with the -p option, the cookie file gets rewritten, so we need to
+   refactor that to be sure it always gets called last.
+
 ** Test with RBTools 0.5.2 and 0.8
 
 ** Support the coverity tool
 
+
+** TODO Either implement the -n option or remove it
+
+   rbt post doesn't have a dry run or -n option, and we don't really
+   need one because we have the diff command. So I say get rid of it.
 
 * Bugs we can use for testing
   - 456856 :: The post script needs to be compatible with RBTools 0.6
