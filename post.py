@@ -1049,6 +1049,8 @@ def main():
 
     # Disable the rbt logger INFO messages
     logging.disable(logging.INFO)
+
+    f5_review = None
     try:
         url = get_url(arg_parser, os.path.join(user_home, RBTOOLS_RC_FILENAME))
         f5_review = F5Review(url, arg_parser)
@@ -1063,7 +1065,7 @@ def main():
         # If this is a shared account, we don't want to leave
         # an authentication cookie behind so delete the cookie
         # file.
-        if f5_review.running_as in SHARED_USER_ACCOUNTS:
+        if f5_review is not None and f5_review.running_as in SHARED_USER_ACCOUNTS:
             if os.path.isfile(f5_review.rbtools_cookies_file):
                 os.remove(f5_review.rbtools_cookies_file)
 
