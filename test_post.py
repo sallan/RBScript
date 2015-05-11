@@ -3,7 +3,7 @@
 from unittest import TestCase
 from unittest import main
 
-import p2 as post
+import post
 
 
 class TestArgParser(TestCase):
