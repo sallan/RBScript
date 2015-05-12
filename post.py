@@ -781,6 +781,23 @@ class F5Review(object):
         # Call the client run method to post the review
         self.run(p, self.rbt_args)
 
+        # TODO: Coverity stuff goes here
+        # Capture review request for Coverity
+        # rev = self.server.api_get(self.review_request['links']['diffs']['href'])['total_results']
+        # This URL construction feels like a cheat, since it doesn't really use
+        # the REST API, but this is what RBTools does, so I'm leaving it
+        # url = '/'.join(['r',str(self.review_request['id']), 'diff', str(rev + 1),''])
+        # url = urljoin(self.server.url, url)
+        # try:
+        #     from subprocess import call
+        #     if not os.environ.get('PDTOOLS_DEBUG'):
+        #         DEVNULL = open(os.devnull, 'w')
+        #         call(['cov-f5-post-request', str(changenum), url], stdout = DEVNULL)
+        #     else:
+        #         call(['cov-f5-post-request', str(changenum), url])
+        # except:
+        #     pass
+
         if self.shelve:
             shelve_message = "This change has been shelved in changeset %s. " % self.change_number
             shelve_message += "To unshelve this change into your workspace:\n\n\tp4 unshelve -s %s" % self.change_number

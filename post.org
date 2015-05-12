@@ -25,7 +25,7 @@
 
 ** Test with RBTools 0.5.2 and 0.8
 
-** Support the coverity tool
+** TODO Support the coverity tool
 
 
 * Bugs we can use for testing
