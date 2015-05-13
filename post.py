@@ -12,6 +12,8 @@ import logging
 
 # Newer versions of Python are more strict about ssl verification
 # and need to have verification turned off
+from urlparse import urljoin
+
 if hasattr(ssl, '_create_unverified_context'):
     # noinspection PyProtectedMember
     ssl._create_default_https_context = ssl._create_unverified_context
@@ -20,6 +22,9 @@ POST_VERSION = "2.0"
 RBTOOLS_RC_FILENAME = ".reviewboardrc"
 RBTOOLS_COOKIE_FILENAME = ".rbtools-cookies"
 SHARED_USER_ACCOUNTS = ['mergeit']
+
+# Coverity on/off switch
+COVERITY_ON = False
 
 # PDTools usage tracking
 LOGHOST = ("REMOVED", "FIXME")
@@ -781,22 +786,11 @@ class F5Review(object):
         # Call the client run method to post the review
         self.run(p, self.rbt_args)
 
-        # TODO: Coverity stuff goes here
-        # Capture review request for Coverity
-        # rev = self.server.api_get(self.review_request['links']['diffs']['href'])['total_results']
-        # This URL construction feels like a cheat, since it doesn't really use
-        # the REST API, but this is what RBTools does, so I'm leaving it
-        # url = '/'.join(['r',str(self.review_request['id']), 'diff', str(rev + 1),''])
-        # url = urljoin(self.server.url, url)
-        # try:
-        #     from subprocess import call
-        #     if not os.environ.get('PDTOOLS_DEBUG'):
-        #         DEVNULL = open(os.devnull, 'w')
-        #         call(['cov-f5-post-request', str(changenum), url], stdout = DEVNULL)
-        #     else:
-        #         call(['cov-f5-post-request', str(changenum), url])
-        # except:
-        #     pass
+        # If this is a review with a pending change list, then run
+        # coverity on the code. A review of previously submitted
+        # change lists won't have a change_number and will  be skipped.
+        if COVERITY_ON and self.change_number:
+            self.run_coverity()
 
         if self.shelve:
             shelve_message = "This change has been shelved in changeset %s. " % self.change_number
@@ -857,6 +851,27 @@ class F5Review(object):
         if len(rr) > 1:
             raise RBError("Error: found %d reviews associated with CL %s" % (len(rr), self.change_number))
         return str(rr[0].id)
+
+    def run_coverity(self):
+        """Run script to do a coverity run on code and post as a review"""
+
+        # This gets called on unpublished reviews, so our diff number will
+        # be the current diff count plus 1.
+        diff_count = len(self.review_request.get_diffs())
+        url = '/'.join(['r', str(self.rid), 'diff', str(diff_count + 1), ''])
+        url = urljoin(self.url, url)
+        if self.debug:
+            print "Coverity url: " + url
+        try:
+            from subprocess import call
+            coverity_cmd = ['cov-f5-post-request', str(self.change_number), url]
+            if not os.environ.get('PDTOOLS_DEBUG'):
+                DEVNULL = open(os.devnull, 'w')
+                call(coverity_cmd, stdout = DEVNULL)
+            else:
+                call(coverity_cmd)
+        except:
+            pass
 
 
 def migrate_rbrc_file(old_rc_file, new_rc_file):

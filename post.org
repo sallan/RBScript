@@ -32,6 +32,20 @@
 
 ** TODO Support the coverity tool
 
+   Currently, post contructs a url and then passes that url to a
+   separate tool.  Here's what the url looks like:
+
+   (rbtools-0.5.2)[sallan@xena]~/Projects/RBScript% ./pold edit 825
+   Review request #10 posted.
+
+   http://localhost/r/10/
+   COVERITY: http://localhost/r/10/diff/2/
+
+
+   This is the direct url to the the just-uploaded-diff.
+  
+   So, we need to construct that coverity url, and that's should be
+   all we need to do. 
 
 * RBTools Bugs to watch
 
