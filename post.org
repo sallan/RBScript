@@ -23,11 +23,21 @@
    with the -p option, the cookie file gets rewritten, so we need to
    refactor that to be sure it always gets called last.
 
-** Test with RBTools 0.5.2 and 0.8
+** Test with different versions of RBTools
+
+   - RB 2.0 and RBT 0.5.2 :: FAIL
+   - RB 2.0 and RBT 0.6.3 :: PASS
+   - RB 2.0 and RBT 0.7.2 :: FAIL (unicode and rev ranges - issues 3843, 3864)
+   - RB 2.0 and RBT 0.8.x :: Not Available Yet
 
 ** TODO Support the coverity tool
 
 
+* RBTools Bugs to watch
+
+  - 3843 :: UnicodeDecodeError: 'ascii' codec can't decode byte 0xe2
+  - 3864 :: rbt post //depot/path/...@r1,@r2" throws exception
+	   
 * Bugs we can use for testing
   - 456856 :: The post script needs to be compatible with RBTools 0.6
   - 475344 :: ReviewBoard does not properly show "p4 move"
