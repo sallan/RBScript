@@ -362,12 +362,6 @@ class FuncTests(TestCase):
         # https://code.google.com/p/reviewboard/issues/detail?id=3843&q=allan&colspec=ID%20Type%20Status%20Priority%20Component%20Owner%20Summary%20Milestone
 
         # Add dotgnus rev 1 to perforce - remove old one if it exists
-        #
-        # For now, skip this test when running RBTools 0.7, but if they fix this bug,
-        # of course you need to turn it on.
-        if VERSION > (0, 6, 3):
-            return
-
         dot_gnus_file = os.path.join(self.workdir, "dotgnus")
         if os.path.isfile(dot_gnus_file):
             os.remove(dot_gnus_file)
