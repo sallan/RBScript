@@ -399,6 +399,9 @@ class FuncTests(TestCase):
         self.assertEqual('pending', rr.status)
         self.assertTrue(rr.public)
 
+        args = [post_command, "submit", "-r", rid, "--force"]
+        subprocess.check_call(args)
+
     def test_create_with_file_and_rev_range(self):
         depot_path = '//depot/Jam/MAIN/src/README#4,#5'
         args = [post_command, "create", "--target-people", "sallan",
@@ -415,6 +418,10 @@ class FuncTests(TestCase):
 
         depot_path = '//depot/Jam/MAIN/src/README#4,#6'
         args = [post_command, "edit", "-r", rid, "-p", depot_path]
+        subprocess.check_call(args)
+
+        # submit
+        args = [post_command, "submit", "-r", rid, "--force"]
         subprocess.check_call(args)
 
     def test_diff(self):

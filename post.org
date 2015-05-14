@@ -32,6 +32,9 @@
 
 ** TODO Support the coverity tool
 
+   The code is in place and appears to work.  You'll need to make a
+   local copy of cov-f5-post-review to test more thoroughly.
+
    Currently, post contructs a url and then passes that url to a
    separate tool.  Here's what the url looks like:
 
@@ -57,6 +60,7 @@
   - 475344 :: ReviewBoard does not properly show "p4 move"
 
 * Product Backlog
+** Since we expect perforce, always pass --respository-type to rbt
 ** Update confluence page
 ** Write announcement
 ** Support the new --depends-on option in rbt
