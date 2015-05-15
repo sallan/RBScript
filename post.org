@@ -1,9 +1,8 @@
 * Sprint
-** TODO BUG - what happens if I don't have a .reviewboardrc file?
+** DONE BUG - what happens if I don't have a .reviewboardrc file?
 
    Right now, it crashes. Not good.
 
-** Code  cleanup and refactor
 ** DONE Rename to post
 ** DONE Hook up the -v --version option
 ** DONE Either implement the -n option or remove it
@@ -30,10 +29,14 @@
    - RB 2.0 and RBT 0.7.2 :: FAIL (unicode and rev ranges - issues 3843, 3864)
    - RB 2.0 and RBT 0.8.x :: Not Available Yet
 
-** TODO Support the coverity tool
+** DONE Support the coverity tool
 
    The code is in place and appears to work.  You'll need to make a
-   local copy of cov-f5-post-review to test more thoroughly.
+   local copy of cov-f5-post-request to test more thoroughly. 
+
+   UPDATE: I just looked at cov-f5-post-request, and it doesn't do
+   anything I need to worry about. I just need to pass it a proper
+   url. 
 
    Currently, post contructs a url and then passes that url to a
    separate tool.  Here's what the url looks like:

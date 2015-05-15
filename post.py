@@ -949,6 +949,12 @@ def get_url(arg_parser, config_file):
         if not url.startswith('http'):
             url = 'https://' + url
     else:
+        if not os.path.isfile(config_file):
+            error_msg = "No configuration file found: %s\n" % config_file
+            error_msg += "Either create this file with a line like this:\n\n"
+            error_msg += "REVIEWBOARD_URL = 'https://reviewboard_server_name'\n\n"
+            error_msg += "or pass the ReviewBoard url using the --server option."
+            raise RBError(error_msg)
         with open(config_file, 'r') as f:
             for line in f:
                 line = line.strip()

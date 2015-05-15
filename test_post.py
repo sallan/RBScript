@@ -327,6 +327,11 @@ class TestConfigFile(TestCase):
         url = post.get_url(arg_parser, self.RC_FILE)
         self.assertEqual("http://localhost", url)
 
+    def test_no_config_file(self):
+        test_args = ['post', 'create']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertRaises(post.RBError, post.get_url, arg_parser, "no_such_file")
+
 
 class TestRidAccessor(TestCase):
     def no_rbt_api(self):
