@@ -1,57 +1,20 @@
 * Sprint
-** DONE BUG - what happens if I don't have a .reviewboardrc file?
+** Since we expect perforce, always pass --respository-type to rbt
+** Dev should be able to have review automatically open in browser
 
-   Right now, it crashes. Not good.
-
-** DONE Rename to post
-** DONE Hook up the -v --version option
-** DONE Either implement the -n option or remove it
-
-   rbt post doesn't have a dry run or -n option, and we don't really
-   need one because we have the diff command. So I say get rid of it.
-
-** DONE Get rid of these INFO messages
-
-   INFO:root:Generating diff for pending changeset
-
-   I think it's because I'm calling run_from_argv() directly.
-
-** DONE Bug in the deletion of the cookie file
-
-   We delete the cookie file in the run() function, but when we post
-   with the -p option, the cookie file gets rewritten, so we need to
-   refactor that to be sure it always gets called last.
-
-** Test with different versions of RBTools
+** Get coverity and pdtools tracking ready
+   Right now you have FIXME hacks in the script to turn off coverity
+   and tracking. See if you can clean that up, mabye by using
+   environment variables to turn that stuff off.
+** Write announcement
+** Update confluence page
+   
+* Test with different versions of RBTools
 
    - RB 2.0 and RBT 0.5.2 :: FAIL
    - RB 2.0 and RBT 0.6.3 :: PASS
    - RB 2.0 and RBT 0.7.2 :: FAIL (unicode and rev ranges - issues 3843, 3864)
    - RB 2.0 and RBT 0.8.x :: Not Available Yet
-
-** DONE Support the coverity tool
-
-   The code is in place and appears to work.  You'll need to make a
-   local copy of cov-f5-post-request to test more thoroughly. 
-
-   UPDATE: I just looked at cov-f5-post-request, and it doesn't do
-   anything I need to worry about. I just need to pass it a proper
-   url. 
-
-   Currently, post contructs a url and then passes that url to a
-   separate tool.  Here's what the url looks like:
-
-   (rbtools-0.5.2)[sallan@xena]~/Projects/RBScript% ./pold edit 825
-   Review request #10 posted.
-
-   http://localhost/r/10/
-   COVERITY: http://localhost/r/10/diff/2/
-
-
-   This is the direct url to the the just-uploaded-diff.
-  
-   So, we need to construct that coverity url, and that's should be
-   all we need to do. 
 
 * RBTools Bugs to watch
 
@@ -62,13 +25,9 @@
   - 456856 :: The post script needs to be compatible with RBTools 0.6
   - 475344 :: ReviewBoard does not properly show "p4 move"
 
-* Product Backlog
-** Since we expect perforce, always pass --respository-type to rbt
-** Update confluence page
-** Write announcement
-** Support the new --depends-on option in rbt
-** Dev should be able to have review automatically open in browser
 
+* Product Backlog
+** Support the new --depends-on option in rbt
 ** The developer should be able to 'submit' a review that was never published
 
    Though a corner case, the developer should not see this ugly output
@@ -121,6 +80,53 @@ rbtools.commands.CommandError: Error getting review request 819: Object does not
     
 
 * Done
+** DONE BUG - what happens if I don't have a .reviewboardrc file?
+
+   Right now, it crashes. Not good.
+*
+** DONE Bug in the deletion of the cookie file
+
+   We delete the cookie file in the run() function, but when we post
+   with the -p option, the cookie file gets rewritten, so we need to
+   refactor that to be sure it always gets called last.
+
+** DONE Support the coverity tool
+
+   The code is in place and appears to work.  You'll need to make a
+   local copy of cov-f5-post-request to test more thoroughly. 
+
+   UPDATE: I just looked at cov-f5-post-request, and it doesn't do
+   anything I need to worry about. I just need to pass it a proper
+   url. 
+
+   Currently, post contructs a url and then passes that url to a
+   separate tool.  Here's what the url looks like:
+
+   (rbtools-0.5.2)[sallan@xena]~/Projects/RBScript% ./pold edit 825
+   Review request #10 posted.
+
+   http://localhost/r/10/
+   COVERITY: http://localhost/r/10/diff/2/
+
+
+   This is the direct url to the the just-uploaded-diff.
+  
+   So, we need to construct that coverity url, and that's should be
+   all we need to do. 
+
+** DONE Either implement the -n option or remove it
+
+   rbt post doesn't have a dry run or -n option, and we don't really
+   need one because we have the diff command. So I say get rid of it.
+
+** DONE Hook up the -v --version option
+** DONE Get rid of these INFO messages
+
+   INFO:root:Generating diff for pending changeset
+
+   I think it's because I'm calling run_from_argv() directly.
+
+** DONE Rename to post
 ** DONE Dev should be able to post a review from the mergeit account
 
    Okay, the stuff below is the running dialog.  Here's what I decided
