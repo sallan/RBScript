@@ -27,6 +27,7 @@
 
 
 * Product Backlog
+** Developer should have the option to edit change list prior to submitting.
 ** Support the new --depends-on option in rbt
 ** The developer should be able to 'submit' a review that was never published
 

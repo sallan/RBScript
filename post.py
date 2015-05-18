@@ -161,8 +161,9 @@ class RBArgParser(object):
         self.debug = self.opts.debug
         self.username = self.opts.username
 
-        # Process the options separating those we handle and those we pass to rbt
-        self.rbt_args = ['rbt', self.action]
+        # Process the options separating those we handle and those we pass to rbt.
+        # We also want to force the use of perforce as the repository type.
+        self.rbt_args = ['rbt', self.action, '--repository-type', 'perforce']
         for opt, value in vars(self.opts).iteritems():
             if value:
                 if opt in self.f5_options:
@@ -240,6 +241,11 @@ class RBArgParser(object):
                           dest="server", metavar="<server_name>",
                           help="Use specified server. Default is the REVIEWBOARD_URL entry in your "
                                + RBTOOLS_RC_FILENAME + " file.")
+
+        # TODO: delete me
+        # parser.add_option("--repository-type",
+        #                   dest="repository_type", metavar="<string>", default="perforce",
+        #                   help="Specify SCM type, e.g. 'perforce' or 'git' (rbt list-repo-types). Default is 'perforce'")
 
         submit_group = optparse.OptionGroup(parser, "Submit Options")
         submit_group.add_option("-f", "--force",

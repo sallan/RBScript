@@ -7,6 +7,7 @@ from unittest import main
 
 import os
 from P4 import P4
+from P4 import P4Exception
 from rbtools.api.client import RBClient
 from rbtools import VERSION
 post_command = './post'
@@ -366,8 +367,11 @@ class FuncTests(TestCase):
         if os.path.isfile(dot_gnus_file):
             os.remove(dot_gnus_file)
         shutil.copyfile(os.path.join(self.workdir, "bad-dot-gnus", "dotgnus.r1"), dot_gnus_file)
-        self.p4.run_add(dot_gnus_file)
-        self.p4.run_submit("-d", "dotgnus file")
+        try:
+            self.p4.run_add(dot_gnus_file)
+            self.p4.run_submit("-d", "dotgnus file")
+        except P4Exception:
+            pass
 
         # Edit with rev 2
         self.p4.run_edit(dot_gnus_file)
@@ -386,7 +390,7 @@ class FuncTests(TestCase):
     def test_create_and_edit_with_submitted_cl_range(self):
         depot_path = '//depot/Jam/MAIN/src/...@130,@140'
         summary = "Post a range of submitted change lists"
-        args = [post_command, "create", "--description", summary, "--summary",
+        args = [post_command, "create", "--server", self.rb_url, "--description", summary, "--summary",
                 summary, depot_path, "--target-people", "sallan", "-p"]
         output = check_output_26(args)
         m = re.match("Review request #(\d+) posted\.", output)
@@ -399,12 +403,12 @@ class FuncTests(TestCase):
         self.assertEqual('pending', rr.status)
         self.assertTrue(rr.public)
 
-        args = [post_command, "submit", "-r", rid, "--force"]
+        args = [post_command, "submit", "--server", self.rb_url,  "-r", rid, "--force"]
         subprocess.check_call(args)
 
     def test_create_with_file_and_rev_range(self):
         depot_path = '//depot/Jam/MAIN/src/README#4,#5'
-        args = [post_command, "create", "--target-people", "sallan",
+        args = [post_command, "create", "--target-people", "sallan", "--server", self.rb_url,
                 "--summary", "Single file with rev range", depot_path, "-p"]
         output = check_output_26(args)
         m = re.match("Review request #(\d+) posted\.", output)
@@ -417,18 +421,18 @@ class FuncTests(TestCase):
         self.assertTrue(rr.public)
 
         depot_path = '//depot/Jam/MAIN/src/README#4,#6'
-        args = [post_command, "edit", "-r", rid, "-p", depot_path]
+        args = [post_command, "edit", "--server", self.rb_url, "-r", rid, "-p", depot_path]
         subprocess.check_call(args)
 
         # submit
-        args = [post_command, "submit", "-r", rid, "--force"]
+        args = [post_command, "submit", "--server", self.rb_url,  "-r", rid, "--force"]
         subprocess.check_call(args)
 
     def test_diff(self):
         test_string = 'Test the diff functionality'
         self.p4.run_edit(self.readme)
         self.append_line(self.readme, test_string)
-        args = [post_command, "diff"]
+        args = [post_command, "--server", self.rb_url, "diff"]
         output = check_output_26(args).splitlines()
         self.assertEqual('+' + test_string, output[-2])
 
