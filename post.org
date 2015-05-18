@@ -1,8 +1,8 @@
 * Sprint
-** Since we expect perforce, always pass --respository-type to rbt
-** Dev should be able to have review automatically open in browser
+** DONE Since we expect perforce, always pass --respository-type to rbt
+** TODO Dev should be able to have review automatically open in browser
 
-** Get coverity and pdtools tracking ready
+** TODO Get coverity and pdtools tracking ready
    Right now you have FIXME hacks in the script to turn off coverity
    and tracking. See if you can clean that up, mabye by using
    environment variables to turn that stuff off.
