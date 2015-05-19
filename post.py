@@ -23,10 +23,8 @@ RBTOOLS_RC_FILENAME = ".reviewboardrc"
 RBTOOLS_COOKIE_FILENAME = ".rbtools-cookies"
 SHARED_USER_ACCOUNTS = ['mergeit']
 
-# Coverity on/off switch
-COVERITY_ON = False
-
 # PDTools usage tracking
+# TODO:
 LOGHOST = ("REMOVED", "FIXME")
 USERNAME = os.environ.get('LOGNAME', os.environ.get('USER', 'UNKNOWN'))
 MSG_FMT = '%s:[PDTOOLS TRACKING]:%%s:%s:%%s' % (USERNAME, os.path.realpath(sys.argv[0]))
@@ -795,7 +793,7 @@ class F5Review(object):
         # If this is a review with a pending change list, then run
         # coverity on the code. A review of previously submitted
         # change lists won't have a change_number and will  be skipped.
-        if COVERITY_ON and self.change_number:
+        if not os.environ.get("NO_COVERITY") and self.change_number:
             self.run_coverity()
 
         if self.shelve:
@@ -860,6 +858,8 @@ class F5Review(object):
 
     def run_coverity(self):
         """Run script to do a coverity run on code and post as a review"""
+        # TODO: Remove
+        raise NotImplementedError("Disabled for dev and test")
 
         # This gets called on unpublished reviews, so our diff number will
         # be the current diff count plus 1.
@@ -1065,6 +1065,15 @@ def diff_changes(f5_review):
 
 
 def main():
+    # Track usage for PDTools
+    try:
+        if not os.environ.get('PDTOOLS_NOTRACKING'):
+            m = MSG_FMT % ('RUN', ''.join(','.join(sys.argv[1:]).encode('base64').splitlines()))
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.sendto(m, LOGHOST)
+    except:
+        pass
+
     try:
         arg_parser = RBArgParser(sys.argv)
     except RBError as e:

@@ -2,7 +2,10 @@
 ** DONE Since we expect perforce, always pass --respository-type to rbt
 ** TODO Dev should be able to have review automatically open in browser
 
-** TODO Get coverity and pdtools tracking ready
+** DONE Get coverity and pdtools tracking ready
+   I've implemented this to the point I can without putting in any IP
+   addresses.
+
    Right now you have FIXME hacks in the script to turn off coverity
    and tracking. See if you can clean that up, mabye by using
    environment variables to turn that stuff off.
