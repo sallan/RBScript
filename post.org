@@ -1,7 +1,5 @@
 * Sprint
 ** DONE Since we expect perforce, always pass --respository-type to rbt
-** TODO Dev should be able to have review automatically open in browser
-
 ** DONE Get coverity and pdtools tracking ready
    I've implemented this to the point I can without putting in any IP
    addresses.
@@ -304,3 +302,11 @@ rbtools.commands.CommandError: Error getting review request 819: Object does not
     want to spend a lot of time testing rbt functionality.
 
 ** DONE Code cleanup and refactor
+
+* Rejected
+**  Dev should be able to have review automatically open in browser
+    I've decided to not implement this.  We've never had this with the
+    older scripts and had no requests for it. Also, we don't really
+    want to encourage people to use browsers on the seadev machines,
+    which this option would do.
+

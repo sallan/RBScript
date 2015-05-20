@@ -240,11 +240,6 @@ class RBArgParser(object):
                           help="Use specified server. Default is the REVIEWBOARD_URL entry in your "
                                + RBTOOLS_RC_FILENAME + " file.")
 
-        # TODO: delete me
-        # parser.add_option("--repository-type",
-        #                   dest="repository_type", metavar="<string>", default="perforce",
-        #                   help="Specify SCM type, e.g. 'perforce' or 'git' (rbt list-repo-types). Default is 'perforce'")
-
         submit_group = optparse.OptionGroup(parser, "Submit Options")
         submit_group.add_option("-f", "--force",
                                 dest="force", action="store_true", default=False,
@@ -858,8 +853,6 @@ class F5Review(object):
 
     def run_coverity(self):
         """Run script to do a coverity run on code and post as a review"""
-        # TODO: Remove
-        raise NotImplementedError("Disabled for dev and test")
 
         # This gets called on unpublished reviews, so our diff number will
         # be the current diff count plus 1.
