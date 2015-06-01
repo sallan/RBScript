@@ -1,12 +1,10 @@
 * Sprint
-** DONE Since we expect perforce, always pass --respository-type to rbt
-** DONE Get coverity and pdtools tracking ready
-   I've implemented this to the point I can without putting in any IP
-   addresses.
+** BUG: .rbtools-cookie file not being properly saved
 
-   Right now you have FIXME hacks in the script to turn off coverity
-   and tracking. See if you can clean that up, mabye by using
-   environment variables to turn that stuff off.
+   On a new VM, I ran into this issue running interactive.py where I
+   was being prompted every time. This was on rbtools-0.6.3 and RB
+   2.0.15. Test this on all of your other machines, especially xena.
+
 ** Write announcement
 ** Update confluence page
    
@@ -82,6 +80,14 @@ rbtools.commands.CommandError: Error getting review request 819: Object does not
     
 
 * Done
+** DONE Since we expect perforce, always pass --respository-type to rbt
+** DONE Get coverity and pdtools tracking ready
+   I've implemented this to the point I can without putting in any IP
+   addresses.
+
+   Right now you have FIXME hacks in the script to turn off coverity
+   and tracking. See if you can clean that up, mabye by using
+   environment variables to turn that stuff off.
 ** DONE BUG - what happens if I don't have a .reviewboardrc file?
 
    Right now, it crashes. Not good.
