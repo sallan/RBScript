@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import getpass
+import socket
 import subprocess
 from subprocess import CalledProcessError
 import sys
@@ -9,11 +10,10 @@ import marshal
 import ssl
 import os
 import logging
+from urlparse import urljoin
 
 # Newer versions of Python are more strict about ssl verification
 # and need to have verification turned off
-from urlparse import urljoin
-
 if hasattr(ssl, '_create_unverified_context'):
     # noinspection PyProtectedMember
     ssl._create_default_https_context = ssl._create_unverified_context
