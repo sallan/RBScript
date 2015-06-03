@@ -5,6 +5,10 @@
    was being prompted every time. This was on rbtools-0.6.3 and RB
    2.0.15. Test this on all of your other machines, especially xena.
 
+** BZ 475344
+ 
+   Test that we now properly handle 'p4 move' files
+
 ** Write announcement
 ** Update confluence page
    
