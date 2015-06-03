@@ -8,6 +8,7 @@ from post import P4
 
 p4 = P4()
 
+os.environ['PATH'] = os.getcwd() + ':' + os.environ['PATH']
 def append_line(filename, line):
     with open(filename, "a") as f:
         f.write(line + "\n")
