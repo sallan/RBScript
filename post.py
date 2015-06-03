@@ -754,22 +754,6 @@ class F5Review(object):
         return review_request
 
     def run(self, client, args):
-        print args
-        if args[1] == 'edit':
-            args[1] = 'post'
-
-        #raise SystemExit(1)
-        try:
-            #subprocess.check_call(args)
-            cmd = ' '.join(args)
-            print cmd
-            subprocess.check_call(cmd, shell=True)
-        except subprocess.CalledProcessError as e:
-            raise RBError(e)
-            
-
-
-    def Xrun(self, client, args):
         """Call the run_from_argv function and catch SystemExit"""
         try:
             client.run_from_argv(args)
