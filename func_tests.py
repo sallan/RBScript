@@ -74,6 +74,7 @@ class FuncTests(TestCase):
         change_number = int(change_output[0].split()[1])
         return change_number
 
+    '''
     def test_simple_create_and_update(self):
         self.p4.run_edit(self.readme)
 
@@ -442,6 +443,43 @@ class FuncTests(TestCase):
         change_number = change_output[0].split()[1]
         args.append(change_number)
         subprocess.check_call(args)
+
+    '''
+
+    def test_cookie_save(self):
+        from subprocess import Popen, PIPE
+
+        rb_cookies_file = os.path.join(os.path.expanduser(os.environ['HOME']), ".rbtools-cookies")
+        rb_cookies_file_backup = rb_cookies_file + ".backup"
+
+        # Start of as a brand new user with a clean slate, which
+        # means you don't yet have login cookies and should get
+        # prompted for a login.
+        if os.path.isfile(rb_cookies_file):
+            os.rename(rb_cookies_file, rb_cookies_file_backup)
+
+        self.p4.run_edit(self.readme)
+        test_string = 'Test writing out new cookie file.'
+        self.append_line(self.readme, test_string)
+        cl = self.create_new_change(self.readme, test_string)
+
+        # post call fails
+        subprocess.call("%s create --publish --server %s --username sallan --target-people sallan %d" %
+                        (post_command, self.rb_url, cl), shell=True)
+
+        # rbt call works
+        #subprocess.call("%s post --repository-type perforce --publish --server %s --username sallan --target-people sallan %d" %
+                        #('rbt', self.rb_url, cl), shell=True)
+
+        with open(rb_cookies_file, 'r') as f:
+            cookie_contents = f.read()
+
+        # Restore original file before test just in case test bombs
+        os.rename(rb_cookies_file_backup, rb_cookies_file)
+
+        # See if we got a session id
+        self.assertTrue(cookie_contents.find('rbsessionid') > -1)
+
 
 if __name__ == '__main__':
     main()
