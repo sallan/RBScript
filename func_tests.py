@@ -74,7 +74,6 @@ class FuncTests(TestCase):
         change_number = int(change_output[0].split()[1])
         return change_number
 
-    '''
     def test_simple_create_and_update(self):
         self.p4.run_edit(self.readme)
 
@@ -443,8 +442,6 @@ class FuncTests(TestCase):
         change_number = change_output[0].split()[1]
         args.append(change_number)
         subprocess.check_call(args)
-
-    '''
 
     def test_cookie_save(self):
         from subprocess import Popen, PIPE

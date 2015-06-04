@@ -785,6 +785,9 @@ class F5Review(object):
         # Call the client run method to post the review
         self.run(p, self.rbt_args)
 
+        # Refresh the api so we get a valid session id
+        self.rbt_api = self._get_rbt_api()
+
         # If this is a review with a pending change list, then run
         # coverity on the code. A review of previously submitted
         # change lists won't have a change_number and will  be skipped.
