@@ -1,5 +1,5 @@
 * Sprint
-** BUG: .rbtools-cookie file not being properly saved
+** DONE BUG: .rbtools-cookie file not being properly saved
 
    On a new VM, I ran into this issue running interactive.py where I
    was being prompted every time. This was on rbtools-0.6.3 and RB
