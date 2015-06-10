@@ -44,25 +44,19 @@ ARG_PARSER = 9
 # Required Versions
 PYTHON_VERSION = (2, 6)
 PYTHON_VERSION_STR = '2.6'
-RBTOOLS_MIN_VERSION = (0, 6, 0)
-RBTOOLS_MIN_VERSION_STR = '0.6.0'
+RBTOOLS_MIN_VERSION = (0, 6, 3)
+RBTOOLS_MIN_VERSION_STR = '0.6.3'
 RBTOOLS_VERSION_MSG = """
 Use of this script requires:
 
   RBTools version %s or greater.
   Version 0.7.x currently has bugs so 0.6.3 is recommended.
 
-  Python %s or greater
-
-To install the latest version of RBTools:
-
-    $ sudo easy_install -U RBTools
-
 To install version 0.6.3:
 
     $ sudo easy_install -U RBTools==0.6.3
 
-""" % (RBTOOLS_MIN_VERSION_STR, PYTHON_VERSION_STR)
+""" % (RBTOOLS_MIN_VERSION_STR)
 
 try:
     # noinspection PyUnresolvedReferences
@@ -178,7 +172,6 @@ class RBArgParser(object):
             # and add the rid later when we actually have an rid
             if self.action != 'submit' and self.change_number is not None:
                 self.rbt_args.append(self.change_number)
-
 
     @staticmethod
     def _opt_to_string(opt, value):
@@ -851,7 +844,9 @@ class F5Review(object):
             raise RBError("Error: No reviews found associated with CL %s.\n"
                           "Either create a new review or use the --rid option." % self.change_number)
         if len(rr) > 1:
-            raise RBError("Error: found %d reviews associated with CL %s" % (len(rr), self.change_number))
+            rr_ids = [str(r.id) for r in rr]
+            raise RBError("Error: found %d reviews associated with CL %s: %s\n"
+                          "Use -r RID to specify which review to edit" % (len(rr), self.change_number, ' '.join(rr_ids)))
         return str(rr[0].id)
 
     def run_coverity(self):
