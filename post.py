@@ -784,7 +784,7 @@ class F5Review(object):
         # If this is a review with a pending change list, then run
         # coverity on the code. A review of previously submitted
         # change lists won't have a change_number and will  be skipped.
-        if not os.environ.get("NO_COVERITY") and self.change_number:
+        if not 'coverity' in os.environ.get('PDTOOLS_OPTOUT', '') and self.change_number:
             self.run_coverity()
 
         if self.shelve:
