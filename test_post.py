@@ -129,7 +129,7 @@ class TestAllOptions(TestCase):
     def test_update_diff(self):
         test_args = ['post', 'edit', '--update-diff', '999']
         arg_parser = post.RBArgParser(test_args)
-        self.assertEqual(REPO + ['--update-diff', '999'], arg_parser.rbt_args[2:])
+        self.assertEqual(REPO + ['--diff-only', '999'], arg_parser.rbt_args[2:])
 
     def test_change_only(self):
         test_args = ['post', 'edit', '--change-only', '999']
