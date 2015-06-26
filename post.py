@@ -183,7 +183,7 @@ class RBArgParser(object):
             'server': '--server',
             'shelve': '--shelve',
             'force': '--force',
-            'diff_only': '--update-diff',
+            'diff_only': '--diff-only',
             'change_only': '--change-only',
             'edit_changelist': '--edit-changelist',
             'publish': '--publish',
