@@ -150,6 +150,8 @@ class FuncTests(TestCase):
                         (post_command, self.rb_url, cl), shell=True)
         rr = self.get_rr_from_cl(cl)
         self.assertEqual('sallan', rr.get_submitter().username)
+        diffs = rr.get_diffs()
+        self.assertEqual(1, len(diffs))
         self.assertEqual(test_string, rr.summary)
         change = self.p4.fetch_change(cl)
         self.assertEqual(change['Description'], rr.description)
@@ -161,22 +163,35 @@ class FuncTests(TestCase):
         new_text = "\nAdd a new line to file and description.\nNow see if edit with --update diff leaves description alone."
         original_description = rr.description
         self.append_line(self.readme, new_text)
-        change['Description'] += new_text
+        change['Description'] += new_text + "\n"
         self.p4.save_change(change)
-        subprocess.call("%s edit --update-diff %s %d -p" %
+        subprocess.call("%s edit --update-diff --server %s %d -p" %
                         (post_command, self.rb_url, cl), shell=True)
         rr = self.get_rr_from_cl(cl)
-        self.assertEqual(original_description, rr.description)
+        self.assertEqual(original_description, rr.description, "Description should not change")
+        diffs = rr.get_diffs()
+        self.assertEqual(2, len(diffs), "We should have a new diff")
 
-
-        '''
-        self.append_line(self.readme, 'Better change')
-        subprocess.call("%s edit --server %s %s" % (post_command, self.rb_url, cl), shell=True)
-        draft = rr.get_draft()
-        self.assertFalse(draft.public)
-        draft.update(public=True)
+        # Use change-only option to update description, but not diff
+        subprocess.call("%s edit --change-only --server %s %d -p" %
+                        (post_command, self.rb_url, cl), shell=True)
         rr = self.get_rr_from_cl(cl)
-        self.assertTrue(rr.public)
+        self.assertEqual(change['Description'], rr.description)
+        #self.assertEqual(change['Description'], rr.description, "Description should change")
+        diffs = rr.get_diffs()
+        self.assertEqual(2, len(diffs), "We should not have a new diff")
+
+        # Now try the default behavior, which should update both
+        change_diff_and_description = 'Add a second change and description and see if edit updates both'
+        self.append_line(self.readme, change_diff_and_description)
+        change = self.p4.fetch_change(cl)
+        change['Description'] += change_diff_and_description + "\n"
+        self.p4.save_change(change)
+        subprocess.call("%s edit --server %s %s -p" % (post_command, self.rb_url, cl), shell=True)
+        rr = self.get_rr_from_cl(cl)
+        self.assertEqual(change['Description'], rr.description, "Description should have changed")
+        diffs = rr.get_diffs()
+        self.assertEqual(3, len(diffs), "We should also have a new diff")
 
         # Submit request
         subprocess.call("%s submit --server %s %s -f" % (post_command, self.rb_url, cl), shell=True)
@@ -184,7 +199,6 @@ class FuncTests(TestCase):
         self.assertEqual('sallan', rr.get_submitter().username)
         self.assertTrue(rr.public)
         self.assertEqual('submitted', rr.status)
-        '''
 
     def test_handling_ship_its(self):
         self.p4.run_edit(self.readme)
@@ -287,9 +301,9 @@ class FuncTests(TestCase):
         subprocess.call("%s edit --publish --server %s %d" %
                         (post_command, self.rb_url, cl), shell=True)
 
-        # Should now have 3 reviews
+        # Should still have 2 reviews
         rr = self.get_rr_from_cl(cl)
-        self.assertEqual(3, len(rr.get_reviews()))
+        self.assertEqual(2, len(rr.get_reviews()))
 
         # Submit
         subprocess.check_call("%s submit --server %s -f %s" % (post_command, self.rb_url, cl), shell=True)
@@ -321,9 +335,9 @@ class FuncTests(TestCase):
         subprocess.call("%s edit --publish --server %s %d" %
                         (post_command, self.rb_url, cl), shell=True)
 
-        # Should now have 2 reviews
+        # Should still have 1 review
         rr = self.get_rr_from_cl(cl)
-        self.assertEqual(2, len(rr.get_reviews()))
+        self.assertEqual(1, len(rr.get_reviews()))
 
         # Submit
         subprocess.check_call("%s submit --server %s -f %s" % (post_command, self.rb_url, cl), shell=True)
@@ -375,8 +389,6 @@ class FuncTests(TestCase):
         # Try update without rid
         args = [post_command, "edit", "--server", self.rb_url, str(cl2)]
         self.assertRaises(subprocess.CalledProcessError, subprocess.check_call, args)
-        # with self.assertRaises(subprocess.CalledProcessError):
-        # subprocess.check_call(args)
 
         # Update using rid
         subprocess.call("%s edit -r %s --publish --server %s %d" %

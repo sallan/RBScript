@@ -765,8 +765,8 @@ class F5Review(object):
         if self.bugs:
             extra_args.extend(['--bugs-closed', ','.join(self.bugs)])
 
-        if self.action != 'create':
-            extra_args.extend(['--review-request-id', self.rid])
+        if self.action != 'create' and self.arg_parser.rid:
+            extra_args.extend(['--review-request-id', self.arg_parser.rid])
 
         # Squeeze the extra args in right before the change list number
         self.rbt_args[-1:-1] = extra_args
@@ -1001,12 +1001,13 @@ def edit_review(f5_review):
         if f5_review.change_number is None:
             raise RBError("The edit command requires a change list number.")
 
+        # Make sure there is an RID associated with this review
+        if f5_review.arg_parser.rid is None and f5_review.rid is None:
+            raise RBError("Cannot find a review to edit.")
+
         p4 = P4()
         if f5_review.shelve:
             p4.shelve(f5_review.change_number, update=True)
-
-        # If CL has been shelved add the shelve option automatically.
-        f5_review.shelve = p4.shelved(f5_review.change_number)
 
         # Extract bugs from change list if any
         f5_review.bugs = p4.get_jobs(f5_review.change_number)
