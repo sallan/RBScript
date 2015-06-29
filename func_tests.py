@@ -139,6 +139,53 @@ class FuncTests(TestCase):
         self.assertTrue(rr1.public)
         self.assertEqual('submitted', rr1.status)
 
+    def test_edit_options(self):
+        self.p4.run_edit(self.readme)
+
+        # Create review request
+        test_string = 'Test editing options.'
+        self.append_line(self.readme, test_string)
+        cl = self.create_new_change(self.readme, test_string)
+        subprocess.call("%s create --server %s --target-people sallan %d -p" %
+                        (post_command, self.rb_url, cl), shell=True)
+        rr = self.get_rr_from_cl(cl)
+        self.assertEqual('sallan', rr.get_submitter().username)
+        self.assertEqual(test_string, rr.summary)
+        change = self.p4.fetch_change(cl)
+        self.assertEqual(change['Description'], rr.description)
+        self.assertEqual(cl, rr.changenum)
+        self.assertEqual('pending', rr.status)
+        self.assertTrue(rr.public)
+
+        # Now edit the file and the description
+        new_text = "\nAdd a new line to file and description.\nNow see if edit with --update diff leaves description alone."
+        original_description = rr.description
+        self.append_line(self.readme, new_text)
+        change['Description'] += new_text
+        self.p4.save_change(change)
+        subprocess.call("%s edit --update-diff %s %d -p" %
+                        (post_command, self.rb_url, cl), shell=True)
+        rr = self.get_rr_from_cl(cl)
+        self.assertEqual(original_description, rr.description)
+
+
+        '''
+        self.append_line(self.readme, 'Better change')
+        subprocess.call("%s edit --server %s %s" % (post_command, self.rb_url, cl), shell=True)
+        draft = rr.get_draft()
+        self.assertFalse(draft.public)
+        draft.update(public=True)
+        rr = self.get_rr_from_cl(cl)
+        self.assertTrue(rr.public)
+
+        # Submit request
+        subprocess.call("%s submit --server %s %s -f" % (post_command, self.rb_url, cl), shell=True)
+        rr = self.get_rr_from_cl(cl)
+        self.assertEqual('sallan', rr.get_submitter().username)
+        self.assertTrue(rr.public)
+        self.assertEqual('submitted', rr.status)
+        '''
+
     def test_handling_ship_its(self):
         self.p4.run_edit(self.readme)
         test_string = 'Test proper handling of ship its.'
@@ -443,7 +490,8 @@ class FuncTests(TestCase):
         args.append(change_number)
         subprocess.check_call(args)
 
-    def test_cookie_save(self):
+    def Xtest_cookie_save(self):
+        # TODO: Turn this test back on
         from subprocess import Popen, PIPE
 
         rb_cookies_file = os.path.join(os.path.expanduser(os.environ['HOME']), ".rbtools-cookies")
