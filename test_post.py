@@ -205,6 +205,11 @@ class TestAllOptions(TestCase):
         self.assertEqual(REPO + ['--summary', 'Best change ever!', '999'], arg_parser.rbt_args[2:])
 
 
+    def test_diff_filename(self):
+        test_args = ['post', 'create', '--diff-filename', 'diff.txt']
+        arg_parser = post.RBArgParser(test_args)
+        self.assertEqual(REPO + ['--diff-filename', 'diff.txt'], arg_parser.rbt_args[2:])
+
 class TestCreateUi(TestCase):
     REPO = ["--repository-type", "perforce"]
 

@@ -502,6 +502,19 @@ class FuncTests(TestCase):
         args.append(change_number)
         subprocess.check_call(args)
 
+    def test_upload_diff_file(self):
+        """Test for bug in the --diff-filename option"""
+        test_string = 'Test the --diff-filename option for uploading a diff'
+        self.p4.run_edit(self.relnotes)
+        self.append_line(self.relnotes, test_string)
+        change = self.p4.fetch_change()
+        change['Description'] = test_string + "\n"
+        change_output = self.p4.save_change(change)
+        change_number = change_output[0].split()[1]
+        subprocess.call("%s diff %s > diff.txt" % (post_command, change_number), shell=True)
+        subprocess.call("%s create --diff-filename diff.txt %s" % (post_command, change_number), shell=True)
+
+
     def Xtest_cookie_save(self):
         # TODO: Turn this test back on
         from subprocess import Popen, PIPE
