@@ -196,6 +196,7 @@ class RBArgParser(object):
             'review_summary': '--summary',
             'rid': '--review-request-id',
             'username': '--username',
+            'diff_filename': '--diff-filename',
         }
         args = [option_string[opt]]
         if opt not in boolean:
@@ -270,6 +271,9 @@ class RBArgParser(object):
         edit_group.add_option("--testing-done-file",
                               dest="testing_file", metavar="<filename>",
                               help="Text file containing description of testing done.")
+        edit_group.add_option("--diff-filename",
+                              dest="diff_filename", metavar="<filename>",
+                              help="Text file containing diff to upload to server.")
         edit_group.add_option("--summary",
                               dest="review_summary", metavar="<string>",
                               help="Alternate text to use for summary field on Review Board.")

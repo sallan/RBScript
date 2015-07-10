@@ -9,7 +9,7 @@ import os
 from P4 import P4
 from P4 import P4Exception
 from rbtools.api.client import RBClient
-from rbtools import VERSION
+from rbtools import get_version_string
 post_command = './post'
 
 
@@ -504,6 +504,11 @@ class FuncTests(TestCase):
 
     def test_upload_diff_file(self):
         """Test for bug in the --diff-filename option"""
+        # Skip versions we know have this bug and wait for new releases
+        version = get_version_string()
+        if version <= '0.6.3' or ('0.7.0' < version <= '0.7.3'):
+            return
+
         test_string = 'Test the --diff-filename option for uploading a diff'
         self.p4.run_edit(self.relnotes)
         self.append_line(self.relnotes, test_string)
@@ -512,10 +517,10 @@ class FuncTests(TestCase):
         change_output = self.p4.save_change(change)
         change_number = change_output[0].split()[1]
         subprocess.call("%s diff %s > diff.txt" % (post_command, change_number), shell=True)
-        subprocess.call("%s create --diff-filename diff.txt %s" % (post_command, change_number), shell=True)
+        subprocess.check_call("%s create --diff-filename diff.txt %s" % (post_command, change_number), shell=True)
 
 
-    def Xtest_cookie_save(self):
+    def test_cookie_save(self):
         # TODO: Turn this test back on
         from subprocess import Popen, PIPE
 
