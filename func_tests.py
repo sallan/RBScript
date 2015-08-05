@@ -556,5 +556,56 @@ class FuncTests(TestCase):
         self.assertTrue(cookie_contents.find('rbsessionid') > -1)
 
 
+    def test_bug_removal(self):
+        # Bug: When job removed from change list and review updated, the bugs are not removed
+        # The underlying rbt script doesn't handle this so you have to do it in post
+        self.p4.run_edit(self.readme)
+
+        # Create first review request
+        test_string = "Test removing bug from CL and RB"
+        self.append_line(self.readme, test_string)
+        cl = self.create_new_change(self.readme, test_string)
+        self.p4.run('fix', '-c', cl, 'job000010')
+        subprocess.call("%s create --server %s --target-people sallan %d -p" %
+                        (post_command, self.rb_url, cl), shell=True)
+        rr = self.get_rr_from_cl(cl)
+        self.assertEqual('sallan', rr.get_submitter().username)
+        self.assertEqual(test_string, rr.summary)
+        self.assertEqual(cl, rr.changenum)
+        self.assertEqual(['job000010'], rr.bugs_closed)
+        self.assertEqual('pending', rr.status)
+        self.assertTrue(rr.public)
+
+        # Add a new job
+        test_jobs = ['job000010', 'job000011']
+        self.p4.run_edit(self.relnotes)
+        self.append_line(self.relnotes, test_string)
+        for job in test_jobs:
+            self.p4.run('fix', '-c', cl, job)
+
+        subprocess.call("%s create --server %s --target-people sallan %d -p --branch mybranch" %
+                        (post_command, self.rb_url, cl), shell=True)
+        rr = self.get_rr_from_cl(cl)
+        self.assertEqual('sallan', rr.get_submitter().username)
+        self.assertEqual(test_string, rr.summary)
+        self.assertEqual(cl, rr.changenum)
+        self.assertEqual(test_jobs, rr.bugs_closed)
+        self.assertEqual('pending', rr.status)
+        self.assertTrue(rr.public)
+
+        # Now remove all jobs
+        for job in test_jobs:
+            self.p4.run('fix', '-d', '-c', cl, job)
+        subprocess.call("%s create --server %s --target-people sallan %d -p --branch mybranch" %
+                        (post_command, self.rb_url, cl), shell=True)
+        rr = self.get_rr_from_cl(cl)
+        self.assertEqual('sallan', rr.get_submitter().username)
+        self.assertEqual(test_string, rr.summary)
+        self.assertEqual(cl, rr.changenum)
+        self.assertEqual("", rr.bugs_closed)
+        self.assertEqual('pending', rr.status)
+        self.assertTrue(rr.public)
+
+
 if __name__ == '__main__':
     main()
