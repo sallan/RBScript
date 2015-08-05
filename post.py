@@ -24,8 +24,7 @@ RBTOOLS_COOKIE_FILENAME = ".rbtools-cookies"
 SHARED_USER_ACCOUNTS = ['mergeit']
 
 # PDTools usage tracking
-# TODO:
-LOGHOST = ("REMOVED", "FIXME")
+LOGHOST=('192.168.24.80', 7053) 
 USERNAME = os.environ.get('LOGNAME', os.environ.get('USER', 'UNKNOWN'))
 MSG_FMT = '%s:[PDTOOLS TRACKING]:%%s:%s:%%s' % (USERNAME, os.path.realpath(sys.argv[0]))
 
