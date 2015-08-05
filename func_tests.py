@@ -602,7 +602,7 @@ class FuncTests(TestCase):
         self.assertEqual('sallan', rr.get_submitter().username)
         self.assertEqual(test_string, rr.summary)
         self.assertEqual(cl, rr.changenum)
-        self.assertEqual("", rr.bugs_closed)
+        self.assertEqual(0, len(rr.bugs_closed))
         self.assertEqual('pending', rr.status)
         self.assertTrue(rr.public)
 

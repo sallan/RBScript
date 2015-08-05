@@ -766,9 +766,6 @@ class F5Review(object):
 
         """
         extra_args = []
-        if self.bugs:
-            extra_args.extend(['--bugs-closed', ','.join(self.bugs)])
-
         if self.action != 'create' and self.arg_parser.rid:
             extra_args.extend(['--review-request-id', self.arg_parser.rid])
 
@@ -798,6 +795,10 @@ class F5Review(object):
                 print shelve_message
             review = self.review_request.get_reviews().create()
             review.update(body_top=shelve_message, public=True)
+
+        if self.bugs is not None:
+            draft = self.review_request.get_draft()
+            draft.update(bugs_closed=",".join(self.bugs))
 
         if self.publish:
             draft = self.review_request.get_draft()
