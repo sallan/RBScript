@@ -101,6 +101,9 @@ class FuncTests(TestCase):
         rr1 = self.get_rr_from_cl(cl1)
         self.assertTrue(rr1.public)
 
+        # Save rid because we'll need it later when we update the change number
+        rr1_rid = rr1.id
+
         # Create a second review request
         test_string = 'Test creating with 2 jobs.'
         test_jobs = ['job000011', 'job000012']
@@ -129,12 +132,13 @@ class FuncTests(TestCase):
         self.assertEqual('submitted', rr2.status)
 
         # Submit first request
-        # I was going to do a test here to make sure the CL was updated
-        # on the server, but I could never get the test to pass, even though
-        # visual inspection verified the CL was being updated. So I scrapped
-        # the test.
         subprocess.call("%s submit --server %s %s -f" % (post_command, self.rb_url, cl1), shell=True)
-        rr1 = self.get_rr_from_cl(cl1)
+
+        # The orignal changenum should have been changed on submit.  Grab the review by rid and check
+        rr1 = self.rbapi_root.get_review_request(review_request_id=rr1_rid)
+
+        # The submitted cl should be 2 greater than the original
+        self.assertEqual(cl1 + 2, rr1.changenum)
         self.assertEqual('sallan', rr1.get_submitter().username)
         self.assertTrue(rr1.public)
         self.assertEqual('submitted', rr1.status)
@@ -521,7 +525,6 @@ class FuncTests(TestCase):
 
 
     def test_cookie_save(self):
-        # TODO: Turn this test back on
         from subprocess import Popen, PIPE
 
         rb_cookies_file = os.path.join(os.path.expanduser(os.environ['HOME']), ".rbtools-cookies")

@@ -810,9 +810,11 @@ class F5Review(object):
             print self.rbt_args
         self.run(d, self.rbt_args)
 
-    def close(self):
+    def close(self, changenum):
         """Close the review in Review Board"""
         c = close.Close()
+        if changenum is not None:
+            self.review_request.update(changenum=changenum)
         self.rbt_args.append(self.rid)
         if self.debug:
             print self.rbt_args
@@ -1035,6 +1037,7 @@ def submit_review(f5_review):
 
     # We allow reviews of submitted change lists, in which case there's
     # no CL associated with the review and nothing to do in perforce.
+    submitted_change_list = None
     if f5_review.change_number is not None:
         # If CL is shelved, delete the shelve since the user has already indicated
         # a clear intention to submit the CL.
@@ -1051,8 +1054,9 @@ def submit_review(f5_review):
             p4.add_reviewboard_shipits(f5_review.change_number, ship_it_list)
 
         submitted_change_list = p4.submit(f5_review.change_number)
+        print "Change submitted as %s." % submitted_change_list
 
-    f5_review.close()
+    f5_review.close(submitted_change_list)
 
 
 def diff_changes(f5_review):
