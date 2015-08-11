@@ -1077,7 +1077,7 @@ def main():
     try:
         arg_parser = RBArgParser(sys.argv)
     except RBError as e:
-        print e.message
+        print e
         raise SystemExit(ARG_PARSER)
 
     if arg_parser.version:
