@@ -1,4 +1,10 @@
 * Sprint
+
+** Bug in RBTools when posting binary files, such as jar files
+   
+   With 0.6.3, binary files don't get listed in the review.  They do with
+   0.5.2.  Test it with 0.7.x and report bug if needed.
+
 * Test with different versions of RBTools
 
    - RB 2.0 and RBT 0.5.2 :: FAIL
